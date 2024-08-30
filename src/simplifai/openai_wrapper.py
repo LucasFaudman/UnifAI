@@ -175,6 +175,9 @@ class OpenAIWrapper(BaseAIClientWrapper):
             **kwargs
             ) -> ChatCompletion:
 
+            if tool_choice and not tools:
+                tool_choice = None
+
             response = self.client.chat.completions.create(
                 messages=messages, 
                 model=model,

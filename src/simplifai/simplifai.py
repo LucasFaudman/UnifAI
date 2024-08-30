@@ -5,7 +5,7 @@ from typing import Optional, Union, Any, Literal, Mapping, Type, Callable, Colle
 from json import dumps as json_dumps
 from .baseaiclientwrapper import BaseAIClientWrapper
 
-from ._types import Message, Tool, ToolCall
+from ._types import Message, Tool, ToolCall, tool_from_dict
 
 AIProvider = Literal["anthropic", "openai", "ollama"]
 
@@ -27,10 +27,10 @@ class SimplifAI:
 
     
     def __init__(self, 
-                 provider_client_kwargs: dict[AIProvider, dict[str, Any]],
+                 provider_client_kwargs: Optional[dict[AIProvider, dict[str, Any]]] = None,
                  tool_callables: Optional[dict[str, Callable]] = None                 
                  ):
-        self.provider_client_kwargs = provider_client_kwargs
+        self.provider_client_kwargs = provider_client_kwargs if provider_client_kwargs is not None else {}
         self.providers = list(self.provider_client_kwargs.keys())
         self.default_provider: AIProvider = self.providers[0] if len(self.providers) > 0 else "openai"
         self._clients: dict[AIProvider, BaseAIClientWrapper] = {}
@@ -46,27 +46,6 @@ class SimplifAI:
         if provider not in self._clients:
             return self.init_client(provider)
         return self._clients[provider]
-    
-
-    # def recursively_make_serializeable(self, obj):
-    #     """Recursively makes an object serializeable by converting it to a dict or list of dicts and converting all non-string values to strings."""
-    #     serializeable_types = (str, int, float, bool, type(None))
-    #     if isinstance(obj, serializeable_types):
-    #         return obj
-    #     if isinstance(obj, dict):
-    #         return {k: self.recursively_make_serializeable(v) for k, v in obj.items()}
-    #     if isinstance(obj, list):
-    #         return [self.recursively_make_serializeable(item) for item in obj]
-    #     return str(obj)
-
-    # def format_content(self, content):
-    #     """Formats content for use a message content. If content is not a string, it is converted to json_"""
-    #     if not isinstance(content, str):
-    #         content = self.recursively_make_serializeable(content)
-    #         content = json_dumps(content, indent=0)
-
-    #     return content
-
 
     # List Models
     def list_models(self, provider: Optional[AIProvider] = None) -> list[str]:
@@ -125,15 +104,13 @@ class SimplifAI:
             if isinstance(tool, Tool):
                 std_tools.append(tool)
             elif isinstance(tool, dict):
-                std_tools.append(Tool(**tool))
+                std_tools.append(tool_from_dict(tool))
             else:
                 raise ValueError(f"Invalid tool type: {type(tool)}")
         
         return std_tools
     
     def standardize_tool_choice(self, tool_choice: Union[Literal["auto", "required", "none"], Tool, str, dict]) -> str:
-        if tool_choice is None:
-            return "auto"
         if isinstance(tool_choice, Tool):
             return tool_choice.name
         if isinstance(tool_choice, dict):
@@ -168,7 +145,7 @@ class SimplifAI:
             provider: Optional[AIProvider] = None,            
             model: Optional[str] = None,             
             tools: Optional[list[Union[Tool, dict[str, Any]]]] = None,
-            tool_choice: Union[Literal["auto", "required", "none"], Tool, str, dict] = "auto",
+            tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict]] = None,
             response_format: Optional[Union[str, dict[str, str]]] = None,
 
             return_on: Optional[Union[Literal["content", "message"], str, Collection[str]]] = "content",
@@ -196,10 +173,18 @@ class SimplifAI:
         else:
             std_tools = None
             client_tools = None
-            
-        std_tool_choice = self.standardize_tool_choice(tool_choice)
-        client_tool_choice = client.prep_input_tool_choice(tool_choice)
-        client_response_format = client.prep_input_response_format(response_format) if response_format else None
+
+        if tool_choice:            
+            std_tool_choice = self.standardize_tool_choice(tool_choice)
+            client_tool_choice = client.prep_input_tool_choice(tool_choice)
+        else:
+            std_tool_choice = client_tool_choice = None
+            client_tool_choice = None
+
+        if response_format:
+            client_response_format = client.prep_input_response_format(response_format)
+        else:
+            client_response_format = None
         
         # Chat and ToolCall handling loop
         while (response := client.chat(
@@ -217,20 +202,7 @@ class SimplifAI:
 
             # Enforce Tool Choice: Check if tool choice is obeyed
             # auto:  
-            if enforce_tool_choice and std_tool_choice != 'auto':
-                # if std_message.tool_calls:
-                #     tools_called = [tool_call.tool_name for tool_call in std_message.tool_calls]
-                #     if std_tool_choice == 'none' or (std_tool_choice != 'required' and std_tool_choice not in tools_called):
-                #         print("Tool choice enforced:", std_tool_choice)
-                #         tool_choice_obeyed = False # Tools called but tool choice is none
-                #         tool_choice_error_retries -= 1                     
-                #     else:
-                #         print("Tool choice obeyed: ", std_tool_choice)
-                #         tool_choice_obeyed = True
-                # elif std_tool_choice == 'required':
-                #     print("Tool choice enforced: required")
-                #     tool_choice_obeyed = False
-
+            if enforce_tool_choice and std_tool_choice != 'auto' and std_tool_choice is not None:
                 if self.check_tool_choice_obeyed(std_tool_choice, std_message.tool_calls):
                     # TODO implement tool choice sequence
                     std_tool_choice = client_tool_choice = "auto" # set to auto for next iteration
@@ -270,6 +242,5 @@ class SimplifAI:
 
             print("Returning on content:", std_message.content)
             break
-
 
         return std_messages
