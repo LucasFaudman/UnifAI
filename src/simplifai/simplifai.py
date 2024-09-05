@@ -164,39 +164,15 @@ class SimplifAIClient:
         
         print(f"tool_choice={tool_choice} OBEYED")
         return True       
-    
-
-    # def do_tool_call(self, tool_call: ToolCall) -> Message:
-    #     tool_name = tool_call.tool_name
-    #     tool_callable = self.tool_callables.get(tool_name)
-    #     if tool_callable is not None:
-    #         arguments = tool_call.arguments or {}
-    #         tool_output = tool_callable(**arguments)
-    #     else:
-    #         raise ValueError(f"Tool '{tool_name}' callable not found")
-        
-    #     std_tool_output_message = Message(
-    #         role="tool", 
-    #         content=stringify_content(tool_output), 
-    #         images=None,
-    #         tool_calls=[tool_call],
-    #         response_object=tool_output
-    #     )        
-    #     return std_tool_output_message
 
 
     def do_tool_calls(self, tool_calls: list[ToolCall]) -> list[ToolCall]:
-        # tool_outputs = {}
         for tool_call in tool_calls:
-            tool_name = tool_call.tool_name
-            tool_callable = self.tool_callables.get(tool_name)
-            if tool_callable is not None:
-                # arguments = tool_call.arguments or {}
-                # tool_output = tool_callable(**arguments)
-                # tool_outputs[tool_call.tool_call_id] = tool_output
+            if tool_callable := self.tool_callables.get(tool_call.tool_name):
+                # TODO catch ToolCallError
                 tool_call.output = tool_callable(**(tool_call.arguments or {}))
             else:
-                raise ValueError(f"Tool '{tool_name}' callable not found")
+                raise ValueError(f"Tool '{tool_call.tool_name}' callable not found")
         
         return tool_calls
 
