@@ -38,20 +38,17 @@ def stringify_content(content: Any) -> str:
     return json_dumps(make_content_serializeable(content), indent=0)
 
 def make_few_shot_prompt(        
-        system_prompt: str, 
-        examples: Optional[list[Union[Message, dict[Literal["input", "response"], Any]]]], 
-        content: Any
+        system_prompt: Optional[str] = None, 
+        examples: Optional[list[Union[Message, dict[Literal["input", "response"], Any]]]] = None, 
+        content: Any = ""
     ) -> Sequence[Message]:
     """Makes list of message objects from system prompt, examples, and user input."""
+    messages = []
+    if system_prompt:
+        # Begin with system_prompt if it exists
+        messages.append(Message(role="system", content=system_prompt))
 
-    # Join system_prompt if it is a list or tuple
-    # if not isinstance(system_prompt, str):
-    #     system_prompt = " ".join(system_prompt)
-
-    # Create list of messages beginning with system_prompt
-    messages = [Message(role="system", content=system_prompt)]
-
-    # Add examples to messages
+    # Add examples
     if examples:
         for example in examples:
             if isinstance(example, Message):
@@ -60,7 +57,7 @@ def make_few_shot_prompt(
                 messages.append(Message(role="user", content=stringify_content(example['input'])))
                 messages.append(Message(role="assistant", content=stringify_content(example['response'])))
 
-    # Add content to messages
+    # Add content
     messages.append(Message(role="user", content=stringify_content(content)))
     return messages
 

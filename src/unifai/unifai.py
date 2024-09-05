@@ -13,7 +13,7 @@ AIProvider = Literal["anthropic", "openai", "ollama"]
 ToolInput = Union[Tool, dict[str, Any], str]
 EvalTypeParametersInput = Union[EvalTypeParameters, dict[str, Any]]
 
-class SimplifAIClient:
+class UnifAIClient:
     TOOLS: list[ToolInput] = []
     TOOL_CALLABLES: dict[str, Callable] = {}
     EVAL_TYPES: list[EvalTypeParametersInput] = []

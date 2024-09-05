@@ -1,6 +1,6 @@
 import pytest
-from simplifai import SimplifAIClient, AIProvider
-from simplifai._types import Message, Tool
+from unifai import UnifAIClient, AIProvider
+from unifai._types import Message, Tool
 from basetest import base_test_all_providers
 
 # TOOLS AND TOOL CALLABLES
@@ -98,7 +98,7 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
 @base_test_all_providers
 def test_chat_simple(provider: AIProvider, client_kwargs: dict, func_kwargs: dict):
 
-    ai = SimplifAIClient({provider: client_kwargs})
+    ai = UnifAIClient({provider: client_kwargs})
     ai.init_client(provider, **client_kwargs)
     messages = ai.chat(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
@@ -137,7 +137,7 @@ def test_chat_simple(provider: AIProvider, client_kwargs: dict, func_kwargs: dic
 
 ])
 def test_chat_tools_simple(
-    # ai: SimplifAIClient, 
+    # ai: UnifAIClient, 
     provider: AIProvider, 
     client_kwargs: dict,
     func_kwargs: dict,
@@ -146,7 +146,7 @@ def test_chat_tools_simple(
     tool_callables: dict
     ):
 
-    ai = SimplifAIClient(
+    ai = UnifAIClient(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
@@ -184,7 +184,7 @@ def test_chat_tools_simple(
     ),
 ])
 def test_chat_return_on(
-    # ai: SimplifAIClient, 
+    # ai: UnifAIClient, 
     provider: AIProvider, 
     client_kwargs: dict,
     func_kwargs: dict,
@@ -193,7 +193,7 @@ def test_chat_return_on(
     tool_callables: dict, 
     ):
 
-    ai = SimplifAIClient(
+    ai = UnifAIClient(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
@@ -265,7 +265,7 @@ def test_chat_return_on(
     ),
 ])
 def test_chat_enforce_tool_choice(
-    # ai: SimplifAIClient, 
+    # ai: UnifAIClient, 
     provider: AIProvider, 
     client_kwargs: dict,
     func_kwargs: dict,
@@ -275,7 +275,7 @@ def test_chat_enforce_tool_choice(
     tool_choice: str
     ):
 
-    ai = SimplifAIClient(
+    ai = UnifAIClient(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
@@ -334,7 +334,7 @@ def test_chat_enforce_tool_choice(
     ),
 ])
 def test_chat_enforce_tool_choice_sequence(
-    # ai: SimplifAIClient, 
+    # ai: UnifAIClient, 
     provider: AIProvider, 
     client_kwargs: dict,
     func_kwargs: dict,
@@ -344,7 +344,7 @@ def test_chat_enforce_tool_choice_sequence(
     tool_choice: list[str]
     ):
 
-    ai = SimplifAIClient(
+    ai = UnifAIClient(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )

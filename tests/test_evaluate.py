@@ -1,6 +1,6 @@
 import pytest
-from simplifai import SimplifAIClient, AIProvider
-from simplifai._types import Message, Tool, EvalTypeParameters
+from unifai import UnifAIClient, AIProvider
+from unifai._types import Message, Tool, EvalTypeParameters
 from basetest import base_test_all_providers
 
 TOOLS = {
@@ -56,7 +56,7 @@ def test_evaluate_simple(
     content: str
     ):
 
-    ai = SimplifAIClient(
+    ai = UnifAIClient(
         provider_client_kwargs={provider: client_kwargs},
         tools=tools,
         tool_callables=tool_callables,

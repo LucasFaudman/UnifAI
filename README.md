@@ -1,2 +1,2 @@
 # UnifAI
-All in One AI function calling
+Unify AI clients into a single interface with enhanced Tool Calling support.

@@ -11,10 +11,10 @@ EXT_MODULES = []
 #     EXT_MODULES.extend(
 #         mypycify(
 #             [
-#                 "src/simplifai/simplifai.py",
-#                 "src/simplifai/concurrent_executor.py",
-#                 "src/simplifai/decompiler.py",
-#                 "src/simplifai/secret_scanner.py",
+#                 "src/unifai/unifai.py",
+#                 "src/unifai/concurrent_executor.py",
+#                 "src/unifai/decompiler.py",
+#                 "src/unifai/secret_scanner.py",
 #             ]
 #         )
 #     )
@@ -22,16 +22,16 @@ EXT_MODULES = []
 #     print(f"Failed to compile with mypyc: {e}")
 
 setup(
-    name="simplifai",
-    version="0.1.0",
+    name="unifai",
+    version="0.0.1",
     use_scm_version=True,
     setup_requires=["setuptools>=42", "setuptools_scm>=8", "wheel"],
-    description="",
+    description="Unify AI clients into a single interface with enhanced Tool Calling support.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     author="Lucas Faudman",
     author_email="lucasfaudman@gmail.com",
-    url="https://github.com/LucasFaudman/simplifai.git",
+    url="https://github.com/LucasFaudman/unifai.git",
     packages=find_namespace_packages(where="src", exclude=["tests*"]),
     package_dir={"": "src"},
     package_data={
@@ -54,7 +54,7 @@ setup(
     python_requires=">=3.10",
     license="LICENSE",
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
@@ -67,7 +67,7 @@ setup(
     ],
     keywords="",
     project_urls={
-        "Homepage": "https://github.com/LucasFaudman/simplifai.git",
-        "Repository": "https://github.com/LucasFaudman/simplifai.git",
+        "Homepage": "https://github.com/LucasFaudman/unifai.git",
+        "Repository": "https://github.com/LucasFaudman/unifai.git",
     },
 )

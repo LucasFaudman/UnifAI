@@ -5,20 +5,20 @@ build-backend = "setuptools.build_meta"
 [project]
 authors = [{name = "Lucas Faudman", email = "lucasfaudman@gmail.com"}]
 dynamic = ["classifiers"]
-name = "simplifai"
-version = "0.1.0"
+name = "unifai"
+version = "0.0.1"
 requires-python = ">=3.10"
 readme = "README.md"
 license = { file = "LICENSE" }
-description = ""
+description = "Unify AI clients into a single interface with enhanced Tool Calling support."
 keywords = []
 dependencies = [
     "pydantic",
 ]
 
 [project.urls]
-Homepage = "https://github.com/LucasFaudman/simplifai.git"
-Repository = "https://github.com/LucasFaudman/simplifai.git"
+Homepage = "https://github.com/LucasFaudman/unifai.git"
+Repository = "https://github.com/LucasFaudman/unifai.git"
 
 [project.scripts]
 
@@ -38,7 +38,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools_scm]
-version_file = "src/simplifai/_version.py"
+version_file = "src/unifai/_version.py"
 
 [tool.black]
 line-length = 120
