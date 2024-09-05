@@ -1,5 +1,5 @@
 import pytest
-from simplifai import SimplifAI, AIProvider
+from simplifai import SimplifAIClient, AIProvider
 from simplifai._types import (
     Message, 
     Image, 
@@ -20,7 +20,7 @@ from simplifai._types import (
 
 from basetest import base_test_all_providers
 
-ai = SimplifAI()
+ai = SimplifAIClient()
 
 @pytest.mark.parametrize("input_messages, std_messages", [
     (

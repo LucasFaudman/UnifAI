@@ -69,18 +69,51 @@ tools = [
 ]
 
 
-resp = client.chat(
-    model="mistral:7b-instruct",
-    messages=[dict_to_ollama_message(message) for message in messages],
-    tools=[dict_to_ollama_tool(tool) for tool in tools],
-    # stream=True,
-)
+# stream = client.chat(
+#     model="mistral:7b-instruct",
+#     messages=[dict_to_ollama_message(message) for message in messages],
+#     tools=[dict_to_ollama_tool(tool) for tool in tools],
+#     stream=True,
+# )
 
 # for chunk in stream:
 #   print(chunk['message']['content'], end='', flush=True)
-print('\nresp:\n', resp)
-print('\ncontent:\n',resp['message']['content'])
-print('\ntool_calls:\n', '\n'.join(map(str, resp['message']['tool_calls'])))
+
+
+# from json import load as json_load, dump as json_dump
+# from pprint import pprint
+# from collections import defaultdict
+
+# with open('geeda.json') as f:
+#     geeda = json_load(f)
+
+# geeda_embeddings = defaultdict(list)
+# for chapter_title, chapter_text in geeda.items():
+#     for line in chapter_text.splitlines():
+#         print("geeda Text: ", line)
+#         embeddings = client.embed(
+#             model="mistral:7b-instruct",
+#             input=[line],
+#         )
+#         geeda_embeddings[chapter_title].append(embeddings)
+#         print("Embeddings: ", embeddings)
+#         print()
+
+# with open('geeda_embeddings.json', 'w') as f:
+#     json_dump(geeda_embeddings, f) 
+
+# pprint(geeda_embeddings)
+
+# embeddings = client.embed(
+#     model="mistral:7b-instruct",
+#     input=["Hello, world!"],
+# )
+
+# print(embeddings)
+
+# print('\nresp:\n', resp)
+# print('\ncontent:\n',resp['message']['content'])
+# print('\ntool_calls:\n', '\n'.join(map(str, resp['message']['tool_calls'])))
 
 
 # class OllamaFunctionCaller:

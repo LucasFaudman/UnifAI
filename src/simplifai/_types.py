@@ -1,4 +1,6 @@
-from typing import Optional, Union, Sequence, Any, Literal, Mapping, TypeVar, List, Type, Tuple, Dict, Any
+from typing import (
+    Optional, Union, Sequence, Any, 
+    Literal, Mapping, TypeVar, List, Type, Tuple, Dict, Any, Callable, Collection)
 
 from pydantic import BaseModel, Field
 
@@ -6,15 +8,18 @@ class ResponseInfo(BaseModel):
     data: Any
     usage: Any
 
-class Image(BaseModel):
-    url: Optional[str]
+class Image(BaseModel):    
     data: Optional[Union[str, bytes]]
+    url: Optional[str]
     filepath: Optional[str]
+    media_type: Literal["image/jpeg", "image/png", "image/gif", "image/webp"] = "image/jpeg"
+    format: Literal["base64", "url", "filepath"] = "base64"
 
 class ToolCall(BaseModel):
     tool_call_id: str
     tool_name: str
     arguments: Optional[Mapping[str, Any]]
+    output: Optional[Any] = None
     type: str = "function"
 
 
@@ -108,7 +113,7 @@ class Tool(BaseModel):
     type: str
     name: str
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "type": self.type,
             # self.type: {
@@ -121,6 +126,7 @@ class FunctionTool(Tool):
     description: str
     parameters: Union[ObjectToolParameter, ArrayToolParameter, ToolParameter]
     strict: bool = True
+    callable: Optional[Callable] = None
 
     def to_dict(self):
         return {
@@ -142,73 +148,17 @@ class FileSearchTool(Tool):
     name: str = "file_search"
 
 
-def tool_parameter_from_dict(
-        param_dict: dict, 
-        param_name: Optional[str]= None,
-        param_required: bool= False
-        ) -> ToolParameter:
+class EvalTypeParameters(BaseModel):
+    name: str
+    system_prompt: str = "Your role is to evaluate the content using the provided tool(s)." 
+    examples: Optional[list[Union[Message, dict[Literal["input", "response"], Any]]]] = None   
+    tools: Optional[list[Union[Tool, str]]] = None
+    tool_choice: Optional[Union[str, list[str]]] = None
+    return_on: Optional[Union[Literal["content", "tool_call", "message"], str, list[str]]] = None
+    return_as: Literal["messages", "last_message", "last_content_or_tool_call_args", "last_content_or_all_tool_call_args"] = "last_content_or_tool_call_args"
+
     
-    if (anyof_param_dicts := param_dict.get('anyOf')) is not None:
-        anyOf = [
-            tool_parameter_from_dict(param_dict=anyof_param_dict, param_name=param_name, param_required=param_required)
-            for anyof_param_dict in anyof_param_dicts
-        ]
-        return AnyOfToolParameter(name=param_name, required=param_required, anyOf=anyOf)
+    response_format: Optional[Union[str, dict[str, str]]] = None
+    enforce_tool_choice: bool = True
+    tool_choice_error_retries: int = 3
 
-    param_type = param_dict['type']
-    param_name = param_dict.get('name', param_name)
-    param_description = param_dict.get('description')
-    param_enum = param_dict.get('enum')
-
-    if param_type == 'string':
-        return StringToolParameter(name=param_name, description=param_description, required=param_required, enum=param_enum)
-    if param_type == 'number':
-        return NumberToolParameter(name=param_name, description=param_description, required=param_required, enum=param_enum)
-    if param_type == 'integer':
-        return IntegerToolParameter(name=param_name, description=param_description, required=param_required, enum=param_enum)
-    if param_type == 'boolean':
-        return BooleanToolParameter(name=param_name, description=param_description, required=param_required, enum=param_enum)
-    if param_type == 'null':
-        return NullToolParameter(name=param_name, description=param_description, required=param_required, enum=param_enum)
-    
-    if param_type == 'array':
-        items = tool_parameter_from_dict(param_dict=param_dict['items'], param_required=param_required)
-        return ArrayToolParameter(name=param_name, description=param_description, 
-                                  required=param_required, enum=param_enum, 
-                                  items=items)    
-    if param_type == 'object':
-        required_params = param_dict.get('required', [])
-        properties = [
-            tool_parameter_from_dict(param_dict=prop_dict, param_name=prop_name, param_required=prop_name in required_params) 
-            for prop_name, prop_dict in param_dict['properties'].items()
-        ]
-        additionalProperties = param_dict.get('additionalProperties', False)
-        return ObjectToolParameter(name=param_name, description=param_description, 
-                                   required=param_required, enum=param_enum, 
-                                   properties=properties, additionalProperties=additionalProperties)
-    
-    raise ValueError(f"Invalid parameter type: {param_type}")
-
-
-
-def tool_from_dict(tool_dict: dict) -> Tool:
-    tool_type = tool_dict['type']
-    if tool_type == 'code_interpreter':
-        return CodeInterpreterTool()
-    if tool_type == 'file_search':
-        return FileSearchTool()
-    
-    tool_def = tool_dict[tool_type]
-    parameters = tool_parameter_from_dict(param_dict=tool_def['parameters'], 
-            # param_name='parameters',
-            # param_required=True
-    )
-    if parameters.type == 'anyOf':
-        raise ValueError("Root parameter cannot be anyOf: See: https://platform.openai.com/docs/guides/structured-outputs/root-objects-must-not-be-anyof")
-
-    return FunctionTool(
-        name=tool_def['name'], 
-        description=tool_def['description'], 
-        parameters=parameters,
-        strict=tool_def.get('strict')
-    )

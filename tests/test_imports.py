@@ -1,8 +1,8 @@
 import pytest
-from simplifai import SimplifAI
+from simplifai import SimplifAIClient
 
-def test_import_simplifai():
-    assert SimplifAI
+def test_import_simplifai_client():
+    assert SimplifAIClient
 
 @pytest.mark.parametrize("provider, client_kwargs", [
     ("anthropic", {"api_key": "test"}),
@@ -10,7 +10,7 @@ def test_import_simplifai():
     ("ollama", {}),
 ])
 def test_init_clients(provider, client_kwargs):
-    ai = SimplifAI({
+    ai = SimplifAIClient({
         provider: client_kwargs
     })
 

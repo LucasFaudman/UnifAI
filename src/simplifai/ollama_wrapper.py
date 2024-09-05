@@ -1,6 +1,7 @@
 from typing import Optional, Union, Sequence, Any, Literal, Mapping
 
 from ._types import Message, Tool, ToolCall
+from ._convert_types import stringify_content
 from .baseaiclientwrapper import BaseAIClientWrapper
 
 from ollama import Client as OllamaClient
@@ -36,37 +37,44 @@ class OllamaWrapper(BaseAIClientWrapper):
 
         return OllamaClient
     
-    def prep_input_message(self, message: Union[Message, dict[str, str], str, OllamaMessage]) -> OllamaMessage:
-        role = 'user'
-        content = None
-        images = None
+    def prep_input_message(self, message: Message) -> OllamaMessage:        
+        role = message.role
+        content = message.content or ''
+        images = None # TODO: Implement image extraction
         tool_calls = None
-        
-        if isinstance(message, str):
-            role = 'user'
-            content = message
-        elif isinstance(message, Message):
-            role = message.role
-            content = message.content
-            if message.images:
-                images = [image.data for image in message.images if image.data]
-            if message.tool_calls:
-                if message.role == 'tool':
-                    tool_calls = None
-                else:
-                    tool_calls = [self.prep_input_tool_call(tool_call) for tool_call in message.tool_calls]
+        if message.images:
+            images = [image.data for image in message.images if image.data]
+        if message.tool_calls:
+            if message.role == 'tool':
+                tool_calls = None
+            else:
+                tool_calls = [self.prep_input_tool_call(tool_call) for tool_call in message.tool_calls]
             
-        elif isinstance(message, dict):
-            role = message['role']
-            content = message.get('content')
-            images = message.get('images', None)
-            tool_calls = message.get('tool_calls', None)
-
         return OllamaMessage(role=role, content=content, images=images, tool_calls=tool_calls)
-    
-    def prep_input_tool(self, tool: Union[Tool, dict]) -> OllamaTool:
-        tool_dict = tool if isinstance(tool, dict) else tool.to_dict()
 
+    def prep_input_messages_and_system_prompt(self, 
+                                              messages: list[Message], 
+                                              system_prompt_arg: Optional[str] = None
+                                              ) -> tuple[list, Optional[str]]:
+        if system_prompt_arg:
+            system_prompt = system_prompt_arg
+            if messages and messages[0].role == "system":
+                messages[0].content = system_prompt
+            else:
+                messages.insert(0, Message(role="system", content=system_prompt))
+        elif messages and messages[0].role == "system":
+            system_prompt = messages[0].content
+        else:
+            system_prompt = None
+
+        client_messages = [self.prep_input_message(message) for message in messages]
+        return client_messages, system_prompt
+            
+    
+    def prep_input_tool(self, tool: Tool) -> OllamaTool:
+        # tool_dict = tool if isinstance(tool, dict) else tool.to_dict()
+
+        tool_dict = tool.to_dict()
         tool_type = tool_dict['type']
         tool_def = tool_dict[tool_type]
 
@@ -87,14 +95,7 @@ class OllamaWrapper(BaseAIClientWrapper):
         tool_function = OllamaToolFunction(name=tool_name, description=tool_description, parameters=parameters)
         return OllamaTool(type=tool_type, function=tool_function)            
     
-    def prep_input_tool_choice(self, tool_choice: Union[Tool, str, dict, Literal["auto", "required", "none"]]) -> str:
-        # if tool_choice in ("auto", "required", "none"):
-        #     return tool_choice
-        if isinstance(tool_choice, Tool):
-            return tool_choice.name
-        if isinstance(tool_choice, dict):
-            tool_type = tool_choice['type']
-            return tool_choice[tool_type]['name']
+    def prep_input_tool_choice(self, tool_choice: str) -> str:
         return tool_choice
     
     def prep_input_tool_call(self, tool_call: ToolCall) -> OllamaToolCall:
@@ -105,11 +106,18 @@ class OllamaWrapper(BaseAIClientWrapper):
             )
         )
     
-    def prep_input_tool_call_response(self, tool_call: ToolCall, tool_response: Any) -> OllamaMessage:
-        return OllamaMessage(
-            role='tool',
-            content=tool_response,
-        )
+    
+    def split_tool_call_outputs_into_messages(self, tool_calls: list[ToolCall]) -> list[Message]:        
+        return [
+            Message(role="tool", content=stringify_content(tool_call.output), tool_calls=[tool_call])
+            for tool_call in tool_calls
+        ]
+
+    # def prep_input_tool_call_response(self, tool_call: ToolCall, tool_response: Any) -> OllamaMessage:
+    #     return OllamaMessage(
+    #         role='tool',
+    #         content=tool_response,
+    #     )
 
     def prep_input_response_format(self, response_format: Union[str, dict[str, str]]) -> str:
         if response_format in ("json", "json_object"):
@@ -124,20 +132,30 @@ class OllamaWrapper(BaseAIClientWrapper):
         return ToolCall(tool_call_id=tool_call_id, tool_name=name, arguments=arguments)
 
 
-    def extract_output_message(self, response: OllamaChatResponse) -> Message:
-        message = response['message']
+    # def extract_output_message(self, response: OllamaChatResponse) -> Message:
+    #     message = response['message']
+    #     images = None # TODO: Implement image extraction
+    #     tool_calls = [self.extract_output_tool_call(tool_call) for tool_call in message.get('tool_calls', [])]
+    #     return Message(
+    #         role=message['role'],
+    #         content=message.get('content'),
+    #         images=images,
+    #         tool_calls=tool_calls,
+    #         response_object=response
+    #     )
+
+    def extract_std_and_client_messages(self, response: OllamaChatResponse) -> tuple[Message, OllamaMessage]:
+        client_message = response['message']
         images = None # TODO: Implement image extraction
-        tool_calls = [self.extract_output_tool_call(tool_call) for tool_call in message.get('tool_calls', [])]
-        return Message(
-            role=message['role'],
-            content=message.get('content'),
+        tool_calls = [self.extract_output_tool_call(tool_call) for tool_call in client_message.get('tool_calls', [])]
+        std_message = Message(
+            role=client_message['role'],
+            content=client_message.get('content'),
             images=images,
             tool_calls=tool_calls,
             response_object=response
         )
-
-
-
+        return std_message, client_message
 
 
 
@@ -160,23 +178,41 @@ class OllamaWrapper(BaseAIClientWrapper):
 
     def chat(
             self,
-            messages: list[Message],     
-            model: Optional[str] = None,                    
-            tools: Optional[list[Any]] = None,
-            tool_choice: Optional[Union[Tool, str, dict, Literal["auto", "required", "none"]]] = None,
-            response_format: Optional[Union[str, dict[str, str]]] = None,
+            messages: list[OllamaMessage],     
+            model: Optional[str] = None, 
+            system_prompt: Optional[str] = None,                   
+            tools: Optional[list[OllamaTool]] = None,
+            tool_choice: Optional[str] = None,
+            response_format: Optional[str] = '',
             **kwargs
             ) -> Message:
         
-            # model = model or self.default_model
-            # if system_prompt := self.get_system_prompt_from_messages(messages):
-            #     model = self.get_custom_model(model, system_prompt)
-            #     messages = messages[1:] # Remove system prompt message
+            # if (tool_choice and tool_choice != "auto" and system_prompt
+            #     and messages and messages[0]["role"] == "system"
+            #     ):                
+            #     if tool_choice == "required":
+            #         messages[0]["content"] = f"{system_prompt}\nYou MUST call one or more tools."
+            #     elif tool_choice == "none":
+            #         messages[0]["content"] = f"{system_prompt}\nYou CANNOT call any tools."
+            #     else:
+            #         messages[0]["content"] = f"{system_prompt}\nYou MUST call the tool '{tool_choice}' with ALL of its required arguments."
+            #     system_prompt_modified = True
+            # else:
+            #     system_prompt_modified = False
 
-            messages = [self.prep_input_message(message) for message in ([] if messages is None else messages)]
-            tools = [self.prep_input_tool(tool) for tool in tools] if tools else None
-            tool_choice = self.prep_input_tool_choice(tool_choice) if tool_choice else None
-            response_format = self.prep_input_response_format(response_format) if response_format else None
+            user_messages = [message for message in messages if message["role"] == 'user']
+            last_user_content = user_messages[-1].get("content", "") if user_messages else ""            
+            if (tool_choice and tool_choice != "auto" and last_user_content is not None
+                ):                
+                if tool_choice == "required":
+                    user_messages[-1]["content"] = f"{last_user_content}\nYou MUST call one or more tools."
+                elif tool_choice == "none":
+                    user_messages[-1]["content"] = f"{last_user_content}\nYou CANNOT call any tools."
+                else:
+                    user_messages[-1]["content"] = f"{last_user_content}\nYou MUST call the tool '{tool_choice}' with ALL of its required arguments."
+                last_user_content_modified = True
+            else:
+                last_user_content_modified = False
 
             keep_alive = kwargs.pop('keep_alive', None)
             stream = kwargs.pop('stream', False)
@@ -193,4 +229,11 @@ class OllamaWrapper(BaseAIClientWrapper):
                 stream=stream,
                 options=options
             )
-            return self.extract_output_message(response)
+
+            if last_user_content_modified:
+                user_messages[-1]["content"] = last_user_content
+
+            # if system_prompt_modified:
+            #     response['message']['content'] = system_prompt
+
+            return response
