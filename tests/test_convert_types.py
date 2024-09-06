@@ -5,6 +5,7 @@ from unifai._types import (
     Image, 
     ToolCall, 
     ToolParameter,
+    ToolParameters,
     StringToolParameter,
     NumberToolParameter,
     IntegerToolParameter,
@@ -22,7 +23,7 @@ from basetest import base_test_all_providers
 
 ai = UnifAIClient()
 
-@pytest.mark.parametrize("input_messages, std_messages", [
+@pytest.mark.parametrize("input_messages, expected_std_messages", [
     (
         [Message(role='user', content='Hello AI')],
         [Message(role='user', content='Hello AI')]
@@ -84,8 +85,14 @@ ai = UnifAIClient()
         ],  
     ),
 ])
-def test_standardize_messages(input_messages, std_messages):
-    assert ai.standardize_messages(input_messages) == std_messages
+def test_standardize_messages(input_messages, expected_std_messages):
+    std_messages = ai.standardize_messages(input_messages)
+    for std_message, expected_message in zip(std_messages, expected_std_messages):
+        # sync created_at before comparison
+        std_message.created_at = expected_message.created_at
+        assert std_message == expected_message
+
+    assert std_messages == expected_std_messages
 
 
 
@@ -115,6 +122,123 @@ TOOL_DICTS = {
             "strict": True
         },
     }, # get_current_weather
+
+    "calculator": {
+        "type": "function",
+        "function": {
+            "name": "calculator",
+            "description": "Perform a basic arithmetic operation on two numbers.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "description": "The operation to perform",
+                        "enum": ["add", "subtract", "multiply", "divide"]
+                    },
+                    "left_value": {
+                        "type": "number",
+                        "description": "The value on the left side of the operation",
+                    },
+                    "right_value": {
+                        "type": "number",
+                        "description": "The value on the right side of the operation",
+                    }
+                },
+                "required": ["operation", "left_value", "right_value"],
+                "additionalProperties": False
+            },
+            "strict": True
+        },
+    }, # calculator
+
+    "calculator_from_sequence": {
+        "type": "function",
+        "function": {
+            "name": "calculator_from_sequence",
+            "description": "Perform a basic arithmetic operation on two numbers.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "description": "The operation to perform",
+                        "enum": ["add", "subtract", "multiply", "divide"]
+                    },
+                    "left_value": {
+                        "type": "number",
+                        "description": "The value on the left side of the operation",
+                    },
+                    "right_value": {
+                        "type": "number",
+                        "description": "The value on the right side of the operation",
+                    }
+                },
+                "required": ["operation", "left_value", "right_value"],
+                "additionalProperties": False
+            },
+            "strict": True
+        },
+    }, # calculator_from_sequence    
+
+    "calculator_from_mapping": {
+        "type": "function",
+        "function": {
+            "name": "calculator_from_mapping",
+            "description": "Perform a basic arithmetic operation on two numbers.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "description": "The operation to perform",
+                        "enum": ["add", "subtract", "multiply", "divide"]
+                    },
+                    "left_value": {
+                        "type": "number",
+                        "description": "The value on the left side of the operation",
+                    },
+                    "right_value": {
+                        "type": "number",
+                        "description": "The value on the right side of the operation",
+                    }
+                },
+                "required": ["operation", "left_value", "right_value"],
+                "additionalProperties": False
+            },
+            "strict": True
+        },
+    }, # calculator_from_mapping 
+
+    "calculator_from_args": {
+        "type": "function",
+        "function": {
+            "name": "calculator_from_args",
+            "description": "Perform a basic arithmetic operation on two numbers.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "description": "The operation to perform",
+                        "enum": ["add", "subtract", "multiply", "divide"]
+                    },
+                    "left_value": {
+                        "type": "number",
+                        "description": "The value on the left side of the operation",
+                    },
+                    "right_value": {
+                        "type": "number",
+                        "description": "The value on the right side of the operation",
+                    }
+                },
+                "required": ["operation", "left_value", "right_value"],
+                "additionalProperties": False
+            },
+            "strict": True
+        },
+    }, # calculator_from_args
+
     "get_object_with_all_types": {
         "type": "function",
         "function": {
@@ -252,7 +376,8 @@ TOOL_DICTS = {
 
 TOOL_OBJECTS = {
     "code_interpreter": CodeInterpreterTool(),
-    "file_search": FileSearchTool(),    
+    "file_search": FileSearchTool(),
+
     "get_current_weather": FunctionTool(
         name="get_current_weather",
         description="Get the current weather in a given location",
@@ -270,7 +395,97 @@ TOOL_OBJECTS = {
                 )
             ],
         )
-    ),
+    ), # get_current_weather
+
+    "calculator": FunctionTool(
+        name="calculator",
+        description="Perform a basic arithmetic operation on two numbers.",
+        parameters=ObjectToolParameter(
+            properties=[
+                StringToolParameter(
+                    name="operation",
+                    description="The operation to perform",
+                    required=True,
+                    enum=["add", "subtract", "multiply", "divide"]
+                ),
+                NumberToolParameter(
+                    name="left_value",
+                    description="The value on the left side of the operation",
+                    required=True
+                ),
+                NumberToolParameter(
+                    name="right_value",
+                    description="The value on the right side of the operation",
+                    required=True
+                ),
+            ]
+        )
+    ), # calculator
+
+    "calculator_from_sequence": FunctionTool(
+        name="calculator_from_sequence",
+        description="Perform a basic arithmetic operation on two numbers.",
+        parameters=[
+            StringToolParameter(
+                name="operation",
+                description="The operation to perform",
+                required=True,
+                enum=["add", "subtract", "multiply", "divide"]
+            ),
+            NumberToolParameter(
+                name="left_value",
+                description="The value on the left side of the operation",
+                required=True
+            ),
+            NumberToolParameter(
+                name="right_value",
+                description="The value on the right side of the operation",
+                required=True
+            ),
+        ]
+    ), # calculator_from_sequence    
+
+    "calculator_from_mapping": FunctionTool(
+        name="calculator_from_mapping",
+        description="Perform a basic arithmetic operation on two numbers.",
+        parameters={
+            "operation": StringToolParameter(
+                description="The operation to perform",
+                required=True,
+                enum=["add", "subtract", "multiply", "divide"]
+            ),
+            "left_value": NumberToolParameter(
+                description="The value on the left side of the operation",
+                required=True
+            ),
+            "right_value": NumberToolParameter(
+                description="The value on the right side of the operation",
+                required=True
+            ),
+        }
+    ), # calculator_from_mapping
+
+    "calculator_from_args": FunctionTool(
+        "calculator_from_args",
+        "Perform a basic arithmetic operation on two numbers.",
+        StringToolParameter(
+            name="operation",
+            description="The operation to perform",
+            enum=["add", "subtract", "multiply", "divide"],
+            required=True
+        ),
+        NumberToolParameter(
+            name="left_value",
+            description="The value on the left side of the operation",
+            required=True
+        ),
+        NumberToolParameter(
+            name="right_value",
+            description="The value on the right side of the operation",
+            required=True
+        ),
+    ), # calculator_from_args    
+
     "get_object_with_all_types": FunctionTool(
         name="get_object_with_all_types",
         description="Get an object with all types",

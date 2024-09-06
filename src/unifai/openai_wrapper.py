@@ -21,15 +21,51 @@
 # from tiktoken import get_encoding, encoding_for_model
 from typing import Optional, Union, Any, Literal, Mapping
 from json import loads as json_loads, JSONDecodeError
-
+from datetime import datetime
 
 
 from openai import OpenAI
 from openai.types.chat.chat_completion import ChatCompletion
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
 from openai.types.chat.chat_completion_message_tool_call import ChatCompletionMessageToolCall
+from openai import (
+    OpenAIError,
+    APIError as OpenAIAPIError,
+    APIConnectionError as OpenAIAPIConnectionError,
+    APITimeoutError as OpenAIAPITimeoutError,
+    APIResponseValidationError as OpenAIAPIResponseValidationError,
+    APIStatusError as OpenAIAPIStatusError,
+    AuthenticationError as OpenAIAuthenticationError,
+    BadRequestError as OpenAIBadRequestError,
+    ConflictError as OpenAIConflictError,
+    InternalServerError as OpenAIInternalServerError,
+    NotFoundError as OpenAINotFoundError,
+    PermissionDeniedError as OpenAIPermissionDeniedError,
+    RateLimitError as OpenAIRateLimitError,
+    UnprocessableEntityError as OpenAIUnprocessableEntityError,
+)
 
-from ._types import Message, Tool, ToolCall
+
+from unifai._exceptions import (
+    UnifAIError,
+    APIError,
+    UnknownAPIError,
+    APIConnectionError,
+    APITimeoutError,
+    APIResponseValidationError,
+    APIStatusError,
+    AuthenticationError,
+    BadRequestError,
+    ConflictError,
+    InternalServerError,
+    NotFoundError,
+    PermissionDeniedError,
+    RateLimitError,
+    UnprocessableEntityError,
+    STATUS_CODE_TO_EXCEPTION_MAP   
+)
+
+from ._types import Message, Tool, ToolCall, Image, Usage, ResponseInfo
 from ._convert_types import stringify_content
 from .baseaiclientwrapper import BaseAIClientWrapper
 
@@ -50,7 +86,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
         if message.tool_calls:
             if message.role == "tool":
                 tool_call = message.tool_calls[0]
-                message_dict["tool_call_id"] = tool_call.tool_call_id
+                message_dict["tool_call_id"] = tool_call.id
             else:
                 message_dict["tool_calls"] = [
                     self.prep_input_tool_call(tool_call) for tool_call in message.tool_calls
@@ -93,7 +129,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
 
     def prep_input_tool_call(self, tool_call: ToolCall) -> dict:
         return {
-            "id": tool_call.tool_call_id,
+            "id": tool_call.id,
             "type": tool_call.type,
             tool_call.type: {
                 "name": tool_call.tool_name,
@@ -133,12 +169,12 @@ class OpenAIWrapper(BaseAIClientWrapper):
         raise ValueError(f"Invalid response_format: {response_format}")
         
 
-    def extract_output_tool_call(self, tool_call: ChatCompletionMessageToolCall) -> ToolCall:
-        return ToolCall(
-            tool_call_id=tool_call.id,
-            tool_name=tool_call.function.name,
-            arguments=json_loads(tool_call.function.arguments),
-        )    
+    # def extract_output_tool_call(self, tool_call: ChatCompletionMessageToolCall) -> ToolCall:
+    #     return ToolCall(
+    #         id=tool_call.id,
+    #         tool_name=tool_call.function.name,
+    #         arguments=json_loads(tool_call.function.arguments),
+    #     )    
     
     
     # def extract_output_message(self, response: ChatCompletion) -> Message:
@@ -154,17 +190,73 @@ class OpenAIWrapper(BaseAIClientWrapper):
     #     )
 
     def extract_std_and_client_messages(self, response: ChatCompletion) -> tuple[Message, ChatCompletionMessage]:
-        client_message = response.choices[0].message
+        choice = response.choices[0]
+        client_message = choice.message
+
+        tool_calls = None
+        if client_message.tool_calls:
+            tool_calls = [
+                ToolCall(
+                    id=tool_call.id,
+                    tool_name=tool_call.function.name,
+                    arguments=json_loads(tool_call.function.arguments),
+                )
+                for tool_call in client_message.tool_calls
+            ]
+
         images = None # TODO: Implement image extraction
-        tool_calls = [self.extract_output_tool_call(tool_call) for tool_call in client_message.tool_calls] if client_message.tool_calls else None
+
+        model = response.model
+        if choice.finish_reason == "length":
+            done_reason = "max_tokens"
+        elif choice.finish_reason == "function_call":
+            done_reason = "tool_calls"
+        else:
+            # "stop", "tool_calls", "content_filter" or None
+            done_reason = choice.finish_reason
+
+        if response.usage:
+            usage = Usage(input_tokens=response.usage.prompt_tokens, output_tokens=response.usage.completion_tokens)
+        else:
+            usage = None
+        
+        created_at = datetime.fromtimestamp(response.created)
+        response_info = ResponseInfo(model=model, done_reason=done_reason, usage=usage)        
+        
         std_message = Message(
             role=client_message.role,
-            content=client_message.content,
-            images=images,
+            content=client_message.content,            
             tool_calls=tool_calls,
-            response_object=response,
+            images=images,
+            created_at=created_at,
+            response_info=response_info,
         )   
         return std_message, client_message
+
+
+    def convert_exception(self, exception: OpenAIAPIError) -> UnifAIError:
+        if isinstance(exception, OpenAIAPIResponseValidationError):
+            return APIResponseValidationError(
+                message=exception.message,
+                status_code=exception.status_code, # Status code could be anything
+                error_code=exception.code,
+                original_exception=exception,
+            )
+        
+        if isinstance(exception, OpenAIAPITimeoutError):
+            status_code = 504
+        elif isinstance(exception, OpenAIAPIConnectionError):
+            status_code = 502
+        else:
+            status_code = getattr(exception, "status_code", -1)
+        
+        unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
+        return unifai_exception_type(
+            message=exception.message, 
+            status_code=getattr(exception, "status_code", None), # ConnectionError and TimeoutError don't have status_code
+            error_code=exception.code, 
+            original_exception=exception
+        )
 
 
     def list_models(self) -> list[str]:
@@ -184,13 +276,22 @@ class OpenAIWrapper(BaseAIClientWrapper):
             if tool_choice and not tools:
                 tool_choice = None
 
-            response = self.client.chat.completions.create(
+            # response = self.client.chat.completions.create(
+            #     messages=messages, 
+            #     model=model,
+            #     tools=tools,
+            #     tool_choice=tool_choice,
+            #     response_format=response_format,
+            #     **kwargs
+            # )
+            response = self.run_func_convert_exceptions(
+                func=self.client.chat.completions.create,
                 messages=messages, 
                 model=model,
                 tools=tools,
                 tool_choice=tool_choice,
                 response_format=response_format,
                 **kwargs
-            )
+            )            
             return response
 

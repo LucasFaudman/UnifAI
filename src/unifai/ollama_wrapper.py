@@ -1,8 +1,5 @@
 from typing import Optional, Union, Sequence, Any, Literal, Mapping
-
-from ._types import Message, Tool, ToolCall
-from ._convert_types import stringify_content
-from .baseaiclientwrapper import BaseAIClientWrapper
+from datetime import datetime
 
 from ollama import Client as OllamaClient
 from ollama._types import (
@@ -14,9 +11,35 @@ from ollama._types import (
     ToolCall as OllamaToolCall, 
     Parameters as OllamaParameters, 
     Property as OllamaProperty,
-    Options as OllamaOptions
+    Options as OllamaOptions,
+    RequestError as OllamaRequestError,
+    ResponseError as OllamaResponseError,
+)
+from httpx import NetworkError, TimeoutException, HTTPError
+
+from unifai._exceptions import (
+    UnifAIError,
+    APIError,
+    UnknownAPIError,
+    APIConnectionError,
+    APITimeoutError,
+    APIResponseValidationError,
+    APIStatusError,
+    AuthenticationError,
+    BadRequestError,
+    ConflictError,
+    InternalServerError,
+    NotFoundError,
+    PermissionDeniedError,
+    RateLimitError,
+    UnprocessableEntityError,
+    STATUS_CODE_TO_EXCEPTION_MAP,   
 )
 
+
+from ._types import Message, Tool, ToolCall, Image, Usage, ResponseInfo
+from ._convert_types import stringify_content
+from .baseaiclientwrapper import BaseAIClientWrapper
 
 from random import choices as random_choices
 from string import ascii_letters, digits
@@ -124,12 +147,12 @@ class OllamaWrapper(BaseAIClientWrapper):
             return 'json'
         return ''
 
-    def extract_output_tool_call(self, tool_call: OllamaToolCall) -> ToolCall:
-        tool_call_function = tool_call['function']
-        name = tool_call_function['name']
-        arguments = tool_call_function.get('arguments')
-        tool_call_id = f'call_{generate_random_id(24)}'
-        return ToolCall(tool_call_id=tool_call_id, tool_name=name, arguments=arguments)
+    # def extract_output_tool_call(self, tool_call: OllamaToolCall) -> ToolCall:
+    #     tool_call_function = tool_call['function']
+    #     name = tool_call_function['name']
+    #     arguments = tool_call_function.get('arguments')
+    #     tool_call_id = f'call_{generate_random_id(24)}'
+    #     return ToolCall(id=tool_call_id, tool_name=name, arguments=arguments)
 
 
     # def extract_output_message(self, response: OllamaChatResponse) -> Message:
@@ -146,17 +169,82 @@ class OllamaWrapper(BaseAIClientWrapper):
 
     def extract_std_and_client_messages(self, response: OllamaChatResponse) -> tuple[Message, OllamaMessage]:
         client_message = response['message']
+        
+        # tool_calls = [self.extract_output_tool_call(tool_call) for tool_call in client_message.get('tool_calls', [])]
+
+        tool_calls = None
+        if client_message_tool_calls := client_message.get('tool_calls'):
+            tool_calls = [
+                ToolCall(
+                    id=f'call_{generate_random_id(24)}',
+                    tool_name=tool_call['function']['name'],
+                    arguments=tool_call['function'].get('arguments')
+                )
+                for tool_call in client_message_tool_calls
+            ]
+        
         images = None # TODO: Implement image extraction
-        tool_calls = [self.extract_output_tool_call(tool_call) for tool_call in client_message.get('tool_calls', [])]
+
+        model = response["model"]
+        done_reason = response["done_reason"]
+        if done_reason == "stop" and tool_calls:
+            done_reason = "tool_calls"
+        elif done_reason != "stop" and done_reason is not None:
+            # TODO handle other done_reasons 
+            done_reason = "max_tokens"
+            
+
+        # if choice.finish_reason == "length":
+        #     done_reason = "max_tokens"
+        # elif choice.finish_reason == "function_call":
+        #     done_reason = "tool_calls"
+        # else:
+        #     # "stop", "tool_calls", "content_filter" or None
+        #     done_reason = choice.finish_reason
+
+        
+        usage = Usage(
+            input_tokens=response["prompt_eval_count"], 
+            output_tokens=response["eval_count"]
+        )
+
+        created_at = datetime.strptime(f'{response["created_at"][:26]}Z', '%Y-%m-%dT%H:%M:%S.%fZ')
+        response_info = ResponseInfo(model=model, done_reason=done_reason, usage=usage)          
+
         std_message = Message(
             role=client_message['role'],
-            content=client_message.get('content'),
-            images=images,
+            content=client_message.get('content'),            
             tool_calls=tool_calls,
-            response_object=response
+            images=images,
+            created_at=created_at,
+            response_info=response_info
         )
         return std_message, client_message
 
+
+    def convert_exception(self, exception: OllamaRequestError|OllamaResponseError|NetworkError|TimeoutError) -> UnifAIError:
+        if isinstance(exception, OllamaRequestError):            
+            status_code = 400
+            message = exception.error
+        elif isinstance(exception, OllamaResponseError):
+            status_code = exception.status_code
+            message = exception.error
+        elif isinstance(exception, TimeoutException):
+            status_code = 504
+            message = exception.args[0]
+        elif isinstance(exception, NetworkError):
+            status_code = 502
+            message = exception.args[0]            
+        else:
+            status_code = -1
+            message = str(exception)
+        
+        unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
+        return unifai_exception_type(
+            message=message, 
+            status_code=status_code,
+            original_exception=exception
+        )
 
 
 
@@ -185,7 +273,7 @@ class OllamaWrapper(BaseAIClientWrapper):
             tool_choice: Optional[str] = None,
             response_format: Optional[str] = '',
             **kwargs
-            ) -> Message:
+            ) -> OllamaChatResponse:
         
             # if (tool_choice and tool_choice != "auto" and system_prompt
             #     and messages and messages[0]["role"] == "system"
@@ -220,7 +308,8 @@ class OllamaWrapper(BaseAIClientWrapper):
             if not options and kwargs:
                 options = OllamaOptions(**kwargs)
 
-            response = self.client.chat(
+            response = self.run_func_convert_exceptions(
+                func=self.client.chat,
                 messages=messages,                 
                 model=model, 
                 tools=tools, 
@@ -236,4 +325,5 @@ class OllamaWrapper(BaseAIClientWrapper):
             # if system_prompt_modified:
             #     response['message']['content'] = system_prompt
 
+            # ollama-python is incorrectly typed as Mapping[str, Any] instead of OllamaChatResponse
             return response

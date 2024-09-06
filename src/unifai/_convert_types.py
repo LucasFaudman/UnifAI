@@ -21,6 +21,7 @@ from ._types import (
     AnyOfToolParameter,
 )
 
+
 def make_content_serializeable(content: Any) -> Union[str, int, float, bool, dict, list, None]:
     """Recursively makes an object serializeable by converting it to a dict or list of dicts and converting all non-string values to strings."""
     if content is None or isinstance(content, (str, int, float, bool)):
@@ -35,7 +36,7 @@ def stringify_content(content: Any) -> str:
     """Formats content for use a message content. If content is not a string, it is converted to a json string."""
     if isinstance(content, str):
         return content
-    return json_dumps(make_content_serializeable(content), indent=0)
+    return json_dumps(make_content_serializeable(content), separators=(',', ':'))
 
 def make_few_shot_prompt(        
         system_prompt: Optional[str] = None, 
@@ -118,7 +119,11 @@ def tool_from_dict(tool_dict: dict) -> Tool:
     if tool_type == 'file_search':
         return FileSearchTool()
     
-    tool_def = tool_dict[tool_type]
+    tool_def = tool_dict.get(tool_type) or tool_dict.get("input_schema")
+    if tool_def is None:
+        raise ValueError("Invalid tool definition. "
+                         f"The input schema must be defined under the key '{tool_type}' or 'input_schema' when tool type='{tool_type}'.")
+
     parameters = tool_parameter_from_dict(param_dict=tool_def['parameters'], 
             # param_name='parameters',
             # param_required=True

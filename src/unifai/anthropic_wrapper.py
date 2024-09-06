@@ -14,14 +14,48 @@ from anthropic.types import (
     ToolResultBlockParam as AnthropicToolResultBlockParam,
     ToolParam as AnthropicToolParam, 
 )
+ # Anthropic
 from anthropic.types.image_block_param import Source as AnthropicImageSource
+from anthropic import (
+    AnthropicError,
+    APIError as AnthropicAPIError,
+    APIConnectionError as AnthropicAPIConnectionError,
+    APITimeoutError as AnthropicAPITimeoutError,
+    APIResponseValidationError as AnthropicAPIResponseValidationError,
+    APIStatusError as AnthropicAPIStatusError,
+    AuthenticationError as AnthropicAuthenticationError,
+    BadRequestError as AnthropicBadRequestError,
+    ConflictError as AnthropicConflictError,
+    InternalServerError as AnthropicInternalServerError,
+    NotFoundError as AnthropicNotFoundError,
+    PermissionDeniedError as AnthropicPermissionDeniedError,
+    RateLimitError as AnthropicRateLimitError,
+    UnprocessableEntityError as AnthropicUnprocessableEntityError,
+)
+
+from unifai._exceptions import (
+    UnifAIError,
+    APIError,
+    UnknownAPIError,
+    APIConnectionError,
+    APITimeoutError,
+    APIResponseValidationError,
+    APIStatusError,
+    AuthenticationError,
+    BadRequestError,
+    ConflictError,
+    InternalServerError,
+    NotFoundError,
+    PermissionDeniedError,
+    RateLimitError,
+    UnprocessableEntityError,
+    STATUS_CODE_TO_EXCEPTION_MAP   
+)
 
 
-
-from ._types import Message, Tool, ToolCall, Image
+from ._types import Message, Tool, ToolCall, Image, Usage, ResponseInfo
 from ._convert_types import stringify_content
 from .baseaiclientwrapper import BaseAIClientWrapper
-from io import BytesIO
 
 class AnthropicWrapper(BaseAIClientWrapper):
     client: Anthropic
@@ -97,7 +131,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
         if message.tool_calls and message.role == "assistant":
             for tool_call in message.tool_calls:
                 tool_use_param = AnthropicToolUseBlockParam(
-                    id=tool_call.tool_call_id,
+                    id=tool_call.id,
                     name=tool_call.tool_name,
                     input=tool_call.arguments,
                     type="tool_use"
@@ -125,7 +159,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
                         content.append(AnthropicImageBlockParam(source=source, type="image"))
                 
                 tool_result_param = AnthropicToolResultBlockParam(
-                    tool_use_id=tool_call.tool_call_id,
+                    tool_use_id=tool_call.id,
                     content=content,
                     is_error=False,
                     type="tool_result"
@@ -148,12 +182,12 @@ class AnthropicWrapper(BaseAIClientWrapper):
         return None
 
             
-    def extract_output_tool_call(self, tool_call: AnthropicToolUseBlock) -> ToolCall:
-        return ToolCall(
-            tool_call_id=tool_call.id,
-            tool_name=tool_call.name,
-            arguments=tool_call.input
-        )
+    # def extract_output_tool_call(self, tool_call: AnthropicToolUseBlock) -> ToolCall:
+    #     return ToolCall(
+    #         id=tool_call.id,
+    #         tool_name=tool_call.name,
+    #         arguments=tool_call.input
+    #     )
     
     def extract_std_and_client_messages(self, response: AnthropicMessage) -> tuple[Message, AnthropicMessageParam]:
         client_message = AnthropicMessageParam(role=response.role, content=response.content)
@@ -163,18 +197,62 @@ class AnthropicWrapper(BaseAIClientWrapper):
             if block.type == "text":
                 content += block.text
             elif block.type == "tool_use":
-                tool_calls.append(self.extract_output_tool_call(block))
+                tool_calls.append(ToolCall(
+                    id=block.id,
+                    tool_name=block.name,
+                    arguments=block.input 
+                ))
 
+        images = None # TODO: Implement image extraction  
+
+        model = response.model
+        if response.stop_reason == "end_turn" or response.stop_reason == "stop_sequence":
+            done_reason = "stop"
+        elif response.stop_reason == "tool_use":
+            done_reason = "tool_calls"
+        else:
+            # "max_tokens" or None
+            done_reason = response.stop_reason
+
+        if response.usage:
+            usage = Usage(input_tokens=response.usage.input_tokens, output_tokens=response.usage.output_tokens)
+        else:
+            usage = None                      
+
+        response_info = ResponseInfo(model=model, done_reason=done_reason, usage=usage)       
         std_message = Message(
             role=response.role,
             content=content,
             tool_calls=tool_calls,
-            response_object=response
+            images=images,
+            response_info=response_info,
         )
 
         return std_message, client_message
 
+    def convert_exception(self, exception: AnthropicAPIError) -> UnifAIError:
+        if isinstance(exception, AnthropicAPIResponseValidationError):
+            return APIResponseValidationError(
+                message=exception.message,
+                status_code=exception.status_code, # Status code could be anything
+                original_exception=exception,
+            )
         
+        if isinstance(exception, AnthropicAPITimeoutError):
+            status_code = 504
+        elif isinstance(exception, AnthropicAPIConnectionError):
+            status_code = 502
+        else:
+            status_code = getattr(exception, "status_code", -1)
+        
+        unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
+        return unifai_exception_type(
+            message=exception.message, 
+            status_code=getattr(exception, "status_code", None), # ConnectionError and TimeoutError don't have status_code
+            original_exception=exception
+        )
+
+
     # List Models
     def list_models(self) -> list[str]:
         claude_models = [
@@ -210,7 +288,8 @@ class AnthropicWrapper(BaseAIClientWrapper):
             if tool_choice:
                 kwargs["tool_choice"] = tool_choice
 
-        response = self.client.messages.create(
+        response = self.run_func_convert_exceptions(
+            func=self.client.messages.create,
             max_tokens=max_tokens,
             messages=messages,
             model=model,

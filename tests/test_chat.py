@@ -112,10 +112,18 @@ def test_chat_simple(provider: AIProvider, client_kwargs: dict, func_kwargs: dic
         assert isinstance(message, Message)
         assert message.content
         print(f'{message.role}: {message.content}')
-        if message.tool_calls:
-            for tool_call in message.tool_calls:
-                print(f'Tool Call: {tool_call.tool_name}')
-                print(tool_call.arguments)
+
+        if message.role == "assistant":
+            assert message.response_info
+            assert isinstance(message.response_info.model, str)
+            assert message.response_info.done_reason == "stop"
+            usage = message.response_info.usage
+            assert usage
+            assert isinstance(usage.input_tokens, int)
+            assert isinstance(usage.output_tokens, int)
+            assert usage.total_tokens == usage.input_tokens + usage.output_tokens
+
+
     print()
 
 

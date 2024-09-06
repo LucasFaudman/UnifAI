@@ -1,7 +1,9 @@
-from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar
+from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable
 
 from json import dumps as json_dumps
 from ._types import Message, Tool, ToolCall, Image
+
+from ._exceptions import UnifAIError
 
 T = TypeVar("T")
 
@@ -67,6 +69,21 @@ class BaseAIClientWrapper:
     
     def extract_std_and_client_messages(self, response: Any) -> tuple[Message, Any]:
         raise NotImplementedError("This method must be implemented by the subclass")   
+
+
+    def prep_input_images(self, images: list[Image]) -> Any:
+        raise NotImplementedError("This method must be implemented by the subclass")
+
+    # Exceptions
+    def convert_exception(self, exception: Exception) -> UnifAIError:
+        raise NotImplementedError("This method must be implemented by the subclass")
+
+    def run_func_convert_exceptions(self, func: Callable[..., T], *args, **kwargs) -> T:
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            raise self.convert_exception(e) from e
+
 
     # List Models
     def list_models(self) -> list[str]:

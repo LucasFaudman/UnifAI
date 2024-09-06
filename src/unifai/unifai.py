@@ -204,7 +204,6 @@ class UnifAIClient:
         # May revert back to optimizing for memory later if needed.)
         model = model or client.default_model
         std_messages = self.standardize_messages(messages)
-        # client_messages = [client.prep_input_message(message) for message in std_messages]
         client_messages, system_prompt = client.prep_input_messages_and_system_prompt(std_messages, system_prompt)
 
         if tools:
@@ -299,13 +298,6 @@ class UnifAIClient:
                 for std_tool_message in client.split_tool_call_outputs_into_messages(tool_calls):
                     std_messages.append(std_tool_message)
                     client_messages.append(client.prep_input_message(std_tool_message))
-
-                # for tool_call in tool_calls:
-                #     std_tool_output_message = self.do_tool_call(tool_call)
-                #     client_tool_output_message = client.prep_input_message(std_tool_output_message)
-                #     # Update messages with tool outputs
-                #     std_messages.append(std_tool_output_message)
-                #     client_messages.append(client_tool_output_message)
                 
                 # Process messages after submitting tool outputs
                 continue

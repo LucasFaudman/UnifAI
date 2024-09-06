@@ -3,10 +3,26 @@ from typing import (
     Literal, Mapping, TypeVar, List, Type, Tuple, Dict, Any, Callable, Collection)
 
 from pydantic import BaseModel, Field
+from datetime import datetime
+
+class Usage(BaseModel):
+    input_tokens: int
+    output_tokens: int
+    # total_tokens: int
+
+    @property
+    def total_tokens(self):
+        return self.input_tokens + self.output_tokens
 
 class ResponseInfo(BaseModel):
-    data: Any
-    usage: Any
+    model: Optional[str] = None    
+    # done: bool
+    done_reason: Optional[Literal["stop", "tool_calls", "max_tokens", "content_filter"]] = None
+    usage: Optional[Usage] 
+    # duration: Optional[int]
+    # created_at: datetime = Field(default_factory=datetime.now)
+    
+
 
 class Image(BaseModel):    
     data: Optional[Union[str, bytes]]
@@ -16,7 +32,7 @@ class Image(BaseModel):
     format: Literal["base64", "url", "filepath"] = "base64"
 
 class ToolCall(BaseModel):
-    tool_call_id: str
+    id: str
     tool_name: str
     arguments: Optional[Mapping[str, Any]]
     output: Optional[Any] = None
@@ -24,12 +40,14 @@ class ToolCall(BaseModel):
 
 
 class Message(BaseModel):
+    # id: str
     role: Literal['user', 'assistant', 'system', 'tool']
     content: Optional[str] = None
     images: Optional[list[Image]] = None
     tool_calls: Optional[list[ToolCall]] = None
-    response_object: Optional[Any] = None
-    # response_info: Optional[ResponseInfo]
+    
+    created_at: datetime = Field(default_factory=datetime.now)
+    response_info: Optional[ResponseInfo] = None
 
 
 ToolParameterType = Literal["object", "array", "string", "integer", "number", "boolean", "null"]
@@ -81,7 +99,7 @@ class ArrayToolParameter(ToolParameter):
     
 class ObjectToolParameter(ToolParameter):
     type: Literal["object"] = "object"
-    properties: list[ToolParameter]
+    properties: Sequence[ToolParameter]
     additionalProperties: bool = False
     
     def to_dict(self) -> ToolDict:
@@ -108,6 +126,10 @@ class AnyOfToolParameter(ToolParameter):
             "anyOf": [param.to_dict() for param in self.anyOf]
         }
 
+class ToolParameters(ObjectToolParameter):
+    def __init__(self, *parameters: ToolParameter, **kwargs):
+        super().__init__(properties=parameters, **kwargs)
+
     
 class Tool(BaseModel):
     type: str
@@ -116,9 +138,6 @@ class Tool(BaseModel):
     def to_dict(self) -> dict:
         return {
             "type": self.type,
-            # self.type: {
-            #     "name": self.name
-            # }
         }
 
 class FunctionTool(Tool):
@@ -127,6 +146,41 @@ class FunctionTool(Tool):
     parameters: Union[ObjectToolParameter, ArrayToolParameter, ToolParameter]
     strict: bool = True
     callable: Optional[Callable] = None
+
+
+    def __init__(self, 
+        name: str, 
+        description: str, 
+        *args: ToolParameter,
+        parameters: Optional[Union[ObjectToolParameter, Sequence[ToolParameter], Mapping[str, ToolParameter]]] = None,
+        type: str = "function",
+        strict: bool = True,
+        callable: Optional[Callable] = None
+    ):        
+        
+        # super().__init__(name=name, type="function")
+     
+        if isinstance(parameters, ObjectToolParameter):
+            parameters = parameters
+            # parameters.name = "parameters"
+        elif isinstance(parameters, Sequence):
+            parameters = ObjectToolParameter(properties=parameters)
+        elif isinstance(parameters, Mapping):
+            properties = []
+            for parameter_name, parameter in parameters.items():
+                if parameter.name is None:
+                    parameter.name = parameter_name
+                elif parameter.name != parameter_name:
+                    raise ValueError("Parameter name does not match key")
+                properties.append(parameter)
+            parameters = ObjectToolParameter(properties=properties)
+        elif args:
+            parameters = ObjectToolParameter(properties=list(args))
+        else:
+            raise ValueError("Invalid parameters type")
+
+        BaseModel.__init__(self, name=name, type=type, description=description, parameters=parameters, strict=strict, callable=callable)
+
 
     def to_dict(self):
         return {
