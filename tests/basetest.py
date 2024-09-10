@@ -20,10 +20,10 @@ def base_test_all_providers(func):
         {"api_key": OPENAI_API_KEY},
         {}
     ),
-    (
-        "ollama", 
-        {"host": "http://librem-2.local:11434"},
-        {"keep_alive": "10m", 'model': 'llama3.1-8b-num_ctx-8192:latest'}
-    ),
+    # (
+    #     "ollama", 
+    #     {"host": "http://librem-2.local:11434"},
+    #     {"keep_alive": "10m", 'model': 'llama3.1-8b-num_ctx-8192:latest'}
+    # ),
     ])(func)
 

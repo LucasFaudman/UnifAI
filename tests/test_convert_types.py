@@ -456,7 +456,7 @@ TOOL_OBJECTS = {
             ),
             "left_value": NumberToolParameter(
                 description="The value on the left side of the operation",
-                required=True
+                required=True,
             ),
             "right_value": NumberToolParameter(
                 description="The value on the right side of the operation",

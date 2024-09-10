@@ -216,3 +216,7 @@ class EvalTypeParameters(BaseModel):
     enforce_tool_choice: bool = True
     tool_choice_error_retries: int = 3
 
+
+
+ToolInput = Union[Tool, dict[str, Any], str]
+EvalTypeParametersInput = Union[EvalTypeParameters, dict[str, Any]]

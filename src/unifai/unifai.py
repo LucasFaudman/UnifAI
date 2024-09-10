@@ -5,13 +5,13 @@ from typing import Optional, Union, Any, Literal, Mapping, Type, Callable, Colle
 from json import dumps as json_dumps
 from .baseaiclientwrapper import BaseAIClientWrapper
 
-from ._types import Message, Tool, ToolCall, EvalTypeParameters
-from ._convert_types import tool_from_dict, stringify_content, make_few_shot_prompt
+from ._types import Message, Tool, ToolInput, ToolCall, EvalTypeParameters, EvalTypeParametersInput
+from ._convert_types import tool_from_dict, stringify_content, make_few_shot_prompt, standardize_eval_types, standardize_messages, standardize_tools, standardize_tool_choice
 
 AIProvider = Literal["anthropic", "openai", "ollama"]
 
-ToolInput = Union[Tool, dict[str, Any], str]
-EvalTypeParametersInput = Union[EvalTypeParameters, dict[str, Any]]
+# ToolInput = Union[Tool, dict[str, Any], str]
+# EvalTypeParametersInput = Union[EvalTypeParameters, dict[str, Any]]
 
 class UnifAIClient:
     TOOLS: list[ToolInput] = []
@@ -56,7 +56,7 @@ class UnifAIClient:
     def add_tools(self, tools: Optional[list[ToolInput]]):
         if not tools: return
 
-        for tool in self.standardize_tools(tools):
+        for tool in standardize_tools(tools):
             self.tools[tool.name] = tool
             if (tool_callable := getattr(tool, "callable", None)) is not None:
                 self.tool_callables[tool.name] = tool_callable
@@ -68,7 +68,7 @@ class UnifAIClient:
 
     def add_eval_types(self, eval_types: Optional[list[EvalTypeParametersInput]]):
         if not eval_types: return
-        self.eval_types.update(self.standardize_eval_types(eval_types))
+        self.eval_types.update(standardize_eval_types(eval_types))
 
         
     def init_client(self, provider: AIProvider, **client_kwargs) -> BaseAIClientWrapper:
@@ -85,59 +85,6 @@ class UnifAIClient:
     # List Models
     def list_models(self, provider: Optional[AIProvider] = None) -> list[str]:
         return self.get_client(provider).list_models()
-
-    def standardize_eval_types(self, eval_types: Sequence[EvalTypeParametersInput]) -> dict[str, EvalTypeParameters]:
-        std_eval_types = {}
-        for eval_type in eval_types:
-            if isinstance(eval_type, EvalTypeParameters):
-                std_eval_types[eval_type.name] = eval_type
-            elif isinstance(eval_type, dict):
-                std_eval_types[eval_type['eval_type']] = EvalTypeParameters(**eval_type)
-            else:
-                raise ValueError(f"Invalid eval_type type: {type(eval_type)}")
-        return std_eval_types
-
-
-    def standardize_messages(self, messages: Sequence[Union[Message, str, dict[str, Any]]]) -> list[Message]:
-        std_messages = []
-        for message in messages:
-            if isinstance(message, Message):
-                std_messages.append(message)
-            elif isinstance(message, str):
-                std_messages.append(Message(role="user", content=message))
-            elif isinstance(message, dict):
-                std_messages.append(Message(**message))
-            else:
-                raise ValueError(f"Invalid message type: {type(message)}")        
-        return std_messages
-    
-    
-    def standardize_tools(self, tools: Sequence[ToolInput]) -> list[Tool]:
-        std_tools = []
-        for tool in tools:
-            if isinstance(tool, Tool):
-                std_tools.append(tool)
-            elif isinstance(tool, dict):
-                std_tools.append(tool_from_dict(tool))
-            elif isinstance(tool, str):
-                if std_tool := self.tools.get(tool):
-                    std_tools.append(std_tool)
-                else:
-                    raise ValueError(f"Tool '{tool}' not found in tools")
-            else:
-                raise ValueError(f"Invalid tool type: {type(tool)}")
-        
-        return std_tools
-    
-    def standardize_tool_choice(self, tool_choice: Union[Literal["auto", "required", "none"], Tool, str, dict]) -> str:
-        if isinstance(tool_choice, Tool):
-            return tool_choice.name
-        if isinstance(tool_choice, dict):
-            tool_type = tool_choice['type']
-            return tool_choice[tool_type]['name']
-        
-        # tool_choice is a string tool_name or Literal value "auto", "required", or "none"
-        return tool_choice
 
     def filter_tools_by_tool_choice(self, tools: list[Tool], tool_choice: str) -> list[Tool]:
         if tool_choice == "auto" or tool_choice == "required":
@@ -203,28 +150,28 @@ class UnifAIClient:
         # and allow for easier debugging and error handling.
         # May revert back to optimizing for memory later if needed.)
         model = model or client.default_model
-        std_messages = self.standardize_messages(messages)
+        std_messages = standardize_messages(messages)
         client_messages, system_prompt = client.prep_input_messages_and_system_prompt(std_messages, system_prompt)
 
         if tools:
-            std_tools = self.standardize_tools(tools)
+            std_tools = standardize_tools(tools)
             client_tools = [client.prep_input_tool(tool) for tool in std_tools]
         else:
             std_tools = client_tools = None
 
         if tool_choice:
             if isinstance(tool_choice, Sequence) and not isinstance(tool_choice, str):
-                std_tool_choice = self.standardize_tool_choice(tool_choice[0])
-                std_tool_choice_queue = [self.standardize_tool_choice(tool_choice) for tool_choice in tool_choice[1:]]
+                std_tool_choice = standardize_tool_choice(tool_choice[0])
+                std_tool_choice_queue = [standardize_tool_choice(tool_choice) for tool_choice in tool_choice[1:]]
             else:
-                std_tool_choice = self.standardize_tool_choice(tool_choice)
+                std_tool_choice = standardize_tool_choice(tool_choice)
                 std_tool_choice_queue = None
             client_tool_choice = client.prep_input_tool_choice(std_tool_choice)
         else:
             std_tool_choice = std_tool_choice_queue = client_tool_choice = None
 
         # if tools:
-        #     std_tools = self.standardize_tools(tools)
+        #     std_tools = standardize_tools(tools)
         #     # client_tools = [client.prep_input_tool(tool) for tool in std_tools]
         #     std_tools_filtered = self.filter_tools_by_tool_choice(std_tools, std_tool_choice) if std_tool_choice else std_tools
         #     client_tools = [client.prep_input_tool(tool) for tool in std_tools_filtered]
