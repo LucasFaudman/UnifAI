@@ -37,6 +37,7 @@ EVAL_TYPES = [
         ),
         tools=["return_flagged_and_reason"],
         tool_choice="return_flagged_and_reason",
+        return_as="last_tool_call_args"
     )
 ]
 

@@ -1,5 +1,5 @@
 from json import dumps as json_dumps
-from typing import Optional, Union, Sequence, Any, Literal, Mapping, TypeVar, List, Type, Tuple, Dict, Any
+from typing import Optional, Union, Sequence, Any, Literal, Mapping, TypeVar, List, Type, Tuple, Dict, Any, Callable
 from ._types import (
     Message,
     Tool,
@@ -24,6 +24,8 @@ from ._types import (
     ToolInput,
 )
 
+from ast import literal_eval as ast_literal_eval
+from functools import wraps
 
 def make_content_serializeable(content: Any) -> Union[str, int, float, bool, dict, list, None]:
     """Recursively makes an object serializeable by converting it to a dict or list of dicts and converting all non-string values to strings."""
@@ -69,7 +71,7 @@ def make_few_shot_prompt(
 def tool_parameter_from_dict(
         param_dict: dict, 
         param_name: Optional[str]= None,
-        param_required: bool= False
+        param_required: bool= True
         ) -> ToolParameter:
     
     if (anyof_param_dicts := param_dict.get('anyOf')) is not None:
@@ -83,6 +85,7 @@ def tool_parameter_from_dict(
     param_name = param_dict.get('name', param_name)
     param_description = param_dict.get('description')
     param_enum = param_dict.get('enum')
+    param_required = param_dict.get('required', param_required)
 
     if param_type == 'string':
         return StringToolParameter(name=param_name, description=param_description, required=param_required, enum=param_enum)
@@ -96,16 +99,27 @@ def tool_parameter_from_dict(
         return NullToolParameter(name=param_name, description=param_description, required=param_required, enum=param_enum)
     
     if param_type == 'array':
-        items = tool_parameter_from_dict(param_dict=param_dict['items'], param_required=param_required)
+        if not (param_items := param_dict.get('items')):
+            raise ValueError("Array parameters must have an 'items' key.")
+        
+        items = tool_parameter_from_dict(param_dict=param_items, param_required=param_required)
         return ArrayToolParameter(name=param_name, description=param_description, 
                                   required=param_required, enum=param_enum, 
                                   items=items)    
     if param_type == 'object':
-        required_params = param_dict.get('required', [])
-        properties = [
-            tool_parameter_from_dict(param_dict=prop_dict, param_name=prop_name, param_required=prop_name in required_params) 
-            for prop_name, prop_dict in param_dict['properties'].items()
-        ]
+        if not (param_properties := param_dict.get('properties')):
+            raise ValueError("Object parameters must have a 'properties' key.")
+        if isinstance(param_properties, dict):
+            required_params = param_dict.get('required', [])
+            properties = [
+                tool_parameter_from_dict(param_dict=prop_dict, param_name=prop_name, param_required=prop_name in required_params) 
+                for prop_name, prop_dict in param_dict['properties'].items()
+            ]
+        else:
+            properties = [
+                tool_parameter_from_dict(param_dict=prop_dict) 
+                for prop_dict in param_properties
+            ]
         additionalProperties = param_dict.get('additionalProperties', False)
         return ObjectToolParameter(name=param_name, description=param_description, 
                                    required=param_required, enum=param_enum, 
@@ -168,21 +182,36 @@ def standardize_messages(messages: Sequence[Union[Message, str, dict[str, Any]]]
     return std_messages
 
 
-def standardize_tools(tools: Sequence[ToolInput], tool_dict: Optional[dict[str, Tool]] = None) -> list[Tool]:
-    std_tools = []
-    for tool in tools:
-        if isinstance(tool, Tool):
-            std_tools.append(tool)
-        elif isinstance(tool, dict):
-            std_tools.append(tool_from_dict(tool))
+# def standardize_tools(tools: Sequence[ToolInput], tool_dict: Optional[dict[str, Tool]] = None) -> list[Tool]:
+#     std_tools = []
+#     for tool in tools:
+#         if isinstance(tool, Tool):
+#             std_tools.append(tool)
+#         elif isinstance(tool, dict):
+#             std_tools.append(tool_from_dict(tool))
+#         elif isinstance(tool, str):
+#             if tool_dict and (std_tool := tool_dict.get(tool)):
+#                 std_tools.append(std_tool)
+#             else:
+#                 raise ValueError(f"Tool '{tool}' not found in tools")
+#         else:
+#             raise ValueError(f"Invalid tool type: {type(tool)}")
+    
+#     return std_tools
+
+def standardize_tools(tools: Sequence[ToolInput], tool_dict: Optional[dict[str, Tool]] = None) -> dict[str, Tool]:
+    std_tools = {}
+    for tool in tools:            
+        if isinstance(tool, dict):
+            tool = tool_from_dict(tool)
         elif isinstance(tool, str):
             if tool_dict and (std_tool := tool_dict.get(tool)):
-                std_tools.append(std_tool)
+                tool = std_tool
             else:
                 raise ValueError(f"Tool '{tool}' not found in tools")
-        else:
-            raise ValueError(f"Invalid tool type: {type(tool)}")
-    
+        elif not isinstance(tool, Tool):
+            raise ValueError(f"Invalid tool type: {type(tool)}")        
+        std_tools[tool.name] = tool    
     return std_tools
 
 def standardize_tool_choice(tool_choice: Union[Literal["auto", "required", "none"], Tool, str, dict]) -> str:
@@ -194,3 +223,116 @@ def standardize_tool_choice(tool_choice: Union[Literal["auto", "required", "none
     
     # tool_choice is a string tool_name or Literal value "auto", "required", or "none"
     return tool_choice
+
+PY2AI_TYPES: dict[str|Type, ToolParameterType] = {
+    "str": "string",
+    "int": "integer",
+    "float": "number",
+    "bool": "boolean",
+    "list": "array",
+    "dict": "object",
+    "None": "null",
+    str: "string",
+    int: "integer",
+    float: "number",
+    bool: "boolean",
+    list: "array",
+    dict: "object",
+    type(None): "null",
+}
+
+def parse_docstring(docstring: str, annotations: Optional[dict]=None) -> tuple[str, ObjectToolParameter]:
+    from re import compile as re_compile
+    param_pattern = re_compile(r'(?P<indent>\s*)(?P<name>\w+)(?: ?\(?(?P<type>\w+)\)?)?: ?(?P<description>.+)?')
+
+    if "Returns:" in docstring:
+        docstring, returns = docstring.rsplit("Returns:", 1)
+        returns = returns.strip()
+    else:
+        returns = ""
+
+    if "Args:" in docstring:
+        docstring, args = docstring.rsplit("Args:", 1)        
+    elif "Parameters:" in docstring:
+        docstring, args = docstring.rsplit("Parameters:", 1)        
+    else:
+        return docstring.strip(), ObjectToolParameter(properties=[])
+    
+    description = docstring.strip()
+    args = args.rstrip()
+    
+    param_lines = []
+    for line in args.split("\n"):
+        if not (lstripped_line := line.lstrip()):
+            continue
+    
+        if param_match := param_pattern.match(line):
+            group_dict = param_match.groupdict()
+            group_dict["indent"] = len(group_dict["indent"])
+
+            # Docstring type annotations override inferred types
+            if type_str := group_dict.get("type"):
+                group_dict["type"] = PY2AI_TYPES.get(type_str, type_str)
+            elif annotations and (anno := annotations.get(group_dict["name"])):
+                group_dict["type"] = PY2AI_TYPES.get(anno)
+            # else:
+            #     group_dict["type"] = "string"
+            param_lines.append(group_dict)
+        else:
+            param_lines[-1]["description"] += lstripped_line
+
+
+    root = {"type": "object", "properties": []}
+    stack = [root]
+    for param in param_lines:                    
+        # Determine the depth (number of spaces) based on the "indent" field
+        param_indent = param["indent"]
+        param["properties"] = [] # Initialize properties list to store nested parameters
+
+        # If the current parameter is at the same or lower level than the last, backtrack
+        while len(stack) > 1 and param_indent <= stack[-1]["indent"]:
+            stack.pop()
+        
+        current_structure = stack[-1]
+        if (param_name := param["name"]) in ("enum", "required"):
+            # If the parameter is an enum or required field, add it to the current structure
+            current_structure[param_name] = ast_literal_eval(param["description"])
+
+        elif (current_type := current_structure.get("type")) == "array" and param_name == "items":
+            current_structure["items"] = param
+            param.pop("name") # TODO remove this line
+
+        elif current_type == "object" and param_name == "properties":
+            current_structure["properties"] = param["properties"]
+
+        elif current_type == "anyOf" and param_name == "anyOf":
+            current_structure["anyOf"] = param["properties"]            
+        
+        else:
+            current_structure["properties"].append(param)
+
+        stack.append(param)
+
+    parameters = tool_parameter_from_dict(root)
+    return description, parameters
+
+    
+
+def tool_from_function(func: Callable) -> FunctionTool:
+    tool_name = func.__name__
+    tool_description, tool_parameters = parse_docstring(
+        docstring=func.__doc__ or "",
+        annotations=func.__annotations__
+        )
+
+    return FunctionTool(
+        name=tool_name,
+        description=tool_description,
+        parameters=tool_parameters,
+        callable=func
+    )
+
+def tool(func: Callable) -> FunctionTool:
+    return tool_from_function(func)
+
+

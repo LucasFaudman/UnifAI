@@ -47,7 +47,7 @@ class BaseAIClientWrapper:
     def prep_input_tool_call_response(self, tool_call: ToolCall, tool_response: Any) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
     
-    def split_tool_call_outputs_into_messages(self, tool_calls: list[ToolCall]) -> list[Message]:
+    def split_tool_call_outputs_into_messages(self, tool_calls: Sequence[ToolCall], content: Optional[str] = None) -> list[Message]:
         raise NotImplementedError("This method must be implemented by the subclass")
 
 

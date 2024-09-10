@@ -138,11 +138,14 @@ class OpenAIWrapper(BaseAIClientWrapper):
         }
 
 
-    def split_tool_call_outputs_into_messages(self, tool_calls: list[ToolCall]) -> list[Message]:        
-        return [
+    def split_tool_call_outputs_into_messages(self, tool_calls: list[ToolCall], content: Optional[str] = None) -> list[Message]:        
+        tool_messages = [
             Message(role="tool", content=stringify_content(tool_call.output), tool_calls=[tool_call])
             for tool_call in tool_calls
         ]
+        if content:
+            tool_messages.append(Message(role="user", content=content))
+        return tool_messages
     
     # def prep_input_tool_call_response(self, tool_call: ToolCall, tool_response: Any) -> dict:
     #     return {

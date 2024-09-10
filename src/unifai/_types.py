@@ -34,7 +34,7 @@ class Image(BaseModel):
 class ToolCall(BaseModel):
     id: str
     tool_name: str
-    arguments: Optional[Mapping[str, Any]]
+    arguments: Mapping[str, Any] = Field(default_factory=dict)
     output: Optional[Any] = None
     type: str = "function"
 
@@ -60,7 +60,7 @@ class ToolParameter(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     enum: Optional[list[ToolValPyTypes]] = None
-    required: bool = False
+    required: bool = True
     # enum: list[str] = Field(default_factory=list)
     
 
@@ -134,6 +134,7 @@ class ToolParameters(ObjectToolParameter):
 class Tool(BaseModel):
     type: str
     name: str
+    callable: Optional[Callable] = None
 
     def to_dict(self) -> dict:
         return {
@@ -181,6 +182,11 @@ class FunctionTool(Tool):
 
         BaseModel.__init__(self, name=name, type=type, description=description, parameters=parameters, strict=strict, callable=callable)
 
+    def __call__(self, *args, **kwargs) -> Any:
+        if self.callable is None:
+            raise ValueError(f"Callable not set for tool {self.name}")
+        return self.callable(*args, **kwargs)
+
 
     def to_dict(self):
         return {
@@ -209,7 +215,15 @@ class EvalTypeParameters(BaseModel):
     tools: Optional[list[Union[Tool, str]]] = None
     tool_choice: Optional[Union[str, list[str]]] = None
     return_on: Optional[Union[Literal["content", "tool_call", "message"], str, list[str]]] = None
-    return_as: Literal["messages", "last_message", "last_content_or_tool_call_args", "last_content_or_all_tool_call_args"] = "last_content_or_tool_call_args"
+    return_as: Literal["chat", 
+                       "messages", 
+                       "last_message", 
+                       "last_content",
+                       "last_tool_call",
+                       "last_tool_call_args",
+                       "last_tool_calls", 
+                       "last_tool_calls_args"
+                       ] = "chat"
 
     
     response_format: Optional[Union[str, dict[str, str]]] = None
@@ -217,6 +231,6 @@ class EvalTypeParameters(BaseModel):
     tool_choice_error_retries: int = 3
 
 
-
+MessageInput = Sequence[Union[Message, str, dict[str, Any]]]
 ToolInput = Union[Tool, dict[str, Any], str]
 EvalTypeParametersInput = Union[EvalTypeParameters, dict[str, Any]]

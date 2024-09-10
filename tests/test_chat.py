@@ -64,6 +64,21 @@ TOOLS = {
 }
 
 def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
+    """Get the current weather in a given location
+
+    Args:
+        location (str): The city and state, e.g. San Francisco, CA
+        unit (str): The unit of temperature to return. Infer the unit from the location if not provided.
+            enum: ["celsius", "fahrenheit"]
+            required: False
+
+    Returns:
+        dict: The current weather in the location
+            condition (str): The weather condition, e.g. "sunny", "cloudy", "rainy", "hot"
+            degrees (float): The temperature in the location
+            unit (str): The unit of temperature, e.g. "F", "C" 
+    """
+
     location = location.lower()
     if 'san francisco' in location:
         degrees = 69
@@ -100,11 +115,12 @@ def test_chat_simple(provider: AIProvider, client_kwargs: dict, func_kwargs: dic
 
     ai = UnifAIClient({provider: client_kwargs})
     ai.init_client(provider, **client_kwargs)
-    messages = ai.chat(
+    chat = ai.chat(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,
         **func_kwargs
     )
+    messages = chat.messages
     assert messages
     assert isinstance(messages, list)
 
@@ -159,12 +175,13 @@ def test_chat_tools_simple(
         tool_callables=tool_callables
     )
     ai.init_client(provider, **client_kwargs)
-    messages = ai.chat(
+    chat = ai.chat(
         messages=messages,
         provider=provider,
         tools=tools,
         **func_kwargs
     )
+    messages = chat.messages
     assert messages
     assert isinstance(messages, list)
 
@@ -216,14 +233,14 @@ def test_chat_return_on(
     
 
     for return_on in return_ons:
-        new_messages = ai.chat(
+        chat = ai.chat(
             messages=messages,
             provider=provider,
             tools=tools,
             return_on=return_on,
             **func_kwargs
         )
-
+        new_messages = chat.messages
         assert new_messages
         last_message = new_messages[-1]
         assert isinstance(last_message, Message)
@@ -290,7 +307,7 @@ def test_chat_enforce_tool_choice(
     ai.init_client(provider, **client_kwargs)
 
     for _ in range(1):
-        new_messages = ai.chat(
+        chat = ai.chat(
             messages=messages,
             provider=provider,
             tools=tools,
@@ -299,7 +316,7 @@ def test_chat_enforce_tool_choice(
             enforce_tool_choice=True,
             **func_kwargs
         )
-        
+        new_messages = chat.messages
         assert new_messages
         assert isinstance(new_messages, list)
 
@@ -359,7 +376,7 @@ def test_chat_enforce_tool_choice_sequence(
     ai.init_client(provider, **client_kwargs)
 
     for _ in range(1):
-        new_messages = ai.chat(
+        chat = ai.chat(
             messages=messages,
             provider=provider,
             tools=tools,
@@ -368,7 +385,7 @@ def test_chat_enforce_tool_choice_sequence(
             enforce_tool_choice=True,
             **func_kwargs
         )
-        
+        new_messages = chat.messages
         assert new_messages
         assert isinstance(new_messages, list)
 
@@ -391,4 +408,83 @@ def test_chat_enforce_tool_choice_sequence(
 
         for message in new_messages:
             print(f'\n{message.role}:\n{message.content or message.tool_calls}\n')            
+    print()
+
+
+@base_test_all_providers
+@pytest.mark.parametrize("system_prompt, message_lists, tools, tool_callables, tool_choice", [
+    (
+        "Your role is use the available tools to answer questions like a cartoon Pirate",
+        [
+            [
+
+            ],
+            [
+                # {"role": "system", "content": "Your role is use the available tools to answer questions like a cartoon Pirate"},            
+                {"role": "user", "content": "What's the weather like in San Francisco? Respond in Fahrenheit."},
+            ],
+            [
+                Message(role="user", content="What's the weather like in Tokyo?"),
+            ],
+        ],
+        [
+            TOOLS["get_current_weather"], TOOLS["return_weather_messages"]
+        ],
+        {
+            "get_current_weather": get_current_weather
+        }, 
+        ["get_current_weather", "return_weather_messages"]
+    ),
+])
+def test_chat_send_message(
+    # ai: UnifAIClient, 
+    provider: AIProvider, 
+    client_kwargs: dict,
+    func_kwargs: dict,
+    system_prompt: str|None,
+    message_lists: list[list],
+    tools: list,
+    tool_callables: dict, 
+    tool_choice: list[str]
+    ):    
+
+    ai = UnifAIClient(
+        {provider: client_kwargs},
+        tool_callables=tool_callables
+    )
+    ai.init_client(provider, **client_kwargs)
+    chat = ai.chat(
+        messages=message_lists[0],
+        provider=provider,
+        system_prompt=system_prompt,
+        tools=tools,
+        tool_choice=tool_choice,
+
+        return_on=tool_choice[-1],
+        enforce_tool_choice=True,
+    )
+
+    for messages in message_lists[1:]:
+        chat.set_tool_choice(tool_choice)
+        last_message = chat.send_message(*messages)
+        assert isinstance(last_message, Message)
+
+        print(f'\n{last_message.role}:\n{last_message.content or last_message.tool_calls}\n')
+
+        if tool_choice == 'auto':
+            assert last_message.content or last_message.tool_calls
+        elif tool_choice == 'required':
+            assert last_message.tool_calls
+            assert not last_message.content
+        elif tool_choice == 'none':
+            assert last_message.content
+            assert not last_message.tool_calls
+        else:
+            assert last_message.tool_calls
+            called_tools = [tool_call.tool_name for tool_call in last_message.tool_calls]
+            assert tool_choice[-1] in called_tools
+
+
+    for message in chat.messages:
+        print(f'\n{message.role}:\n{message.content or message.tool_calls}\n')            
     print()

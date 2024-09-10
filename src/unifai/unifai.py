@@ -1,11 +1,11 @@
 
 
-from typing import Optional, Union, Any, Literal, Mapping, Type, Callable, Collection, Sequence, Type, List, Dict, Tuple
+from typing import Optional, Union, Any, Literal, Mapping, Type, Callable, Collection, Sequence, Type, List, Dict, Tuple, Self
 
 from json import dumps as json_dumps
 from .baseaiclientwrapper import BaseAIClientWrapper
 
-from ._types import Message, Tool, ToolInput, ToolCall, EvalTypeParameters, EvalTypeParametersInput
+from ._types import Message, Tool, ToolCall, EvalTypeParameters, EvalTypeParametersInput, ToolInput, MessageInput
 from ._convert_types import tool_from_dict, stringify_content, make_few_shot_prompt, standardize_eval_types, standardize_messages, standardize_tools, standardize_tool_choice
 
 AIProvider = Literal["anthropic", "openai", "ollama"]
@@ -94,167 +94,42 @@ class UnifAIClient:
         return [tool for tool in tools if tool.name == tool_choice]
 
     
-    def check_tool_choice_obeyed(self, tool_choice: str, tool_calls: Optional[list[ToolCall]]) -> bool:
-        if tool_calls:
-            tool_names = [tool_call.tool_name for tool_call in tool_calls]
-            if (
-                # tools were called but tool choice is none
-                tool_choice == 'none'
-                # the correct tool was not called and tool choice is not "required" (required=any one or more tools must be called) 
-                or (tool_choice != 'required' and tool_choice not in tool_names)
-                ):
-                print(f"Tools called and tool_choice={tool_choice} NOT OBEYED")
-                return False
-        elif tool_choice != 'none':
-            print(f"Tools NOT called and tool_choice={tool_choice} NOT OBEYED")
-            return False 
-        
-        print(f"tool_choice={tool_choice} OBEYED")
-        return True       
-
-
-    def do_tool_calls(self, tool_calls: list[ToolCall]) -> list[ToolCall]:
-        for tool_call in tool_calls:
-            if tool_callable := self.tool_callables.get(tool_call.tool_name):
-                # TODO catch ToolCallError
-                tool_call.output = tool_callable(**(tool_call.arguments or {}))
-            else:
-                raise ValueError(f"Tool '{tool_call.tool_name}' callable not found")
-        
-        return tool_calls
-
-    # Chat
     def chat(
             self,
-            messages: Sequence[Union[Message, str, dict[str, Any]]],
+            messages: Optional[Sequence[Union[Message, str, dict[str, Any]]]] = None,
             provider: Optional[AIProvider] = None,            
             model: Optional[str] = None,
             system_prompt: Optional[str] = None,             
             tools: Optional[Sequence[ToolInput]] = None,
+            tool_callables: Optional[dict[str, Callable]] = None,
             tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
             response_format: Optional[Union[str, dict[str, str]]] = None,
 
-            return_on: Optional[Union[Literal["content", "tool_call", "message"], str, Collection[str]]] = "content",
+            return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
             enforce_tool_choice: bool = False,
             tool_choice_error_retries: int = 3,
             
             **kwargs
-            ) -> list[Message]:
-        
-        # import and init client
-        client = self.get_client(provider)
-        
-        # standardize inputs and prep copies for client in its format
-        # (Note to self: 2 copies are stored to prevent converting back and forth between formats on each iteration.
-        # this choice is at the cost of memory but is done to prevent unnecessary conversions 
-        # and allow for easier debugging and error handling.
-        # May revert back to optimizing for memory later if needed.)
-        model = model or client.default_model
-        std_messages = standardize_messages(messages)
-        client_messages, system_prompt = client.prep_input_messages_and_system_prompt(std_messages, system_prompt)
-
-        if tools:
-            std_tools = standardize_tools(tools)
-            client_tools = [client.prep_input_tool(tool) for tool in std_tools]
-        else:
-            std_tools = client_tools = None
-
-        if tool_choice:
-            if isinstance(tool_choice, Sequence) and not isinstance(tool_choice, str):
-                std_tool_choice = standardize_tool_choice(tool_choice[0])
-                std_tool_choice_queue = [standardize_tool_choice(tool_choice) for tool_choice in tool_choice[1:]]
-            else:
-                std_tool_choice = standardize_tool_choice(tool_choice)
-                std_tool_choice_queue = None
-            client_tool_choice = client.prep_input_tool_choice(std_tool_choice)
-        else:
-            std_tool_choice = std_tool_choice_queue = client_tool_choice = None
-
-        # if tools:
-        #     std_tools = standardize_tools(tools)
-        #     # client_tools = [client.prep_input_tool(tool) for tool in std_tools]
-        #     std_tools_filtered = self.filter_tools_by_tool_choice(std_tools, std_tool_choice) if std_tool_choice else std_tools
-        #     client_tools = [client.prep_input_tool(tool) for tool in std_tools_filtered]
-        # else:
-        #     std_tools = client_tools = None
-
-        if response_format:
-            client_response_format = client.prep_input_response_format(response_format)
-        else:
-            client_response_format = None
-        
-        # Chat and ToolCall handling loop
-        while (response := client.chat(
-                messages=client_messages,                 
-                model=model, 
+            ):
+            chat = Chat(
+                parent=self,
+                provider=provider or self.default_provider,
+                messages=messages if messages is not None else [],
+                model=model,
                 system_prompt=system_prompt,
-                tools=client_tools, 
-                tool_choice=client_tool_choice,
-                response_format=client_response_format, 
-                **kwargs
-            )):
+                tools=tools,
+                tool_callables=tool_callables,
+                tool_choice=tool_choice,
+                response_format=response_format,
+                return_on=return_on,
+                enforce_tool_choice=enforce_tool_choice,
+                tool_choice_error_retries=tool_choice_error_retries
+            )
+            if messages:
+                chat.run()
+            return chat
+        
 
-            # TODO check if response is an APIError
-
-            std_message, client_message = client.extract_std_and_client_messages(response)
-            print("std_message:", std_message)
-
-            # Enforce Tool Choice: Check if tool choice is obeyed
-            # auto:  
-            if enforce_tool_choice and std_tool_choice != 'auto' and std_tool_choice is not None:
-                if self.check_tool_choice_obeyed(std_tool_choice, std_message.tool_calls):
-                    # TODO implement tool choice sequence
-                    if std_tool_choice_queue and std_tools:
-                        # Update std_tools and client_tools with next tool choice
-                        std_tool_choice = std_tool_choice_queue.pop(0)
-                        client_tool_choice = client.prep_input_tool_choice(std_tool_choice)
-
-                        # # # Filter tools by tool choice            
-                        # std_tools_filtered = self.filter_tools_by_tool_choice(std_tools, std_tool_choice)
-                        # client_tools = [client.prep_input_tool(tool) for tool in std_tools_filtered]
-                    else:
-                        std_tool_choice = client_tool_choice = None # set to auto for next iteration
-                        
-                elif tool_choice_error_retries > 0:
-                    tool_choice_error_retries -= 1
-                    # Continue to next iteration without updating messages (retry)
-                    continue
-                else:
-                    print("Tool choice error retries exceeded")
-                    raise ValueError("Tool choice error retries exceeded")
-
-            # Update messages with assistant message
-            std_messages.append(std_message)
-            client_messages.append(client_message)
-            
-            if return_on == "message":
-                print("returning on message")
-                break
-            
-            if tool_calls := std_message.tool_calls:
-                # Return on tool_call before processing messages
-                if any(
-                    return_on == "tool_call" # return_on is a string "tool_call"
-                    or tool_call.tool_name == return_on # return_on is a tool name
-                    or (isinstance(return_on, Collection) and tool_call.tool_name in return_on) # return_on is a collection of tool names
-                    for tool_call in tool_calls):
-                    print("returning on tool call", return_on)
-                    break
-
-                tool_calls = self.do_tool_calls(tool_calls)
-                for std_tool_message in client.split_tool_call_outputs_into_messages(tool_calls):
-                    std_messages.append(std_tool_message)
-                    client_messages.append(client.prep_input_message(std_tool_message))
-                
-                # Process messages after submitting tool outputs
-                continue
-
-            print("Returning on content:", std_message.content)
-            break
-
-        return std_messages
-
-    
     def evaluate(self, 
                  eval_type: str, 
                  content: Any, 
@@ -281,7 +156,7 @@ class UnifAIClient:
             content=content
         )
 
-        messages = self.chat(
+        chat = self.chat(
             messages=input_messages,
             provider=provider,
             model=model,
@@ -293,22 +168,304 @@ class UnifAIClient:
         )
         
         return_as = eval_type_parameters.return_as
-        if return_as == "messages":
-            return messages
+        if return_as == "chat":
+            return chat
+        return getattr(chat, return_as)
         
-        last_message = messages[-1]
-        if return_as == "last_message":
-            return last_message
+              
+class Chat:
+
+    def __init__(self, 
+                 parent: UnifAIClient,
+                 provider: AIProvider,    
+                 messages: Sequence[Union[Message, str, dict[str, Any]]],                         
+                 model: Optional[str] = None,
+                 system_prompt: Optional[str] = None,
+                 tools: Optional[Sequence[ToolInput]] = None,
+                 tool_callables: Optional[dict[str, Callable]] = None,
+                 tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,                 
+                 response_format: Optional[Union[str, dict[str, str]]] = None,
+                 
+                 return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
+                 enforce_tool_choice: bool = False,
+                 tool_choice_error_retries: int = 3,
+                 ):
         
-        if last_message.content:
+
+        self.parent = parent
+        self.provider = provider
+        self.set_provider(provider)
+        self.set_model(model)
+        self.set_system_prompt(system_prompt)
+        self.set_messages(messages, system_prompt)
+        self.set_tools(tools)
+        self.set_tool_callables(tool_callables)
+        self.set_tool_choice(tool_choice)
+        self.set_response_format(response_format)
+        self.return_on = return_on
+        self.enforce_tool_choice = enforce_tool_choice
+        self.tool_choice_error_retries = tool_choice_error_retries
+
+    def set_provider(self, provider: AIProvider) -> Self:        
+        self.client = self.parent.get_client(provider)
+        if provider != self.provider:
+            pass
+            # Need reformat args?
+        self.provider = provider
+        return self
+    
+    def set_model(self, model: Optional[str]) -> Self:
+        self.model = model or self.client.default_model
+        return self
+    
+    def set_system_prompt(self, system_prompt: Optional[str]) -> Self:
+        self.system_prompt = system_prompt
+        return self    
+    
+    def set_messages(self, 
+                     messages: Sequence[Union[Message, str, dict[str, Any]]],
+                     system_prompt: Optional[str] = None) -> Self:
+
+        # standardize inputs and prep copies for client in its format
+        # (Note to self: 2 copies are stored to prevent converting back and forth between formats on each iteration.
+        # this choice is at the cost of memory but is done to prevent unnecessary conversions 
+        # and allow for easier debugging and error handling.
+        # May revert back to optimizing for memory later if needed.)
+        self.std_messages = standardize_messages(messages)
+        self.client_messages, self.system_prompt = self.client.prep_input_messages_and_system_prompt(
+            self.std_messages, system_prompt or self.system_prompt)
+        return self
+    
+    def extend_messages(self, std_messages: Sequence[Message]) -> None:
+        for std_message in std_messages:
+            self.std_messages.append(std_message)
+            self.client_messages.append(self.client.prep_input_message(std_message))  
+
+    
+    def set_tools(self, tools: Optional[Sequence[ToolInput]]) -> Self:
+        if tools:
+            self.std_tools = standardize_tools(tools, tool_dict=self.parent.tools)
+            self.client_tools = [self.client.prep_input_tool(tool) for tool in self.std_tools.values()]
+        else:
+            self.std_tools = self.client_tools = None
+        return self
+    
+    def set_tool_callables(self, tool_callables: Optional[dict[str, Callable]]) -> Self:
+        if tool_callables:
+            self.tool_callables = {**self.parent.tool_callables, **tool_callables}
+        else:
+            self.tool_callables = self.parent.tool_callables
+        return self
+    
+    def set_tool_choice(self, tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]]) -> Self:
+        if tool_choice:
+            if isinstance(tool_choice, Sequence) and not isinstance(tool_choice, str):
+                self.std_tool_choice = standardize_tool_choice(tool_choice[0])
+                self.std_tool_choice_queue = [standardize_tool_choice(tool_choice) for tool_choice in tool_choice[1:]]
+            else:
+                self.std_tool_choice = standardize_tool_choice(tool_choice)
+                self.std_tool_choice_queue = None
+            self.client_tool_choice = self.client.prep_input_tool_choice(self.std_tool_choice)
+        else:
+            self.std_tool_choice = self.std_tool_choice_queue = self.client_tool_choice = None
+        return self
+    
+    def set_response_format(self, response_format: Optional[Union[str, dict[str, str]]]) -> Self:
+        if response_format:
+            self.client_response_format = self.client.prep_input_response_format(response_format)
+        else:
+            self.client_response_format = None
+        return self
+    
+
+    def enforce_tool_choice_needed(self) -> bool:
+        return self.enforce_tool_choice and self.std_tool_choice != 'auto' and self.std_tool_choice is not None    
+    
+    def check_tool_choice_obeyed(self, tool_choice: str, tool_calls: Optional[list[ToolCall]]) -> bool:
+        if tool_calls:
+            tool_names = [tool_call.tool_name for tool_call in tool_calls]
+            if (
+                # tools were called but tool choice is none
+                tool_choice == 'none'
+                # the correct tool was not called and tool choice is not "required" (required=any one or more tools must be called) 
+                or (tool_choice != 'required' and tool_choice not in tool_names)
+                ):
+                print(f"Tools called and tool_choice={tool_choice} NOT OBEYED")
+                return False
+        elif tool_choice != 'none':
+            print(f"Tools NOT called and tool_choice={tool_choice} NOT OBEYED")
+            return False 
+        
+        print(f"tool_choice={tool_choice} OBEYED")
+        return True
+    
+    def handle_tool_choice_obeyed(self, std_message: Message) -> None:
+        if self.std_tool_choice_queue and self.std_tools:
+            # Update std_tools and client_tools with next tool choice
+            self.std_tool_choice = self.std_tool_choice_queue.pop(0)
+            self.client_tool_choice = self.client.prep_input_tool_choice(self.std_tool_choice)
+        else:
+            self.std_tool_choice = self.client_tool_choice = None
+
+    def handle_tool_choice_not_obeyed(self, std_message: Message) -> None:
+        self.tool_choice_error_retries -= 1
+
+    def check_return_on_tool_call(self, tool_calls: list[ToolCall]) -> bool:
+        if self.return_on == "tool_call":
+            # return on is string "tool_call" = return on any tool call
+            return True
+        if isinstance(self.return_on, Collection):
+            # return on is a collection of tool names
+            return any(tool_call.tool_name in self.return_on for tool_call in tool_calls)
+        
+        # return on is a tool name
+        return any(tool_call.tool_name == self.return_on for tool_call in tool_calls)   
+
+
+    def do_tool_calls(self, tool_calls: list[ToolCall]) -> list[ToolCall]:
+        for tool_call in tool_calls:
+            tool_name = tool_call.tool_name
+            tool_callable = None
+            if self.std_tools and (tool := self.std_tools.get(tool_name)) and tool.callable:
+                tool_callable = tool.callable
+            elif self_tool_callable := self.tool_callables.get(tool_name):
+                tool_callable = self_tool_callable            
+            elif parent_tool_callable := self.parent.tool_callables.get(tool_name):                
+                tool_callable = parent_tool_callable
+            else:
+                raise ValueError(f"Tool '{tool_call.tool_name}' callable not found")
+            
+            # TODO catch ToolCallError
+            tool_call.output = tool_callable(**tool_call.arguments)
+                   
+        return tool_calls
+                    
+                        
+    def extend_messages_with_tool_outputs(self, 
+                                        tool_calls: Sequence[ToolCall],
+                                        content: Optional[str] = None
+                                        ) -> None:
+        std_tool_messages = self.client.split_tool_call_outputs_into_messages(
+            tool_calls, content)
+        self.extend_messages(std_tool_messages)
+        # self.extend_messages(self.client.split_tool_call_outputs_into_messages(tool_calls))
+             
+
+
+    def run(self) -> Self:
+        while True:
+            response = self.client.chat(
+                messages=self.client_messages,                 
+                model=self.model, 
+                system_prompt=self.system_prompt,
+                tools=self.client_tools, 
+                tool_choice=self.client_tool_choice,
+                response_format=self.client_response_format
+            )
+            # TODO check if response is an APIError
+
+            std_message, client_message = self.client.extract_std_and_client_messages(response)
+            print("std_message:", std_message)
+
+            # Enforce Tool Choice: Check if tool choice is obeyed
+            # auto:  
+            if self.enforce_tool_choice and self.std_tool_choice != 'auto' and self.std_tool_choice is not None:
+                if self.check_tool_choice_obeyed(self.std_tool_choice, std_message.tool_calls):
+                    self.handle_tool_choice_obeyed(std_message)
+                elif self.tool_choice_error_retries > 0:
+                    self.handle_tool_choice_not_obeyed(std_message)
+                    # Continue to next iteration without updating messages (retry)
+                    continue
+                else:
+                    print("Tool choice error retries exceeded")
+                    raise ValueError("Tool choice error retries exceeded")
+                
+            # Update messages with assistant message
+            self.std_messages.append(std_message)
+            self.client_messages.append(client_message)
+
+            if self.return_on == "message":
+                print("returning on message")
+                break
+
+            if tool_calls := std_message.tool_calls:
+                # Return on tool_call before processing messages
+                if self.check_return_on_tool_call(tool_calls):
+                    break
+
+                tool_calls = self.do_tool_calls(tool_calls)
+                self.extend_messages_with_tool_outputs(tool_calls)
+                # Process messages after submitting tool outputs
+                continue
+
+            print("Returning on content:", std_message.content)
+            break
+
+        return self
+
+
+    @property
+    def messages(self) -> list[Message]:
+        return self.std_messages
+    
+    @property
+    def last_message(self) -> Optional[Message]:
+        if self.std_messages:
+            return self.std_messages[-1]
+    
+    @property
+    def last_content(self) -> Optional[str]:
+        if last_message := self.last_message:
             return last_message.content
+
+    # alias for last_content
+    content = last_content
+    
+    @property
+    def last_tool_calls(self) -> Optional[list[ToolCall]]:
+        if last_message := self.last_message:
+            return last_message.tool_calls
         
-        if last_message.tool_calls:                
-            if return_as == "last_content_or_all_tool_call_args":
-                return [tool_call.arguments for tool_call in last_message.tool_calls]
-            
-            # default return_as == "last_content_or_tool_call_args"
-            return last_message.tool_calls[-1].arguments
+    # alias for last_tool_calls
+    tool_calls = last_tool_calls
+
+    @property
+    def last_tool_calls_args(self) -> Optional[list[Mapping[str, Any]]]:
+        if last_tool_calls := self.last_tool_calls:
+            return [tool_call.arguments for tool_call in last_tool_calls]
+
+
+    @property
+    def last_tool_call(self) -> Optional[ToolCall]:
+        if last_tool_calls := self.last_tool_calls:
+            return last_tool_calls[-1]
         
-        raise ValueError("No content or tool call arguments to return")
             
+    @property
+    def last_tool_call_args(self) -> Optional[Mapping[str, Any]]:
+        if last_tool_call := self.last_tool_call:
+            return last_tool_call.arguments
+        
+    def send_message(self, *message: Union[Message, str, dict[str, Any]]) -> Message:
+        if not message:
+            raise ValueError("No message(s) provided")
+
+        # prevent error when using multiple return_tools without submitting tool outputs
+        if (last_message := self.last_message) and last_message.role == "assistant" and last_message.tool_calls:
+            messages = standardize_messages(message)
+            self.extend_messages_with_tool_outputs(last_message.tool_calls, content=messages.pop(0).content)
+            if messages:
+                self.extend_messages(messages)
+        else:
+            self.extend_messages(standardize_messages(message))
+        return self.run().last_message
+    
+    def submit_tool_outputs(self, 
+                            tool_calls: Sequence[ToolCall], 
+                            tool_outputs: Optional[Sequence[Any]]
+                            ) -> Self:
+        if tool_outputs:
+            for tool_call, tool_output in zip(tool_calls, tool_outputs):
+                tool_call.output = tool_output
+        self.extend_messages_with_tool_outputs(tool_calls)
+        return self.run()

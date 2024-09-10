@@ -140,9 +140,13 @@ class AnthropicWrapper(BaseAIClientWrapper):
         return input_object
 
     
-    def split_tool_call_outputs_into_messages(self, tool_calls: list[ToolCall]) -> list[Message]:        
+    def split_tool_call_outputs_into_messages(self, 
+                                              tool_calls: list[ToolCall],
+                                              content: Optional[str],
+                                              ) -> list[Message]:        
         message = Message(
             role="tool",
+            content=content,
             tool_calls=tool_calls,            
         )
         return [message]
