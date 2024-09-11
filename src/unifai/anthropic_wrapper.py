@@ -1,4 +1,4 @@
-from typing import Optional, Union, Sequence, Any, Literal, Mapping
+from typing import Optional, Union, Sequence, Any, Literal, Mapping, Iterator
 
 from anthropic import Anthropic
 from anthropic.types import (
@@ -66,37 +66,89 @@ class AnthropicWrapper(BaseAIClientWrapper):
         return Anthropic
 
 
-    def prep_input_message(self, message: Message) -> AnthropicMessageParam:
-        if message.role == "system":
-            raise ValueError("Anthropic does not support system messages")
+    # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
+    def convert_exception(self, exception: AnthropicAPIError) -> UnifAIError:
+        if isinstance(exception, AnthropicAPIResponseValidationError):
+            return APIResponseValidationError(
+                message=exception.message,
+                status_code=exception.status_code, # Status code could be anything
+                original_exception=exception,
+            )
         
-        role = "user" if message.role != "assistant" else message.role
+        if isinstance(exception, AnthropicAPITimeoutError):
+            status_code = 504
+        elif isinstance(exception, AnthropicAPIConnectionError):
+            status_code = 502
+        else:
+            status_code = getattr(exception, "status_code", -1)
+        
+        unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
+        return unifai_exception_type(
+            message=exception.message, 
+            status_code=getattr(exception, "status_code", None), # ConnectionError and TimeoutError don't have status_code
+            original_exception=exception
+        )
+    
+
+    # Convert Objects from UnifAI to AI Provider format            
+        # Messages
+    def prep_input_user_message(self, message: Message) -> AnthropicMessageParam:
         content = []
+        if message.content:
+            content.append(AnthropicTextBlockParam(text=message.content, type="text"))
+        if message.images:
+            content.extend(self.prep_input_images(message.images))
+
+        return AnthropicMessageParam(role="user", content=content)
 
 
+    def prep_input_assistant_message(self, message: Message) -> AnthropicMessageParam:
+        content = []
+        if message.content:
+            content.append(AnthropicTextBlockParam(text=message.content, type="text"))
         if message.tool_calls:
-            if message.role == "tool":
-                content = self.prep_input_message_tool_call_response(message, content)
-            else:
-                content = self.prep_input_message_tool_call(message, content)
+            for tool_call in message.tool_calls:
+                tool_use_param = AnthropicToolUseBlockParam(
+                    id=tool_call.id,
+                    name=tool_call.tool_name,
+                    input=tool_call.arguments,
+                    type="tool_use"
+                )
+                content.append(tool_use_param)
+        # if message.images:
+        #     content.extend(self.prep_input_images(message.images))
+        return AnthropicMessageParam(role="assistant", content=content)
 
-        if message.content and not content:
-            content.append(AnthropicTextBlockParam(text=message.content, type="text"))            
 
-        if message.images and not message.tool_calls:
-            # TODO: Implement image handling
-            for image in message.images:
-                source = AnthropicImageSource(data=image.data, media_type=image.media_type, type=image.format), 
-                content.append(AnthropicImageBlockParam(source=source, type="image"))
+    def prep_input_tool_message(self, message: Message) -> AnthropicMessageParam:
+        content = []
+        # if message.content:
+        #     content.append(AnthropicTextBlockParam(text=message.content, type="text"))
+        if message.tool_calls:
+            for tool_call in message.tool_calls:
+                tool_result_content = []
+                # if message.content:
+                #     tool_result_content.append(AnthropicTextBlockParam(text=message.content, type="text"))                
 
-        return AnthropicMessageParam(role=role, content=content)     
-            
+                tool_result_param = AnthropicToolResultBlockParam(
+                    tool_use_id=tool_call.id,
+                    content=tool_result_content,
+                    is_error=False,
+                    type="tool_result"
+                )
+                content.append(tool_result_param)
+            return AnthropicMessageParam(role="user", content=content)
+        raise ValueError("Tool messages must have tool calls")
+
+
+    def prep_input_system_message(self, message: Message) -> AnthropicMessageParam:
+        raise ValueError("Anthropic does not support system messages")
+    
 
     def prep_input_messages_and_system_prompt(self, 
                                               messages: list[Message], 
                                               system_prompt_arg: Optional[str] = None
                                               ) -> tuple[list, Optional[str]]:
-        
         system_prompt = system_prompt_arg
         if messages and messages[0].role == "system":
             # Remove the first system message from the list since Anthropic does not support system messages
@@ -106,70 +158,21 @@ class AnthropicWrapper(BaseAIClientWrapper):
                 system_prompt = system_message.content 
 
         client_messages = [self.prep_input_message(message) for message in messages]
-        return client_messages, system_prompt            
-    
+        return client_messages, system_prompt        
+
+
+        # Images
+    def prep_input_images(self, images: list[Image]) -> list[AnthropicImageBlockParam]:
+        raise NotImplementedError("This method must be implemented by the subclass")    
+
+
+        # Tools
     def prep_input_tool(self, tool: Tool) -> AnthropicToolParam:
         return AnthropicToolParam(
             name=tool.name,
             description=tool.description,
             input_schema=tool.parameters.to_dict()
-        )
-        
-    # def prep_input_tool_call(self, tool_call: ToolCall) -> AnthropicToolUseBlockParam:
-    #     return AnthropicToolUseBlockParam(
-    #         id=tool_call.tool_call_id,
-    #         name=tool_call.tool_name,
-    #         input=tool_call.arguments,
-    #         type="tool_use"
-    #     )
-
-    # def prep_input_tool_call_response(self, tool_call: ToolCall, tool_response: Any) -> AnthropicToolResultBlockParam:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-
-
-    def prep_input_message_tool_call(self, message: Message, input_object: list) -> list:
-        if message.tool_calls and message.role == "assistant":
-            for tool_call in message.tool_calls:
-                tool_use_param = AnthropicToolUseBlockParam(
-                    id=tool_call.id,
-                    name=tool_call.tool_name,
-                    input=tool_call.arguments,
-                    type="tool_use"
-                )
-                input_object.append(tool_use_param)                
-        return input_object
-
-    
-    def split_tool_call_outputs_into_messages(self, 
-                                              tool_calls: list[ToolCall],
-                                              content: Optional[str],
-                                              ) -> list[Message]:        
-        message = Message(
-            role="tool",
-            content=content,
-            tool_calls=tool_calls,            
-        )
-        return [message]
-    
-    def prep_input_message_tool_call_response(self, message: Message, input_object: list) -> list:
-        if message.tool_calls and message.role == "tool":
-            for tool_call in message.tool_calls:
-                content = []
-                if message.content:
-                    content.append(AnthropicTextBlockParam(text=message.content, type="text"))
-                if message.images:
-                    for image in message.images:
-                        source = AnthropicImageSource(data=image.data, media_type=image.media_type, type=image.format), 
-                        content.append(AnthropicImageBlockParam(source=source, type="image"))
-                
-                tool_result_param = AnthropicToolResultBlockParam(
-                    tool_use_id=tool_call.id,
-                    content=content,
-                    is_error=False,
-                    type="tool_result"
-                )
-                input_object.append(tool_result_param)
-        return input_object
+        )    
 
 
     def prep_input_tool_choice(self, tool_choice: str) -> dict:
@@ -178,22 +181,18 @@ class AnthropicWrapper(BaseAIClientWrapper):
         if tool_choice in ("auto", "required", "none"):
             return {"type": tool_choice}
         
-        return {"type": "tool", "name": tool_choice}
+        return {"type": "tool", "name": tool_choice}   
 
+
+        # Response Format
     def prep_input_response_format(self, response_format: Union[str, dict]) -> None:
         # Warn: response_format is not used by the Anthropic client
         if response_format: print("Warning: response_format is not used by the Anthropic client")
         return None
 
-            
-    # def extract_output_tool_call(self, tool_call: AnthropicToolUseBlock) -> ToolCall:
-    #     return ToolCall(
-    #         id=tool_call.id,
-    #         tool_name=tool_call.name,
-    #         arguments=tool_call.input
-    #     )
-    
-    def extract_std_and_client_messages(self, response: AnthropicMessage) -> tuple[Message, AnthropicMessageParam]:
+
+    # Convert from AI Provider to UnifAI format    
+    def extract_output_assistant_messages(self, response: AnthropicMessage) -> tuple[Message, AnthropicMessageParam]:
         client_message = AnthropicMessageParam(role=response.role, content=response.content)
         content = ""
         tool_calls = []
@@ -231,30 +230,19 @@ class AnthropicWrapper(BaseAIClientWrapper):
             images=images,
             response_info=response_info,
         )
+        return std_message, client_message 
+    
 
-        return std_message, client_message
-
-    def convert_exception(self, exception: AnthropicAPIError) -> UnifAIError:
-        if isinstance(exception, AnthropicAPIResponseValidationError):
-            return APIResponseValidationError(
-                message=exception.message,
-                status_code=exception.status_code, # Status code could be anything
-                original_exception=exception,
-            )
-        
-        if isinstance(exception, AnthropicAPITimeoutError):
-            status_code = 504
-        elif isinstance(exception, AnthropicAPIConnectionError):
-            status_code = 502
-        else:
-            status_code = getattr(exception, "status_code", -1)
-        
-        unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
-        return unifai_exception_type(
-            message=exception.message, 
-            status_code=getattr(exception, "status_code", None), # ConnectionError and TimeoutError don't have status_code
-            original_exception=exception
+    def split_tool_outputs_into_messages(self, 
+                                              tool_calls: list[ToolCall],
+                                              content: Optional[str],
+                                              ) -> Iterator[Message]:        
+        yield Message(
+            role="tool",
+            content=content,
+            tool_calls=tool_calls            
         )
+        
 
 
     # List Models
@@ -302,7 +290,6 @@ class AnthropicWrapper(BaseAIClientWrapper):
         return response
 
     # Embeddings
-
     def embeddings(
             self,
             model: Optional[str] = None,

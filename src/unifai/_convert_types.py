@@ -19,8 +19,8 @@ from ._types import (
     ArrayToolParameter,
     ObjectToolParameter,
     AnyOfToolParameter,
-    EvalTypeParameters,
-    EvalTypeParametersInput,
+    EvaluateParameters,
+    EvaluateParametersInput,
     ToolInput,
 )
 
@@ -159,13 +159,13 @@ def tool_from_dict(tool_dict: dict) -> Tool:
     )
 
 
-def standardize_eval_types(eval_types: Sequence[EvalTypeParametersInput]) -> dict[str, EvalTypeParameters]:
+def standardize_eval_prameters(eval_types: Sequence[EvaluateParametersInput]) -> dict[str, EvaluateParameters]:
     std_eval_types = {}
     for eval_type in eval_types:
-        if isinstance(eval_type, EvalTypeParameters):
-            std_eval_types[eval_type.name] = eval_type
+        if isinstance(eval_type, EvaluateParameters):
+            std_eval_types[eval_type.eval_type] = eval_type
         elif isinstance(eval_type, dict):
-            std_eval_types[eval_type['eval_type']] = EvalTypeParameters(**eval_type)
+            std_eval_types[eval_type['eval_type']] = EvaluateParameters(**eval_type)
         else:
             raise ValueError(f"Invalid eval_type type: {type(eval_type)}")
     return std_eval_types

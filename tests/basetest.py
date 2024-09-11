@@ -14,12 +14,12 @@ def base_test_all_providers(func):
         "anthropic", 
         {"api_key": ANTHROPIC_API_KEY},
         {}
-        ),
+    ),
     (
         "openai", 
         {"api_key": OPENAI_API_KEY},
         {}
-    ),
+    ), 
     # (
     #     "ollama", 
     #     {"host": "http://librem-2.local:11434"},

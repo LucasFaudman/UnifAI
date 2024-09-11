@@ -1,4 +1,4 @@
-from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable
+from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator
 
 from json import dumps as json_dumps
 from ._types import Message, Tool, ToolCall, Image
@@ -28,22 +28,42 @@ class BaseAIClientWrapper:
         return self._client
     
 
-    # Convert from UnifAI to AI Provider format
-        
+    # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
+    def convert_exception(self, exception: Exception) -> UnifAIError:
+        raise NotImplementedError("This method must be implemented by the subclass")
+
+
+    def run_func_convert_exceptions(self, func: Callable[..., T], *args, **kwargs) -> T:
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            raise self.convert_exception(e) from e
+
+
+    # Convert Objects from UnifAI to AI Provider format        
         # Messages
     def prep_input_message(self, message: Message) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        if message.role == "user":
+            return self.prep_input_user_message(message)
+        elif message.role == "assistant":
+            return self.prep_input_assistant_message(message)
+        elif message.role == "tool":
+            return self.prep_input_tool_message(message)
+        elif message.role == "system":
+            return self.prep_input_system_message(message)        
+        else:
+            raise ValueError(f"Invalid message role: {message.role}")
     
     def prep_input_user_message(self, message: Message) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
-    
-    def prep_input_system_message(self, message: Message) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
+
+    def prep_input_assistant_message(self, message: Message) -> Any:
+        raise NotImplementedError("This method must be implemented by the subclass")    
+        
     def prep_input_tool_message(self, message: Message) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
     
-    def prep_input_assistant_message(self, message: Message) -> Any:
+    def prep_input_system_message(self, message: Message) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
     
     def prep_input_messages_and_system_prompt(self, 
@@ -60,47 +80,19 @@ class BaseAIClientWrapper:
     def prep_input_tool(self, tool: Tool) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
         
-    # def prep_input_tool_call(self, tool_call: ToolCall) -> Any:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-
-    # def prep_input_tool_call_response(self, tool_call: ToolCall, tool_response: Any) -> Any:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-    
-    def split_tool_call_outputs_into_messages(self, tool_calls: Sequence[ToolCall], content: Optional[str] = None) -> list[Message]:
-        raise NotImplementedError("This method must be implemented by the subclass")
-
-
-    # def prep_input_message_tool_call(self, message: Message, input_object: T) -> T:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-
-    # def prep_input_message_tool_call_response(self, message: Message, input_object: T) -> T:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-        
-    
     def prep_input_tool_choice(self, tool_choice: str) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")    
 
+        # Response Format
     def prep_input_response_format(self, response_format: Union[str, dict]) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
 
-    def extract_output_tool_call(self, tool_call: Any) -> ToolCall:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-    def extract_std_and_client_messages(self, response: Any) -> tuple[Message, Any]:
+    # Convert Objects from AI Provider to UnifAI format    
+    def extract_output_assistant_messages(self, response: Any) -> tuple[Message, Any]:
         raise NotImplementedError("This method must be implemented by the subclass")   
 
-
-
-
-    # Exceptions
-    def convert_exception(self, exception: Exception) -> UnifAIError:
+    def split_tool_outputs_into_messages(self, tool_calls: Sequence[ToolCall], content: Optional[str] = None) -> Iterator[Message]:
         raise NotImplementedError("This method must be implemented by the subclass")
-
-    def run_func_convert_exceptions(self, func: Callable[..., T], *args, **kwargs) -> T:
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            raise self.convert_exception(e) from e
 
 
     # List Models
@@ -121,8 +113,18 @@ class BaseAIClientWrapper:
             ) -> Message:
         raise NotImplementedError("This method must be implemented by the subclass")
 
-    # Embeddings
 
+    # Generate
+    def generate(
+            self,
+            model: Optional[str] = None,
+            prompt: Optional[str] = None,
+            **kwargs
+            ):
+        raise NotImplementedError("This method must be implemented by the subclass")
+    
+
+    # Embeddings
     def embeddings(
             self,
             model: Optional[str] = None,
@@ -131,15 +133,6 @@ class BaseAIClientWrapper:
             ):
         raise NotImplementedError("This method must be implemented by the subclass")
     
-    # Generate
-
-    def generate(
-            self,
-            model: Optional[str] = None,
-            prompt: Optional[str] = None,
-            **kwargs
-            ):
-        raise NotImplementedError("This method must be implemented by the subclass")
 
 
     def create_assistant(self, **kwargs):
@@ -157,46 +150,4 @@ class BaseAIClientWrapper:
     
 
 
-    # def prep_input_message(self, message: Message) -> Any:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-    
-    # def prep_input_messages_and_system_prompt(self, 
-    #                                           messages: list[Message], 
-    #                                           system_prompt_arg: Optional[str] = None
-    #                                           ) -> tuple[list, Optional[str]]:
-    #     raise NotImplementedError("This method must be implemented by the subclass")    
-    
-    # def prep_input_images(self, images: list[Image]) -> Any:
-    #     raise NotImplementedError("This method must be implemented by the subclass")    
-    
-    # def prep_input_tool(self, tool: Tool) -> Any:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-        
-    # def prep_input_tool_call(self, tool_call: ToolCall) -> Any:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-
-    # def prep_input_tool_call_response(self, tool_call: ToolCall, tool_response: Any) -> Any:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-    
-    # def split_tool_call_outputs_into_messages(self, tool_calls: Sequence[ToolCall], content: Optional[str] = None) -> list[Message]:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-
-
-    # def prep_input_message_tool_call(self, message: Message, input_object: T) -> T:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-
-    # def prep_input_message_tool_call_response(self, message: Message, input_object: T) -> T:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-        
-    
-    # def prep_input_tool_choice(self, tool_choice: str) -> Any:
-    #     raise NotImplementedError("This method must be implemented by the subclass")    
-
-    # def prep_input_response_format(self, response_format: Union[str, dict]) -> Any:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-
-    # def extract_output_tool_call(self, tool_call: Any) -> ToolCall:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-    
-    # def extract_std_and_client_messages(self, response: Any) -> tuple[Message, Any]:
-    #     raise NotImplementedError("This method must be implemented by the subclass")       
+   

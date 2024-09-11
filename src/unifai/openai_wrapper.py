@@ -19,7 +19,7 @@
 # from openai.types.beta.function_tool import FunctionTool
 
 # from tiktoken import get_encoding, encoding_for_model
-from typing import Optional, Union, Any, Literal, Mapping
+from typing import Optional, Union, Any, Literal, Mapping, Iterator
 from json import loads as json_loads, JSONDecodeError
 from datetime import datetime
 
@@ -77,27 +77,50 @@ class OpenAIWrapper(BaseAIClientWrapper):
         from openai import OpenAI
         return OpenAI
     
-    
-    def prep_input_message(self, message: Message) -> dict:
-        message_dict = {
-            "role": message.role,
-            "content": message.content,                
-        }
-        if message.tool_calls:
-            if message.role == "tool":
-                tool_call = message.tool_calls[0]
-                message_dict["tool_call_id"] = tool_call.id
-            else:
-                message_dict["tool_calls"] = [
-                    self.prep_input_tool_call(tool_call) for tool_call in message.tool_calls
-                ]
-
+    # Convert from UnifAI to AI Provider format        
+        # Messages        
+    def prep_input_user_message(self, message: Message) -> dict:
+        message_dict = {"role": "user", "content": message.content}
         if message.images:
-            # TODO: Implement image handling
-            message_dict["images"] = message.images
-
+            message_dict["images"] = self.prep_input_images(message.images)
         return message_dict
     
+
+    def prep_input_assistant_message(self, message: Message) -> dict:
+        message_dict = {"role": "assistant", "content": message.content}
+        if message.tool_calls:
+            message_dict["tool_calls"] = [
+                {
+                    "id": tool_call.id,
+                    "type": tool_call.type,
+                    tool_call.type: {
+                        "name": tool_call.tool_name,
+                        "arguments": stringify_content(tool_call.arguments),
+                    }
+                }
+                for tool_call in message.tool_calls
+            ]
+        if message.images:
+            message_dict["images"] = self.prep_input_images(message.images)
+        
+        return message_dict   
+    
+
+    def prep_input_tool_message(self, message: Message) -> dict:
+        if message.tool_calls:
+            tool_call = message.tool_calls[0]
+            return {
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": message.content,
+            }
+        raise ValueError("Tool message must have tool_calls")
+    
+    
+    def prep_input_system_message(self, message: Message) -> dict:
+        return {"role": "system", "content": message.content}
+
+
     def prep_input_messages_and_system_prompt(self, 
                                               messages: list[Message], 
                                               system_prompt_arg: Optional[str] = None
@@ -116,9 +139,16 @@ class OpenAIWrapper(BaseAIClientWrapper):
         client_messages = [self.prep_input_message(message) for message in messages]
         return client_messages, system_prompt
 
+
+        # Images
+    def prep_input_images(self, images: list[Image]) -> Any:
+        raise NotImplementedError("This method must be implemented by the subclass")    
     
+    
+        # Tools
     def prep_input_tool(self, tool: Tool) -> dict:
         return tool.to_dict()
+    
     
     def prep_input_tool_choice(self, tool_choice: str) -> Union[str, dict]:
         if tool_choice in ("auto", "required", "none"):
@@ -127,37 +157,10 @@ class OpenAIWrapper(BaseAIClientWrapper):
         tool_type = "function" # Currently only function tools are supported See: https://platform.openai.com/docs/api-reference/chat/create#chat-create-tool_choice
         return {"type": tool_type, tool_type: {"name": tool_choice}}
 
-    def prep_input_tool_call(self, tool_call: ToolCall) -> dict:
-        return {
-            "id": tool_call.id,
-            "type": tool_call.type,
-            tool_call.type: {
-                "name": tool_call.tool_name,
-                "arguments": stringify_content(tool_call.arguments),
-            }
-        }
 
-
-    def split_tool_call_outputs_into_messages(self, tool_calls: list[ToolCall], content: Optional[str] = None) -> list[Message]:        
-        tool_messages = [
-            Message(role="tool", content=stringify_content(tool_call.output), tool_calls=[tool_call])
-            for tool_call in tool_calls
-        ]
-        if content:
-            tool_messages.append(Message(role="user", content=content))
-        return tool_messages
-    
-    # def prep_input_tool_call_response(self, tool_call: ToolCall, tool_response: Any) -> dict:
-    #     return {
-    #         "role": "tool",
-    #         "tool_call_id": tool_call.tool_call_id,
-    #         "name": tool_call.tool_name,
-    #         "content": tool_response,
-    #     }
-
+        # Response Format
     def prep_input_response_format(self, response_format: Union[str, dict]) -> Union[str, dict]:
-        simple_response_formats = ("json", "json_object", "text")
-        
+
         if isinstance(response_format, dict) and (response_type := response_format.get("type")):
             if response_type == "json_schema" and (schema := response_format.get("json_schema")):
                 # TODO handle json_schema
@@ -171,28 +174,9 @@ class OpenAIWrapper(BaseAIClientWrapper):
         
         raise ValueError(f"Invalid response_format: {response_format}")
         
-
-    # def extract_output_tool_call(self, tool_call: ChatCompletionMessageToolCall) -> ToolCall:
-    #     return ToolCall(
-    #         id=tool_call.id,
-    #         tool_name=tool_call.function.name,
-    #         arguments=json_loads(tool_call.function.arguments),
-    #     )    
     
-    
-    # def extract_output_message(self, response: ChatCompletion) -> Message:
-    #     message = response.choices[0].message
-    #     images = None # TODO: Implement image extraction
-    #     tool_calls = [self.extract_output_tool_call(tool_call) for tool_call in message.tool_calls] if message.tool_calls else None
-    #     return Message(
-    #         role=message.role,
-    #         content=message.content,
-    #         images=images,
-    #         tool_calls=tool_calls,
-    #         response_object=response,
-    #     )
-
-    def extract_std_and_client_messages(self, response: ChatCompletion) -> tuple[Message, ChatCompletionMessage]:
+    # Convert from AI Provider to UnifAI format   
+    def extract_output_assistant_messages(self, response: ChatCompletion) -> tuple[Message, ChatCompletionMessage]:
         choice = response.choices[0]
         client_message = choice.message
 
@@ -237,6 +221,14 @@ class OpenAIWrapper(BaseAIClientWrapper):
         return std_message, client_message
 
 
+    def split_tool_outputs_into_messages(self, tool_calls: list[ToolCall], content: Optional[str] = None) -> Iterator[Message]:        
+        for tool_call in tool_calls:
+            yield Message(role="tool", content=stringify_content(tool_call.output), tool_calls=[tool_call])        
+        if content:
+            yield Message(role="user", content=content)
+
+
+    # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
     def convert_exception(self, exception: OpenAIAPIError) -> UnifAIError:
         if isinstance(exception, OpenAIAPIResponseValidationError):
             return APIResponseValidationError(
@@ -262,9 +254,11 @@ class OpenAIWrapper(BaseAIClientWrapper):
         )
 
 
+    # List Models
     def list_models(self) -> list[str]:
         return [model.id for model in self.client.models.list()]
 
+    # Chat 
     def chat(
             self,
             messages: list[dict],     
@@ -279,14 +273,6 @@ class OpenAIWrapper(BaseAIClientWrapper):
             if tool_choice and not tools:
                 tool_choice = None
 
-            # response = self.client.chat.completions.create(
-            #     messages=messages, 
-            #     model=model,
-            #     tools=tools,
-            #     tool_choice=tool_choice,
-            #     response_format=response_format,
-            #     **kwargs
-            # )
             response = self.run_func_convert_exceptions(
                 func=self.client.chat.completions.create,
                 messages=messages, 

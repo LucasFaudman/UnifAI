@@ -46,6 +46,7 @@ class APIConnectionError(APIError):
     default_status_code = 502
     default_error_code = "connection_error"
     
+
 class APITimeoutError(APIConnectionError):
     """
     Raised when a request to the API times out
@@ -54,7 +55,8 @@ class APITimeoutError(APIConnectionError):
     """
     default_status_code = 504
     default_error_code = "timeout_error"
-    
+
+
 class APIResponseValidationError(APIError):
     """
     Raised when the API response is invalid for the expected schema
@@ -118,6 +120,7 @@ class InternalServerError(APIStatusError):
     default_status_code = 500
     default_error_code = "internal_server_error"
 
+
 class ServerOverloadedError(APIStatusError):
     """
     Raised when the server is overloaded and cannot process the request
@@ -166,6 +169,7 @@ class UnprocessableEntityError(APIStatusError):
     """
     default_status_code = 422
     default_error_code = "unprocessable_entity_error"
+
 
 class TeapotError(APIStatusError):
     """

@@ -1,22 +1,22 @@
 
 
-from typing import Optional, Union, Any, Literal, Mapping, Type, Callable, Collection, Sequence, Type, List, Dict, Tuple, Self
+from typing import Optional, Union, Any, Literal, Mapping, Type, Callable, Collection, Sequence, Type, List, Dict, Tuple, Self, Iterable
 
 from json import dumps as json_dumps
 from .baseaiclientwrapper import BaseAIClientWrapper
 
-from ._types import Message, Tool, ToolCall, EvalTypeParameters, EvalTypeParametersInput, ToolInput, MessageInput
-from ._convert_types import tool_from_dict, stringify_content, make_few_shot_prompt, standardize_eval_types, standardize_messages, standardize_tools, standardize_tool_choice
+from ._types import Message, Tool, ToolCall, EvaluateParameters, EvaluateParametersInput, ToolInput, MessageInput
+from ._convert_types import tool_from_dict, stringify_content, make_few_shot_prompt, standardize_eval_prameters, standardize_messages, standardize_tools, standardize_tool_choice
 
 AIProvider = Literal["anthropic", "openai", "ollama"]
 
 # ToolInput = Union[Tool, dict[str, Any], str]
-# EvalTypeParametersInput = Union[EvalTypeParameters, dict[str, Any]]
+# EvaluateParametersInput = Union[EvaluateParameters, dict[str, Any]]
 
 class UnifAIClient:
     TOOLS: list[ToolInput] = []
     TOOL_CALLABLES: dict[str, Callable] = {}
-    EVAL_TYPES: list[EvalTypeParametersInput] = []
+    EVAL_PARAMETERS: list[EvaluateParametersInput] = []
 
 
     def import_client_wrapper(self, provider: AIProvider) -> Type[BaseAIClientWrapper]:
@@ -36,7 +36,7 @@ class UnifAIClient:
                  provider_client_kwargs: Optional[dict[AIProvider, dict[str, Any]]] = None,
                  tools: Optional[list[ToolInput]] = None,
                  tool_callables: Optional[dict[str, Callable]] = None,
-                 eval_types: Optional[list[EvalTypeParametersInput]] = None
+                 eval_prameters: Optional[list[EvaluateParametersInput]] = None
 
                  ):
         self.provider_client_kwargs = provider_client_kwargs if provider_client_kwargs is not None else {}
@@ -46,11 +46,11 @@ class UnifAIClient:
         self._clients: dict[AIProvider, BaseAIClientWrapper] = {}
         self.tools: dict[str, Tool] = {}
         self.tool_callables: dict[str, Callable] = {}
-        self.eval_types: dict[str, EvalTypeParameters] = {}
+        self.eval_prameters: dict[str, EvaluateParameters] = {}
         
         self.add_tools(tools or self.TOOLS)
         self.add_tool_callables(tool_callables)
-        self.add_eval_types(eval_types or self.EVAL_TYPES)
+        self.add_eval_prameters(eval_prameters or self.EVAL_PARAMETERS)
     
 
     def add_tools(self, tools: Optional[list[ToolInput]]):
@@ -66,9 +66,9 @@ class UnifAIClient:
         self.tool_callables.update(tool_callables)
 
 
-    def add_eval_types(self, eval_types: Optional[list[EvalTypeParametersInput]]):
-        if not eval_types: return
-        self.eval_types.update(standardize_eval_types(eval_types))
+    def add_eval_prameters(self, eval_prameters: Optional[list[EvaluateParametersInput]]):
+        if not eval_prameters: return
+        self.eval_prameters.update(standardize_eval_prameters(eval_prameters))
 
         
     def init_client(self, provider: AIProvider, **client_kwargs) -> BaseAIClientWrapper:
@@ -76,15 +76,18 @@ class UnifAIClient:
         self._clients[provider] = self.import_client_wrapper(provider)(**client_kwargs)
         return self._clients[provider]
     
+
     def get_client(self, provider: Optional[AIProvider] = None) -> BaseAIClientWrapper:
         provider = provider or self.default_provider
         if provider not in self._clients:
             return self.init_client(provider)
         return self._clients[provider]
 
+
     # List Models
     def list_models(self, provider: Optional[AIProvider] = None) -> list[str]:
         return self.get_client(provider).list_models()
+
 
     def filter_tools_by_tool_choice(self, tools: list[Tool], tool_choice: str) -> list[Tool]:
         if tool_choice == "auto" or tool_choice == "required":
@@ -131,46 +134,58 @@ class UnifAIClient:
         
 
     def evaluate(self, 
-                 eval_type: str, 
+                 eval_type: str | EvaluateParameters, 
                  content: Any, 
                  provider: Optional[AIProvider] = None,
                  model: Optional[str] = None,
                  **kwargs
                  ) -> Any:
         
-        if (eval_type_parameters := self.eval_types.get(eval_type)) is None:
-            raise ValueError(f"Eval type '{eval_type}' not found in eval_types")
-
-        if isinstance(eval_type_parameters.tool_choice, str):
-            last_tool_choice = eval_type_parameters.tool_choice
-        elif eval_type_parameters.tool_choice:
-            last_tool_choice = eval_type_parameters.tool_choice[-1]
+        # Get eval_parameters from eval_type
+        if isinstance(eval_type, str):
+            if (eval_parameters := self.eval_prameters.get(eval_type)) is None:
+                raise ValueError(f"Eval type '{eval_type}' not found in eval_prameters")
+        elif isinstance(eval_type, EvaluateParameters):
+            eval_parameters = eval_type
         else:
-            last_tool_choice = None
+            raise ValueError(
+                f"Invalid eval_type: {eval_type}. Must be a string (eval_type of EvaluateParameters in self.EVAL_PARAMETERS) or an EvaluateParameters object")
 
-        return_on = eval_type_parameters.return_on or last_tool_choice or "content"
+        # Determine return_on parameter from eval_parameters and tool_choice
+        if eval_parameters.return_on:
+            # Use the return_on parameter from eval_parameters if provided
+            return_on = eval_parameters.return_on
+        elif isinstance(eval_parameters.tool_choice, str):
+            # Use the tool_choice parameter from eval_parameters if its a string (single tool name)
+            return_on = eval_parameters.tool_choice
+        elif eval_parameters.tool_choice:
+            # Use the last tool choice if tool_choice is a non-empty sequence of tool names (tool_choice queue)
+            return_on = eval_parameters.tool_choice[-1]
+        else:
+            # Default to return on content if no return_on or tool_choice is provided
+            return_on = "content"
 
+        # Create input messages from system_prompt, few-shot examples, and content
         input_messages = make_few_shot_prompt(
-            system_prompt=eval_type_parameters.system_prompt,
-            examples=eval_type_parameters.examples,
+            system_prompt=eval_parameters.system_prompt,
+            examples=eval_parameters.examples,
             content=content
         )
 
+        # Initialize and run chat
         chat = self.chat(
             messages=input_messages,
             provider=provider,
             model=model,
-            tools=eval_type_parameters.tools,
-            tool_choice=eval_type_parameters.tool_choice,
-            response_format=eval_type_parameters.response_format,
+            tools=eval_parameters.tools,
+            tool_choice=eval_parameters.tool_choice,
+            response_format=eval_parameters.response_format,
             return_on=return_on,
             **kwargs
         )
         
-        return_as = eval_type_parameters.return_as
-        if return_as == "chat":
-            return chat
-        return getattr(chat, return_as)
+        # Return the desired attribute of the chat object or the chat object itself based on eval_parameters.return_as
+        return getattr(chat, eval_parameters.return_as) if eval_parameters.return_as != "chat" else chat
         
               
 class Chat:
@@ -236,7 +251,7 @@ class Chat:
             self.std_messages, system_prompt or self.system_prompt)
         return self
     
-    def extend_messages(self, std_messages: Sequence[Message]) -> None:
+    def extend_messages(self, std_messages: Iterable[Message]) -> None:
         for std_message in std_messages:
             self.std_messages.append(std_message)
             self.client_messages.append(self.client.prep_input_message(std_message))  
@@ -315,17 +330,16 @@ class Chat:
             # return on is string "tool_call" = return on any tool call
             return True
         if isinstance(self.return_on, Collection):
-            # return on is a collection of tool names
+            # return on is a collection of tool names. True if any tool call name is in the return_on collection
             return any(tool_call.tool_name in self.return_on for tool_call in tool_calls)
         
-        # return on is a tool name
+        # return on is a tool name. True if any tool call name is the same as the return_on tool name
         return any(tool_call.tool_name == self.return_on for tool_call in tool_calls)   
 
 
     def do_tool_calls(self, tool_calls: list[ToolCall]) -> list[ToolCall]:
         for tool_call in tool_calls:
             tool_name = tool_call.tool_name
-            tool_callable = None
             if self.std_tools and (tool := self.std_tools.get(tool_name)) and tool.callable:
                 tool_callable = tool.callable
             elif self_tool_callable := self.tool_callables.get(tool_name):
@@ -333,7 +347,7 @@ class Chat:
             elif parent_tool_callable := self.parent.tool_callables.get(tool_name):                
                 tool_callable = parent_tool_callable
             else:
-                raise ValueError(f"Tool '{tool_call.tool_name}' callable not found")
+                raise ValueError(f"Tool '{tool_name}' callable not found")
             
             # TODO catch ToolCallError
             tool_call.output = tool_callable(**tool_call.arguments)
@@ -345,10 +359,9 @@ class Chat:
                                         tool_calls: Sequence[ToolCall],
                                         content: Optional[str] = None
                                         ) -> None:
-        std_tool_messages = self.client.split_tool_call_outputs_into_messages(
-            tool_calls, content)
-        self.extend_messages(std_tool_messages)
-        # self.extend_messages(self.client.split_tool_call_outputs_into_messages(tool_calls))
+        # std_tool_messages = self.client.split_tool_call_outputs_into_messages(tool_calls, content)
+        # self.extend_messages(std_tool_messages)
+        self.extend_messages(self.client.split_tool_outputs_into_messages(tool_calls, content))
              
 
 
@@ -364,7 +377,7 @@ class Chat:
             )
             # TODO check if response is an APIError
 
-            std_message, client_message = self.client.extract_std_and_client_messages(response)
+            std_message, client_message = self.client.extract_output_assistant_messages(response)
             print("std_message:", std_message)
 
             # Enforce Tool Choice: Check if tool choice is obeyed
@@ -446,19 +459,22 @@ class Chat:
         if last_tool_call := self.last_tool_call:
             return last_tool_call.arguments
         
+
     def send_message(self, *message: Union[Message, str, dict[str, Any]]) -> Message:
         if not message:
             raise ValueError("No message(s) provided")
 
+        messages = standardize_messages(message)
+
         # prevent error when using multiple return_tools without submitting tool outputs
         if (last_message := self.last_message) and last_message.role == "assistant" and last_message.tool_calls:
-            messages = standardize_messages(message)
+            # Submit tool outputs before sending new messages. 
+            # Use first new message content as content of tool message or send after as user message based on provider
             self.extend_messages_with_tool_outputs(last_message.tool_calls, content=messages.pop(0).content)
-            if messages:
-                self.extend_messages(messages)
-        else:
-            self.extend_messages(standardize_messages(message))
+        
+        self.extend_messages(messages)
         return self.run().last_message
+    
     
     def submit_tool_outputs(self, 
                             tool_calls: Sequence[ToolCall], 

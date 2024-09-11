@@ -14,6 +14,7 @@ class Usage(BaseModel):
     def total_tokens(self):
         return self.input_tokens + self.output_tokens
 
+
 class ResponseInfo(BaseModel):
     model: Optional[str] = None    
     # done: bool
@@ -31,6 +32,7 @@ class Image(BaseModel):
     media_type: Literal["image/jpeg", "image/png", "image/gif", "image/webp"] = "image/jpeg"
     format: Literal["base64", "url", "filepath"] = "base64"
 
+
 class ToolCall(BaseModel):
     id: str
     tool_name: str
@@ -41,7 +43,7 @@ class ToolCall(BaseModel):
 
 class Message(BaseModel):
     # id: str
-    role: Literal['user', 'assistant', 'system', 'tool']
+    role: Literal['user', 'assistant', 'tool', 'system']
     content: Optional[str] = None
     images: Optional[list[Image]] = None
     tool_calls: Optional[list[ToolCall]] = None
@@ -51,7 +53,7 @@ class Message(BaseModel):
 
 
 ToolParameterType = Literal["object", "array", "string", "integer", "number", "boolean", "null"]
-ToolValPyTypes = Union[str, int, float, bool, None, list, dict]
+ToolValPyTypes = Union[str, int, float, bool, None, list[Any], dict[str, Any]]
 ToolDict = dict[str, ToolValPyTypes]
 
 
@@ -141,6 +143,7 @@ class Tool(BaseModel):
             "type": self.type,
         }
 
+
 class FunctionTool(Tool):
     type: Literal["function"] = "function"
     description: str
@@ -158,9 +161,7 @@ class FunctionTool(Tool):
         strict: bool = True,
         callable: Optional[Callable] = None
     ):        
-        
-        # super().__init__(name=name, type="function")
-     
+             
         if isinstance(parameters, ObjectToolParameter):
             parameters = parameters
             # parameters.name = "parameters"
@@ -178,9 +179,10 @@ class FunctionTool(Tool):
         elif args:
             parameters = ObjectToolParameter(properties=list(args))
         else:
-            raise ValueError("Invalid parameters type")
+            raise ValueError(f"Invalid parameters type: {parameters}")
 
         BaseModel.__init__(self, name=name, type=type, description=description, parameters=parameters, strict=strict, callable=callable)
+
 
     def __call__(self, *args, **kwargs) -> Any:
         if self.callable is None:
@@ -199,6 +201,7 @@ class FunctionTool(Tool):
             },            
         }
 
+
 class CodeInterpreterTool(Tool):
     type: Literal["code_interpreter"] = "code_interpreter"
     name: str = "code_interpreter"
@@ -208,8 +211,8 @@ class FileSearchTool(Tool):
     name: str = "file_search"
 
 
-class EvalTypeParameters(BaseModel):
-    name: str
+class EvaluateParameters(BaseModel):
+    eval_type: str
     system_prompt: str = "Your role is to evaluate the content using the provided tool(s)." 
     examples: Optional[list[Union[Message, dict[Literal["input", "response"], Any]]]] = None   
     tools: Optional[list[Union[Tool, str]]] = None
@@ -233,4 +236,4 @@ class EvalTypeParameters(BaseModel):
 
 MessageInput = Sequence[Union[Message, str, dict[str, Any]]]
 ToolInput = Union[Tool, dict[str, Any], str]
-EvalTypeParametersInput = Union[EvalTypeParameters, dict[str, Any]]
+EvaluateParametersInput = Union[EvaluateParameters, dict[str, Any]]

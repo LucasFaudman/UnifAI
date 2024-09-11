@@ -1,6 +1,6 @@
 import pytest
 from unifai import UnifAIClient, AIProvider
-from unifai._types import Message, Tool, EvalTypeParameters
+from unifai._types import Message, Tool, EvaluateParameters
 from basetest import base_test_all_providers
 
 TOOLS = {
@@ -28,11 +28,11 @@ TOOLS = {
 }
 
 EVAL_TYPES = [
-    EvalTypeParameters(
-        name="urlEval",
+    EvaluateParameters(
+        eval_type="urlEval",
         system_prompt=(
-        "You review HTML text to flag elements that may contain spam, misinformation, or other malicious items. "
-        "You also check the associated URLS for signs of typosquatting or spoofing. "
+        "You review URLs and HTML text to flag elements that may contain spam, misinformation, or other malicious items. "
+        "You check the associated URLS for signs of typosquatting or spoofing. "
         # "Use the return_flagged_and_reason function to return your result."
         ),
         tools=["return_flagged_and_reason"],
@@ -42,7 +42,7 @@ EVAL_TYPES = [
 ]
 
 @base_test_all_providers
-@pytest.mark.parametrize("tools, tool_callables, eval_types, eval_type, content", [
+@pytest.mark.parametrize("tools, tool_callables, eval_parameters, eval_type, content", [
     ([TOOLS["return_flagged_and_reason"]], None, EVAL_TYPES, "urlEval", {"url": "https://google.com", "link_text": "Google"}),
     ([TOOLS["return_flagged_and_reason"]], None, EVAL_TYPES, "urlEval", {"url": "https://g00gle.com", "link_text": "Google"}),
 ])
@@ -52,7 +52,7 @@ def test_evaluate_simple(
     func_kwargs: dict,
     tools: list,
     tool_callables: dict,
-    eval_types: list,
+    eval_parameters: list,
     eval_type: str,
     content: str
     ):
@@ -61,7 +61,7 @@ def test_evaluate_simple(
         provider_client_kwargs={provider: client_kwargs},
         tools=tools,
         tool_callables=tool_callables,
-        eval_types=eval_types
+        eval_prameters=eval_parameters
     )
     ai.init_client(provider, **client_kwargs)
 
