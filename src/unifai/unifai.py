@@ -56,10 +56,10 @@ class UnifAIClient:
     def add_tools(self, tools: Optional[list[ToolInput]]):
         if not tools: return
 
-        for tool in standardize_tools(tools):
-            self.tools[tool.name] = tool
+        for tool_name, tool in standardize_tools(tools).items():
+            self.tools[tool_name] = tool
             if (tool_callable := getattr(tool, "callable", None)) is not None:
-                self.tool_callables[tool.name] = tool_callable
+                self.tool_callables[tool_name] = tool_callable
 
     def add_tool_callables(self, tool_callables: Optional[dict[str, Callable]]):
         if not tool_callables: return

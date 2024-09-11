@@ -71,9 +71,12 @@ def make_few_shot_prompt(
 def tool_parameter_from_dict(
         param_dict: dict, 
         param_name: Optional[str]= None,
-        param_required: bool= True
+        param_required: Optional[bool]= True
         ) -> ToolParameter:
     
+    # if isinstance(required := param_dict.get('required'), bool):
+    #     param_required = required
+
     if (anyof_param_dicts := param_dict.get('anyOf')) is not None:
         anyOf = [
             tool_parameter_from_dict(param_dict=anyof_param_dict, param_name=param_name, param_required=param_required)
@@ -85,7 +88,7 @@ def tool_parameter_from_dict(
     param_name = param_dict.get('name', param_name)
     param_description = param_dict.get('description')
     param_enum = param_dict.get('enum')
-    param_required = param_dict.get('required', param_required)
+    # param_required = param_dict.get('required', param_required)
 
     if param_type == 'string':
         return StringToolParameter(name=param_name, description=param_description, required=param_required, enum=param_enum)
@@ -117,7 +120,7 @@ def tool_parameter_from_dict(
             ]
         else:
             properties = [
-                tool_parameter_from_dict(param_dict=prop_dict) 
+                tool_parameter_from_dict(param_dict=prop_dict, param_required=prop_dict.get('required', True)) 
                 for prop_dict in param_properties
             ]
         additionalProperties = param_dict.get('additionalProperties', False)

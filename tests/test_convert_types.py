@@ -1,5 +1,6 @@
 import pytest
 from unifai import UnifAIClient, AIProvider
+from unifai._convert_types import standardize_messages, standardize_tools
 from unifai._types import (
     Message, 
     Image, 
@@ -86,7 +87,7 @@ ai = UnifAIClient()
     ),
 ])
 def test_standardize_messages(input_messages, expected_std_messages):
-    std_messages = ai.standardize_messages(input_messages)
+    std_messages = standardize_messages(input_messages)
     for std_message, expected_message in zip(std_messages, expected_std_messages):
         # sync created_at before comparison
         std_message.created_at = expected_message.created_at
@@ -391,7 +392,8 @@ TOOL_OBJECTS = {
                 ),
                 StringToolParameter(
                     name="unit",
-                    enum=["celsius", "fahrenheit"]
+                    enum=["celsius", "fahrenheit"],
+                    required=False
                 )
             ],
         )
@@ -650,7 +652,7 @@ TOOL_OBJECTS = {
     
 ])
 def test_standardize_tools(input_tools, expected_std_tools):
-    std_tools = ai.standardize_tools(input_tools) 
+    std_tools = list(standardize_tools(input_tools).values())
     dict_tools = [tool.to_dict() for tool in std_tools]
 
     # assert len(std_tools) == len(expected_std_tools)
