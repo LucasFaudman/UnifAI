@@ -2,8 +2,8 @@ import pytest
 from basetest import base_test_all_providers
 
 from unifai import UnifAIClient, AIProvider
-from unifai._types import Message, FunctionTool, StringToolParameter
-from unifai._exceptions import (
+from unifai.types import Message, FunctionTool, StringToolParameter
+from unifai.exceptions import (
     UnifAIError,
     APIError,
     UnknownAPIError,

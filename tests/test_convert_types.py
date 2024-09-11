@@ -1,7 +1,7 @@
 import pytest
 from unifai import UnifAIClient, AIProvider
 from unifai._convert_types import standardize_messages, standardize_tools
-from unifai._types import (
+from unifai.types import (
     Message, 
     Image, 
     ToolCall, 

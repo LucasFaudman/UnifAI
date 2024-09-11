@@ -5,7 +5,7 @@ from typing import Optional, Union, Any, Literal, Mapping, Type, Callable, Colle
 from json import dumps as json_dumps
 from .baseaiclientwrapper import BaseAIClientWrapper
 
-from ._types import Message, Tool, ToolCall, EvaluateParameters, EvaluateParametersInput, ToolInput, MessageInput
+from .types import Message, Tool, ToolCall, EvaluateParameters, EvaluateParametersInput, ToolInput, MessageInput
 from ._convert_types import tool_from_dict, stringify_content, make_few_shot_prompt, standardize_eval_prameters, standardize_messages, standardize_tools, standardize_tool_choice
 
 AIProvider = Literal["anthropic", "openai", "ollama"]

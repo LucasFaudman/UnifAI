@@ -33,7 +33,7 @@ from anthropic import (
     UnprocessableEntityError as AnthropicUnprocessableEntityError,
 )
 
-from unifai._exceptions import (
+from unifai.exceptions import (
     UnifAIError,
     APIError,
     UnknownAPIError,
@@ -53,7 +53,7 @@ from unifai._exceptions import (
 )
 
 
-from ._types import Message, Tool, ToolCall, Image, Usage, ResponseInfo
+from unifai.types import Message, Tool, ToolCall, Image, Usage, ResponseInfo
 from ._convert_types import stringify_content
 from .baseaiclientwrapper import BaseAIClientWrapper
 

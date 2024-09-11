@@ -1,6 +1,6 @@
 import pytest
 from unifai import UnifAIClient, AIProvider
-from unifai._types import Message, Tool, EvaluateParameters
+from unifai.types import Message, Tool, EvaluateParameters
 from basetest import base_test_all_providers
 
 TOOLS = {

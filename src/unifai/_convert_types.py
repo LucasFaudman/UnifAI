@@ -1,6 +1,6 @@
 from json import dumps as json_dumps
 from typing import Optional, Union, Sequence, Any, Literal, Mapping, TypeVar, List, Type, Tuple, Dict, Any, Callable
-from ._types import (
+from unifai.types import (
     Message,
     Tool,
     FunctionTool,
@@ -8,7 +8,6 @@ from ._types import (
     FileSearchTool,
     ToolCall,
     ToolParameter, 
-    ToolDict, 
     ToolParameterType, 
     ToolValPyTypes, 
     StringToolParameter, 

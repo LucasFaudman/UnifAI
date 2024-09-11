@@ -1,9 +1,9 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator
 
 from json import dumps as json_dumps
-from ._types import Message, Tool, ToolCall, Image
 
-from ._exceptions import UnifAIError
+from unifai.types import Message, Tool, ToolCall, Image
+from unifai.exceptions import UnifAIError
 
 T = TypeVar("T")
 
