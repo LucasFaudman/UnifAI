@@ -1,6 +1,6 @@
-from .eval_parameters import EvaluateParameters, EvaluateParametersInput
+from .eval_parameters import EvaluateParameters
 from .image import Image, ImageFromBase64, ImageFromUrl, ImageFromFile
-from .message import Message, MessageInput
+from .message import Message
 from .response_info import ResponseInfo, Usage
 from .tool_call import ToolCall
 from .tool_parameter import (
@@ -17,18 +17,18 @@ from .tool_parameter import (
     ToolParameterType,
     ToolValPyTypes,
 )
-from .tool import Tool, ToolInput, FunctionTool, CodeInterpreterTool, FileSearchTool
+from .tool import Tool, FunctionTool, CodeInterpreterTool, FileSearchTool
+from .valid_inputs import AIProvider, EvaluateParametersInput, MessageInput, ToolInput
 
 __all__ = [
     "EvaluateParameters", 
-    "EvaluateParametersInput",
     "Image", 
     "ImageFromBase64", 
     "ImageFromUrl", 
     "ImageFromFile",
     "Message", 
-    "MessageInput",
     "ResponseInfo", 
+    "Usage",
     "ToolCall", 
     "ToolParameter", 
     "StringToolParameter",
@@ -41,6 +41,8 @@ __all__ = [
     "AnyOfToolParameter",
     "ToolParameters",
     "Tool", 
+    "AIProvider",
+    "EvaluateParametersInput",
+    "MessageInput",
     "ToolInput",
-    "Usage"
 ]

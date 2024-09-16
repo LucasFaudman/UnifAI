@@ -21,7 +21,7 @@ from unifai.types import (
 
 from basetest import base_test_all_providers
 
-from unifai._convert_types import parse_docstring, tool
+from unifai.type_conversions.tool_from_func import parse_docstring_and_annotations, tool
 
 ai = UnifAIClient()
 
@@ -296,14 +296,15 @@ ai = UnifAIClient()
     ),        
 
 ])
-def test_parse_docstring(docstring, expected_description, expected_parameters):
-    description, parameters = parse_docstring(docstring)
+def test_parse_docstring_and_annotations(docstring, expected_description, expected_parameters):
+    description, parameters = parse_docstring_and_annotations(docstring)
     assert expected_description == description
     assert expected_parameters == parameters
 
 
 
 def test_decorators_get_current_weather():
+    
     @tool
     def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
         """Get the current weather in a given location

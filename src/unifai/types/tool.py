@@ -80,6 +80,3 @@ class CodeInterpreterTool(Tool):
 class FileSearchTool(Tool):
     type: Literal["file_search"] = "file_search"
     name: str = "file_search"
-
-# Valid input types that can be converted to a Tool object
-ToolInput = Union[Tool, dict[str, Any], str]

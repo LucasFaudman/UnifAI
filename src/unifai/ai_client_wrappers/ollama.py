@@ -38,8 +38,8 @@ from unifai.exceptions import (
 
 
 from unifai.types import Message, Tool, ToolCall, Image, Usage, ResponseInfo
-from ._convert_types import stringify_content
-from .baseaiclientwrapper import BaseAIClientWrapper
+from unifai.type_conversions import stringify_content
+from ._base import BaseAIClientWrapper
 
 from random import choices as random_choices
 from string import ascii_letters, digits
@@ -60,6 +60,33 @@ class OllamaWrapper(BaseAIClientWrapper):
         from ollama._types import Tool, ToolFunction, Parameters, Property, Message
 
         return OllamaClient
+
+
+    # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
+    def convert_exception(self, exception: OllamaRequestError|OllamaResponseError|NetworkError|TimeoutError) -> UnifAIError:
+        if isinstance(exception, OllamaRequestError):            
+            status_code = 400
+            message = exception.error
+        elif isinstance(exception, OllamaResponseError):
+            status_code = exception.status_code
+            message = exception.error
+        elif isinstance(exception, TimeoutException):
+            status_code = 504
+            message = exception.args[0]
+        elif isinstance(exception, NetworkError):
+            status_code = 502
+            message = exception.args[0]            
+        else:
+            status_code = -1
+            message = str(exception)
+        
+        unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
+        return unifai_exception_type(
+            message=message, 
+            status_code=status_code,
+            original_exception=exception
+        )
+
 
     # Convert from UnifAI to AI Provider format        
         # Messages    
@@ -212,30 +239,7 @@ class OllamaWrapper(BaseAIClientWrapper):
             yield Message(role="user", content=content)
 
 
-    # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
-    def convert_exception(self, exception: OllamaRequestError|OllamaResponseError|NetworkError|TimeoutError) -> UnifAIError:
-        if isinstance(exception, OllamaRequestError):            
-            status_code = 400
-            message = exception.error
-        elif isinstance(exception, OllamaResponseError):
-            status_code = exception.status_code
-            message = exception.error
-        elif isinstance(exception, TimeoutException):
-            status_code = 504
-            message = exception.args[0]
-        elif isinstance(exception, NetworkError):
-            status_code = 502
-            message = exception.args[0]            
-        else:
-            status_code = -1
-            message = str(exception)
-        
-        unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
-        return unifai_exception_type(
-            message=message, 
-            status_code=status_code,
-            original_exception=exception
-        )
+
 
 
     # List Models

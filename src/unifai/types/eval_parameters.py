@@ -26,5 +26,3 @@ class EvaluateParameters(BaseModel):
     enforce_tool_choice: bool = True
     tool_choice_error_retries: int = 3
 
-# Valid input types that can be converted to a Tool object
-EvaluateParametersInput = Union[EvaluateParameters, dict[str, Any]]

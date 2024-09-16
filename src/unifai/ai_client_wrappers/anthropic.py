@@ -54,8 +54,8 @@ from unifai.exceptions import (
 
 
 from unifai.types import Message, Tool, ToolCall, Image, Usage, ResponseInfo
-from ._convert_types import stringify_content
-from .baseaiclientwrapper import BaseAIClientWrapper
+from unifai.type_conversions import stringify_content
+from ._base import BaseAIClientWrapper
 
 class AnthropicWrapper(BaseAIClientWrapper):
     client: Anthropic

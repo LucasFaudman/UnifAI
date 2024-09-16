@@ -17,5 +17,3 @@ class Message(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     response_info: Optional[ResponseInfo] = None
 
-# Valid input types that can be converted to a Message object
-MessageInput = Sequence[Union[Message, str, dict[str, Any]]]    

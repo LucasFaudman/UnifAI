@@ -66,8 +66,8 @@ from unifai.exceptions import (
 )
 
 from unifai.types import Message, Tool, ToolCall, Image, Usage, ResponseInfo
-from ._convert_types import stringify_content
-from .baseaiclientwrapper import BaseAIClientWrapper
+from unifai.type_conversions import stringify_content
+from ._base import BaseAIClientWrapper
 
 class OpenAIWrapper(BaseAIClientWrapper):
     client: OpenAI
@@ -76,6 +76,33 @@ class OpenAIWrapper(BaseAIClientWrapper):
     def import_client(self):
         from openai import OpenAI
         return OpenAI
+    
+    
+    # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
+    def convert_exception(self, exception: OpenAIAPIError) -> UnifAIError:
+        if isinstance(exception, OpenAIAPIResponseValidationError):
+            return APIResponseValidationError(
+                message=exception.message,
+                status_code=exception.status_code, # Status code could be anything
+                error_code=exception.code,
+                original_exception=exception,
+            )
+        
+        if isinstance(exception, OpenAIAPITimeoutError):
+            status_code = 504
+        elif isinstance(exception, OpenAIAPIConnectionError):
+            status_code = 502
+        else:
+            status_code = getattr(exception, "status_code", -1)
+        
+        unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
+        return unifai_exception_type(
+            message=exception.message, 
+            status_code=getattr(exception, "status_code", None), # ConnectionError and TimeoutError don't have status_code
+            error_code=exception.code, 
+            original_exception=exception
+        )
+        
     
     # Convert from UnifAI to AI Provider format        
         # Messages        
@@ -228,30 +255,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
             yield Message(role="user", content=content)
 
 
-    # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
-    def convert_exception(self, exception: OpenAIAPIError) -> UnifAIError:
-        if isinstance(exception, OpenAIAPIResponseValidationError):
-            return APIResponseValidationError(
-                message=exception.message,
-                status_code=exception.status_code, # Status code could be anything
-                error_code=exception.code,
-                original_exception=exception,
-            )
-        
-        if isinstance(exception, OpenAIAPITimeoutError):
-            status_code = 504
-        elif isinstance(exception, OpenAIAPIConnectionError):
-            status_code = 502
-        else:
-            status_code = getattr(exception, "status_code", -1)
-        
-        unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
-        return unifai_exception_type(
-            message=exception.message, 
-            status_code=getattr(exception, "status_code", None), # ConnectionError and TimeoutError don't have status_code
-            error_code=exception.code, 
-            original_exception=exception
-        )
+
 
 
     # List Models
