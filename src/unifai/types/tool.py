@@ -5,23 +5,12 @@ from .tool_parameter import ToolParameter, ObjectToolParameter, ArrayToolParamet
 
 
 class Tool(BaseModel):
-    type: str
+    type: str = "function"
     name: str
-    callable: Optional[Callable] = None
-
-    def to_dict(self) -> dict:
-        return {
-            "type": self.type,
-        }
-
-
-class FunctionTool(Tool):
-    type: Literal["function"] = "function"
     description: str
-    parameters: Union[ObjectToolParameter, ArrayToolParameter, ToolParameter]
+    parameters: ObjectToolParameter
     strict: bool = True
     callable: Optional[Callable] = None
-
 
     def __init__(self, 
         name: str, 
@@ -73,10 +62,24 @@ class FunctionTool(Tool):
         }
 
 
-class CodeInterpreterTool(Tool):
-    type: Literal["code_interpreter"] = "code_interpreter"
-    name: str = "code_interpreter"
+class ProviderTool(Tool):
+    def to_dict(self) -> dict:
+        return {
+            "type": self.type,
+        }
 
-class FileSearchTool(Tool):
-    type: Literal["file_search"] = "file_search"
-    name: str = "file_search"
+
+PROVIDER_TOOLS = {
+    "code_interpreter": ProviderTool(
+        type="code_interpreter", 
+        name="code_interpreter", 
+        description="A Python Code Interpreter Tool Implemented by OpenAI", 
+        parameters=ObjectToolParameter(properties=())
+    ),
+    "file_search": ProviderTool(
+        type="file_search", 
+        name="file_search", 
+        description="A File Search Tool Implemented by OpenAI", 
+        parameters=ObjectToolParameter(properties=())
+    ),
+}

@@ -10,9 +10,9 @@ from unifai.types import (
     ObjectToolParameter,
     AnyOfToolParameter,
     Tool,
-    FunctionTool,
-    CodeInterpreterTool,
-    FileSearchTool
+    ProviderTool,
+    PROVIDER_TOOLS,
+    
 )
 
 
@@ -81,11 +81,9 @@ def tool_parameter_from_dict(
 
 def tool_from_dict(tool_dict: dict) -> Tool:
     tool_type = tool_dict['type']
-    if tool_type == 'code_interpreter':
-        return CodeInterpreterTool()
-    if tool_type == 'file_search':
-        return FileSearchTool()
-    
+    if provider_tool := PROVIDER_TOOLS.get(tool_type):
+        return provider_tool
+
     tool_def = tool_dict.get(tool_type) or tool_dict.get("input_schema")
     if tool_def is None:
         raise ValueError("Invalid tool definition. "
@@ -101,7 +99,7 @@ def tool_from_dict(tool_dict: dict) -> Tool:
     # if isinstance(parameters, AnyOfToolParameter):
     #     raise ValueError("Root parameter cannot be anyOf: See: https://platform.openai.com/docs/guides/structured-outputs/root-objects-must-not-be-anyof")
 
-    return FunctionTool(
+    return Tool(
         name=tool_def['name'], 
         description=tool_def['description'], 
         parameters=parameters,

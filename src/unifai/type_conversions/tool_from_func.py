@@ -1,7 +1,7 @@
 from typing import Callable, Optional, Type
 from ast import literal_eval as ast_literal_eval
 
-from unifai.types import FunctionTool, ObjectToolParameter, ToolParameterType
+from unifai.types import Tool, ObjectToolParameter, ToolParameterType
 from .tool_from_dict import tool_parameter_from_dict
 
 PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP: dict[str|Type, ToolParameterType] = {
@@ -102,14 +102,14 @@ def parse_docstring_and_annotations(
     return description, parameters
 
     
-def tool_from_func(func: Callable) -> FunctionTool:
+def tool_from_func(func: Callable) -> Tool:
     tool_name = func.__name__
     tool_description, tool_parameters = parse_docstring_and_annotations(
         docstring=func.__doc__ or "",
         annotations=func.__annotations__
         )
 
-    return FunctionTool(
+    return Tool(
         name=tool_name,
         description=tool_description,
         parameters=tool_parameters,

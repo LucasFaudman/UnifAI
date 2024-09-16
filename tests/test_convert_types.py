@@ -15,9 +15,7 @@ from unifai.types import (
     ObjectToolParameter,
     ArrayToolParameter,
     Tool,
-    FunctionTool,
-    CodeInterpreterTool,
-    FileSearchTool,
+    PROVIDER_TOOLS
 )
 
 from basetest import base_test_all_providers
@@ -376,10 +374,10 @@ TOOL_DICTS = {
 }    
 
 TOOL_OBJECTS = {
-    "code_interpreter": CodeInterpreterTool(),
-    "file_search": FileSearchTool(),
+    "code_interpreter": PROVIDER_TOOLS["code_interpreter"],
+    "file_search": PROVIDER_TOOLS["file_search"],
 
-    "get_current_weather": FunctionTool(
+    "get_current_weather": Tool(
         name="get_current_weather",
         description="Get the current weather in a given location",
         parameters=ObjectToolParameter(
@@ -399,7 +397,7 @@ TOOL_OBJECTS = {
         )
     ), # get_current_weather
 
-    "calculator": FunctionTool(
+    "calculator": Tool(
         name="calculator",
         description="Perform a basic arithmetic operation on two numbers.",
         parameters=ObjectToolParameter(
@@ -424,7 +422,7 @@ TOOL_OBJECTS = {
         )
     ), # calculator
 
-    "calculator_from_sequence": FunctionTool(
+    "calculator_from_sequence": Tool(
         name="calculator_from_sequence",
         description="Perform a basic arithmetic operation on two numbers.",
         parameters=[
@@ -447,7 +445,7 @@ TOOL_OBJECTS = {
         ]
     ), # calculator_from_sequence    
 
-    "calculator_from_mapping": FunctionTool(
+    "calculator_from_mapping": Tool(
         name="calculator_from_mapping",
         description="Perform a basic arithmetic operation on two numbers.",
         parameters={
@@ -467,7 +465,7 @@ TOOL_OBJECTS = {
         }
     ), # calculator_from_mapping
 
-    "calculator_from_args": FunctionTool(
+    "calculator_from_args": Tool(
         "calculator_from_args",
         "Perform a basic arithmetic operation on two numbers.",
         StringToolParameter(
@@ -488,7 +486,7 @@ TOOL_OBJECTS = {
         ),
     ), # calculator_from_args    
 
-    "get_object_with_all_types": FunctionTool(
+    "get_object_with_all_types": Tool(
         name="get_object_with_all_types",
         description="Get an object with all types",
         parameters=ObjectToolParameter(

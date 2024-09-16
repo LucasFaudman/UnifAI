@@ -14,9 +14,6 @@ from unifai.types import (
     ObjectToolParameter,
     ArrayToolParameter,
     Tool,
-    FunctionTool,
-    CodeInterpreterTool,
-    FileSearchTool,
 )
 
 from basetest import base_test_all_providers
@@ -345,7 +342,7 @@ def test_decorators_get_current_weather():
     assert get_current_weather("San Francisco, CA") == {'condition': 'sunny', 'degrees': 69, 'unit': 'F'}
     assert get_current_weather("San Francisco, CA", unit="celsius") == {'condition': 'sunny', 'degrees': 20.555555555555557, 'unit': 'C'}        
 
-    assert type(get_current_weather) == FunctionTool
+    assert type(get_current_weather) == Tool
     assert get_current_weather.name == "get_current_weather"
     assert get_current_weather.description == "Get the current weather in a given location"
     assert get_current_weather.parameters == ObjectToolParameter(
@@ -391,7 +388,7 @@ def test_decorators_calculator():
     assert calculator("subtract", 2, 3) == -1
     assert calculator("multiply", 2, 3) == 6
     assert calculator("divide", 6, 3) == 2
-    assert type(calculator) == FunctionTool
+    assert type(calculator) == Tool
     assert calculator.name == "calculator"
     assert calculator.description == "Perform a basic arithmetic operation on two numbers."
     assert calculator.parameters == ObjectToolParameter(

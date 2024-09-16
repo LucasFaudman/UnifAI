@@ -17,7 +17,7 @@ from .tool_parameter import (
     ToolParameterType,
     ToolValPyTypes,
 )
-from .tool import Tool, FunctionTool, CodeInterpreterTool, FileSearchTool
+from .tool import Tool, ProviderTool, PROVIDER_TOOLS
 from .valid_inputs import AIProvider, EvaluateParametersInput, MessageInput, ToolInput
 
 __all__ = [
@@ -41,6 +41,8 @@ __all__ = [
     "AnyOfToolParameter",
     "ToolParameters",
     "Tool", 
+    "ProviderTool",
+    "PROVIDER_TOOLS",
     "AIProvider",
     "EvaluateParametersInput",
     "MessageInput",

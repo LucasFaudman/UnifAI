@@ -2,7 +2,7 @@ import pytest
 from basetest import base_test_all_providers
 
 from unifai import UnifAIClient, AIProvider
-from unifai.types import Message, FunctionTool, StringToolParameter
+from unifai.types import Message, Tool, StringToolParameter, ToolCall
 from unifai.exceptions import (
     UnifAIError,
     APIError,
@@ -29,7 +29,7 @@ bad_param = StringToolParameter(
         )
 bad_param.type = "bad_param"
 
-bad_tool = FunctionTool(
+bad_tool = Tool(
     name="bad_tool",
     type="function",
     description="This tool is bad.",
@@ -40,8 +40,7 @@ bad_tool = FunctionTool(
 bad_tool.type = "bad_tool"
 
 bad_messages = [
-    Message(role="system", content="Cant have"), 
-    Message(role="system", content="two system messages")
+    Message(role="assistant", tool_calls=[ToolCall(id="bad_id", tool_name="bad_tool", arguments={"bad_param": "bad_value"})])
 ]
 
 @base_test_all_providers
