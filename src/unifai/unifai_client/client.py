@@ -111,6 +111,17 @@ class UnifAIClient:
             return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
             enforce_tool_choice: bool = False,
             tool_choice_error_retries: int = 3,
+
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            stream: bool = False,
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None,
+
             **kwargs
             ):
             chat = Chat(
@@ -125,10 +136,19 @@ class UnifAIClient:
                 response_format=response_format,
                 return_on=return_on,
                 enforce_tool_choice=enforce_tool_choice,
-                tool_choice_error_retries=tool_choice_error_retries
+                tool_choice_error_retries=tool_choice_error_retries,
+
+                max_tokens=max_tokens,
+                frequency_penalty=frequency_penalty,
+                presence_penalty=presence_penalty,
+                seed=seed,
+                stop_sequences=stop_sequences,
+                temperature=temperature,
+                top_k=top_k,
+                top_p=top_p,                
             )
             if messages:
-                chat.run()
+                chat.run(**kwargs)
             return chat
         
 

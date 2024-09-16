@@ -8,6 +8,7 @@ from unifai.types import (
     Tool,
     ToolInput,
     ToolCall,
+    Usage,
 )
 from unifai.type_conversions import standardize_tools, standardize_messages, standardize_tool_choice
 
@@ -27,6 +28,15 @@ class Chat:
                  return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
                  enforce_tool_choice: bool = False,
                  tool_choice_error_retries: int = 3,
+
+                 max_tokens: Optional[int] = None,
+                 frequency_penalty: Optional[float] = None,
+                 presence_penalty: Optional[float] = None,
+                 seed: Optional[int] = None,
+                 stop_sequences: Optional[list[str]] = None, 
+                 temperature: Optional[float] = None,
+                 top_k: Optional[int] = None,
+                 top_p: Optional[float] = None,                   
                  ):
         
 
@@ -43,6 +53,19 @@ class Chat:
         self.return_on = return_on
         self.enforce_tool_choice = enforce_tool_choice
         self.tool_choice_error_retries = tool_choice_error_retries
+
+        self.max_tokens = max_tokens
+        self.frequency_penalty = frequency_penalty
+        self.presence_penalty = presence_penalty
+        self.seed = seed
+        self.stop_sequences = stop_sequences
+        self.temperature = temperature
+        self.top_k = top_k
+        self.top_p = top_p
+
+        self.rejected_messages = []
+        self.usage = Usage(input_tokens=0, output_tokens=0)
+
 
     def set_provider(self, provider: AIProvider) -> Self:        
         self.client = self.parent.get_client(provider)
@@ -98,16 +121,18 @@ class Chat:
     def set_tool_choice(self, tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]]) -> Self:
         if tool_choice:
             if isinstance(tool_choice, Sequence) and not isinstance(tool_choice, str):
-                self.std_tool_choice = standardize_tool_choice(tool_choice[0])
-                self.std_tool_choice_queue = [standardize_tool_choice(tool_choice) for tool_choice in tool_choice[1:]]
+                self.std_tool_choice_queue = [standardize_tool_choice(tool_choice) for tool_choice in tool_choice]                
             else:
-                self.std_tool_choice = standardize_tool_choice(tool_choice)
-                self.std_tool_choice_queue = None
+                self.std_tool_choice_queue = [standardize_tool_choice(tool_choice)]
+
+            self.std_tool_choice_index = 0
+            self.std_tool_choice = self.std_tool_choice_queue[self.std_tool_choice_index]
             self.client_tool_choice = self.client.prep_input_tool_choice(self.std_tool_choice)
         else:
-            self.std_tool_choice = self.std_tool_choice_queue = self.client_tool_choice = None
+            self.std_tool_choice = self.std_tool_choice_queue = self.std_tool_choice_index = self.client_tool_choice = None
         return self
     
+
     def set_response_format(self, response_format: Optional[Union[str, dict[str, str]]]) -> Self:
         if response_format:
             self.client_response_format = self.client.prep_input_response_format(response_format)
@@ -118,6 +143,7 @@ class Chat:
 
     def enforce_tool_choice_needed(self) -> bool:
         return self.enforce_tool_choice and self.std_tool_choice != 'auto' and self.std_tool_choice is not None    
+    
     
     def check_tool_choice_obeyed(self, tool_choice: str, tool_calls: Optional[list[ToolCall]]) -> bool:
         if tool_calls:
@@ -137,16 +163,24 @@ class Chat:
         print(f"tool_choice={tool_choice} OBEYED")
         return True
     
+
     def handle_tool_choice_obeyed(self, std_message: Message) -> None:
         if self.std_tool_choice_queue and self.std_tools:
             # Update std_tools and client_tools with next tool choice
-            self.std_tool_choice = self.std_tool_choice_queue.pop(0)
+            if self.std_tool_choice_index is not None and self.std_tool_choice_index + 1 < len(self.std_tool_choice_queue):
+                self.std_tool_choice_index += 1
+            else:
+                self.std_tool_choice_index = 0
+            self.std_tool_choice = self.std_tool_choice_queue[self.std_tool_choice_index]
             self.client_tool_choice = self.client.prep_input_tool_choice(self.std_tool_choice)
         else:
             self.std_tool_choice = self.client_tool_choice = None
 
+
     def handle_tool_choice_not_obeyed(self, std_message: Message) -> None:
         self.tool_choice_error_retries -= 1
+        self.rejected_messages.append(std_message)
+
 
     def check_return_on_tool_call(self, tool_calls: list[ToolCall]) -> bool:
         if self.return_on == "tool_call":
@@ -186,9 +220,8 @@ class Chat:
         # self.extend_messages(std_tool_messages)
         self.extend_messages(self.client.split_tool_outputs_into_messages(tool_calls, content))
              
-
-
-    def run(self) -> Self:
+    
+    def run(self, **kwargs) -> Self:
         while True:
             response = self.client.chat(
                 messages=self.client_messages,                 
@@ -196,12 +229,25 @@ class Chat:
                 system_prompt=self.system_prompt,
                 tools=self.client_tools, 
                 tool_choice=self.client_tool_choice,
-                response_format=self.client_response_format
+                response_format=self.client_response_format,
+
+                max_tokens=self.max_tokens,
+                frequency_penalty=self.frequency_penalty,
+                presence_penalty=self.presence_penalty,
+                seed=self.seed,
+                stop_sequences=self.stop_sequences,
+                temperature=self.temperature,
+                top_k=self.top_k,
+                top_p=self.top_p,
+                **kwargs
             )
             # TODO check if response is an APIError
 
             std_message, client_message = self.client.extract_output_assistant_messages(response)
             print("std_message:", std_message)
+
+            # Update usage for entire chat
+            self.usage += std_message.response_info.usage
 
             # Enforce Tool Choice: Check if tool choice is obeyed
             # auto:  
@@ -283,7 +329,7 @@ class Chat:
             return last_tool_call.arguments
         
 
-    def send_message(self, *message: Union[Message, str, dict[str, Any]]) -> Message:
+    def send_message(self, *message: Union[Message, str, dict[str, Any]], **kwargs) -> Message:
         if not message:
             raise ValueError("No message(s) provided")
 
@@ -296,15 +342,16 @@ class Chat:
             self.extend_messages_with_tool_outputs(last_message.tool_calls, content=messages.pop(0).content)
         
         self.extend_messages(messages)
-        return self.run().last_message
+        return self.run(**kwargs).last_message
     
     
     def submit_tool_outputs(self, 
                             tool_calls: Sequence[ToolCall], 
-                            tool_outputs: Optional[Sequence[Any]]
+                            tool_outputs: Optional[Sequence[Any]],
+                            **kwargs
                             ) -> Self:
         if tool_outputs:
             for tool_call, tool_output in zip(tool_calls, tool_outputs):
                 tool_call.output = tool_output
         self.extend_messages_with_tool_outputs(tool_calls)
-        return self.run()
+        return self.run(**kwargs)

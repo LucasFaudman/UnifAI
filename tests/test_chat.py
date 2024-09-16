@@ -405,6 +405,17 @@ def test_chat_enforce_tool_choice_sequence(
             called_tools = [tool_call.tool_name for tool_call in last_message.tool_calls]
             assert tool_choice[-1] in called_tools
 
+        input_tokens = 0
+        output_tokens = 0
+        for message in new_messages + chat.rejected_messages:
+            if message.response_info and message.response_info.usage:
+                usage = message.response_info.usage
+                input_tokens += usage.input_tokens
+                output_tokens += usage.output_tokens
+        
+        assert chat.usage.input_tokens == input_tokens
+        assert chat.usage.output_tokens == output_tokens
+        assert chat.usage.total_tokens == input_tokens + output_tokens
 
         for message in new_messages:
             print(f'\n{message.role}:\n{message.content or message.tool_calls}\n')            
@@ -462,10 +473,11 @@ def test_chat_send_message(
 
         return_on=tool_choice[-1],
         enforce_tool_choice=True,
+        **func_kwargs
     )
 
     for messages in message_lists[1:]:
-        chat.set_tool_choice(tool_choice)
+        # chat.set_tool_choice(tool_choice)
         last_message = chat.send_message(*messages)
         assert isinstance(last_message, Message)
 
@@ -484,7 +496,70 @@ def test_chat_send_message(
             called_tools = [tool_call.tool_name for tool_call in last_message.tool_calls]
             assert tool_choice[-1] in called_tools
 
+    input_tokens = 0
+    output_tokens = 0
+    for message in chat.messages + chat.rejected_messages:
+        if message.response_info and message.response_info.usage:
+            usage = message.response_info.usage
+            input_tokens += usage.input_tokens
+            output_tokens += usage.output_tokens
+    
+    assert chat.usage.input_tokens == input_tokens
+    assert chat.usage.output_tokens == output_tokens
+    assert chat.usage.total_tokens == input_tokens + output_tokens            
 
     for message in chat.messages:
         print(f'\n{message.role}:\n{message.content or message.tool_calls}\n')            
     print()
+
+
+@base_test_all_providers
+@pytest.mark.parametrize("extra_kwargs", [
+    {
+        "max_tokens": 100,
+        "frequency_penalty": 0.5,
+        "presence_penalty": 0.5,
+        "seed": 420,
+        "stop_sequences": ["AI"],
+        "temperature": 0.5,
+        "top_k": 50,
+        "top_p": 0.5
+    }
+    
+    ])
+def test_chat_options(
+    provider: AIProvider, 
+    client_kwargs: dict, 
+    func_kwargs: dict,
+    extra_kwargs: dict
+    ):
+
+    ai = UnifAIClient({provider: client_kwargs})
+    ai.init_client(provider, **client_kwargs)
+    chat = ai.chat(
+        messages=[{"role": "user", "content": "Hello, how are you?"}],
+        provider=provider,
+        **func_kwargs, 
+        **extra_kwargs
+    )
+    messages = chat.messages
+    assert messages
+    assert isinstance(messages, list)
+
+    for message in messages:
+        assert isinstance(message, Message)
+        assert message.content
+        print(f'{message.role}: {message.content}')
+
+        if message.role == "assistant":
+            assert message.response_info
+            assert isinstance(message.response_info.model, str)
+            assert message.response_info.done_reason == "stop"
+            usage = message.response_info.usage
+            assert usage
+            assert isinstance(usage.input_tokens, int)
+            assert isinstance(usage.output_tokens, int)
+            assert usage.total_tokens == usage.input_tokens + usage.output_tokens
+
+
+    print()    

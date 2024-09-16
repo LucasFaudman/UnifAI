@@ -251,7 +251,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
     def split_tool_outputs_into_messages(self, tool_calls: list[ToolCall], content: Optional[str] = None) -> Iterator[Message]:        
         for tool_call in tool_calls:
             yield Message(role="tool", content=stringify_content(tool_call.output), tool_calls=[tool_call])        
-        if content:
+        if content is not None:
             yield Message(role="user", content=content)
 
 
@@ -271,6 +271,16 @@ class OpenAIWrapper(BaseAIClientWrapper):
             tools: Optional[list[dict]] = None,
             tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
             response_format: Optional[str] = None,
+
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None, 
+
             **kwargs
             ) -> ChatCompletion:
 
@@ -279,11 +289,20 @@ class OpenAIWrapper(BaseAIClientWrapper):
 
             response = self.run_func_convert_exceptions(
                 func=self.client.chat.completions.create,
-                messages=messages, 
+                messages=messages,
                 model=model,
                 tools=tools,
                 tool_choice=tool_choice,
                 response_format=response_format,
+
+                max_tokens=max_tokens,
+                frequency_penalty=frequency_penalty, 
+                presence_penalty=presence_penalty,
+                seed=seed,
+                stop=stop_sequences,
+                temperature=temperature,
+                # top_k=top_k,
+                top_p=top_p,
                 **kwargs
             )            
             return response

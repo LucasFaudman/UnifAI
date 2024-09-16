@@ -100,7 +100,21 @@ class BaseAIClientWrapper:
         raise NotImplementedError("This method must be implemented by the subclass")    
 
 
-    # Chat 
+    # Chat
+    def prep_chat_kwargs(self,                          
+                         max_tokens: Optional[int] = None,
+                         frequency_penalty: Optional[float] = None,
+                         presence_penalty: Optional[float] = None,
+                         seed: Optional[int] = None,
+                         stop_sequences: Optional[list[str]] = None, 
+                         temperature: Optional[float] = None,
+                         top_k: Optional[int] = None,
+                         top_p: Optional[float] = None,                         
+                         **kwargs
+                         ) -> dict:
+        raise NotImplementedError("This method must be implemented by the subclass")
+    
+
     def chat(
             self,
             messages: list[Message],     
@@ -109,6 +123,16 @@ class BaseAIClientWrapper:
             tools: Optional[list[Any]] = None,
             tool_choice: Optional[Union[Tool, str, dict, Literal["auto", "required", "none"]]] = None,            
             response_format: Optional[Union[str, dict[str, str]]] = None,
+
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None, 
+                            
             **kwargs
             ) -> Message:
         raise NotImplementedError("This method must be implemented by the subclass")

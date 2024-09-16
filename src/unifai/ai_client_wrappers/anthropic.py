@@ -269,22 +269,40 @@ class AnthropicWrapper(BaseAIClientWrapper):
             tools: Optional[list[AnthropicToolParam]] = None,
             tool_choice: Optional[dict] = None,
             response_format: Optional[Union[str, dict[str, str]]] = None,
+
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None,             
             **kwargs
             ) -> AnthropicMessage:
         
-        max_tokens = kwargs.pop("max_tokens", 4096)
         if system_prompt:
             kwargs["system"] = system_prompt
         if tools:
             kwargs["tools"] = tools
             if tool_choice:
                 kwargs["tool_choice"] = tool_choice
+        max_tokens = max_tokens or 4096
+        if stop_sequences is not None:
+            kwargs["stop_sequences"] = stop_sequences
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        if top_k is not None:
+            kwargs["top_k"] = top_k
+        if top_p is not None:
+            kwargs["top_p"] = top_p
 
         response = self.run_func_convert_exceptions(
             func=self.client.messages.create,
             max_tokens=max_tokens,
             messages=messages,
             model=model,
+
             **kwargs
         )
         return response

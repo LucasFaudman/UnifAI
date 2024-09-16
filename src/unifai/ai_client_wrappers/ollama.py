@@ -235,7 +235,7 @@ class OllamaWrapper(BaseAIClientWrapper):
     def split_tool_outputs_into_messages(self, tool_calls: list[ToolCall], content: Optional[str] = None) -> Iterator[Message]:        
         for tool_call in tool_calls:
             yield Message(role="tool", content=stringify_content(tool_call.output), tool_calls=[tool_call])        
-        if content:
+        if content is not None:
             yield Message(role="user", content=content)
 
 
@@ -257,6 +257,15 @@ class OllamaWrapper(BaseAIClientWrapper):
             tools: Optional[list[OllamaTool]] = None,
             tool_choice: Optional[str] = None,
             response_format: Optional[str] = '',
+
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None,             
             **kwargs
             ) -> OllamaChatResponse:
         
@@ -289,9 +298,23 @@ class OllamaWrapper(BaseAIClientWrapper):
 
             keep_alive = kwargs.pop('keep_alive', None)
             stream = kwargs.pop('stream', False)
-            options = kwargs.pop('options', None)
-            if not options and kwargs:
-                options = OllamaOptions(**kwargs)
+            
+            if frequency_penalty is not None:
+                kwargs["frequency_penalty"] = frequency_penalty
+            if presence_penalty is not None:
+                kwargs["presence_penalty"] = presence_penalty
+            if seed is not None:
+                kwargs["seed"] = seed
+            if stop_sequences is not None:
+                kwargs["stop"] = stop_sequences
+            if temperature is not None:
+                kwargs["temperature"] = temperature
+            if top_k is not None:
+                kwargs["top_k"] = top_k
+            if top_p is not None:
+                kwargs["top_p"] = top_p
+
+            options = OllamaOptions(**kwargs) if kwargs else None
 
             response = self.run_func_convert_exceptions(
                 func=self.client.chat,
