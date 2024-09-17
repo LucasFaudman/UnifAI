@@ -50,6 +50,8 @@ bad_messages = [
     # (APIResponseValidationError, {}, {}),
     # (APIStatusError, {}, {}),
     (AuthenticationError, {"api_key": "bad_key"}, {}),
+    (AuthenticationError, {"api_key": None}, {}),
+    (AuthenticationError, {"api_key": b""}, {}),
     (BadRequestError, {}, {"tools": [bad_tool]}),
     (BadRequestError, {}, {"messages": bad_messages}),
     # (ConflictError, {}, {}),
@@ -73,11 +75,23 @@ def test_api_exceptions(
     if provider == "ollama":
         if "base_url" in bad_client_kwargs:
             bad_client_kwargs["host"] = bad_client_kwargs.pop("base_url")
+
         if "api_key" in bad_client_kwargs:
             bad_client_kwargs["headers"] =  {"Authorization": f"Bearer {bad_client_kwargs.pop('api_key')}"} 
+            return # Ollama doesn't have an API key to test
+        
+        if "tools" in bad_func_kwargs:
+            bad_func_kwargs["model"] = "llama2-uncensored:latest" # Model exists but does not accept tools        
+        
+    if provider == "google":
+        if "base_url" in bad_client_kwargs:
+            expected_exception = UnifAIError
+        if "timeout" in bad_client_kwargs:
+            expected_exception = UnifAIError
 
+    # client_kwargs.update(bad_client_kwargs)
     client_kwargs = {**client_kwargs, **bad_client_kwargs}
-    
+
     func_kwargs["provider"] = provider
     func_kwargs["messages"] = [Message(role="user", content="What are all the exceptions you can return?")] 
     func_kwargs = {**func_kwargs, **bad_func_kwargs}
@@ -86,4 +100,5 @@ def test_api_exceptions(
     with pytest.raises(expected_exception):
         ai = UnifAIClient({provider: client_kwargs})
         ai.init_client(provider, **client_kwargs)
+        ai.get_client(provider).client
         messages = ai.chat(**func_kwargs)

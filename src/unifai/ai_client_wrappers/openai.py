@@ -71,7 +71,7 @@ from ._base import BaseAIClientWrapper
 
 class OpenAIWrapper(BaseAIClientWrapper):
     client: OpenAI
-    default_model = "gpt-4o-mini"
+    default_model = "gpt-4o"
 
     def import_client(self):
         from openai import OpenAI
@@ -88,18 +88,22 @@ class OpenAIWrapper(BaseAIClientWrapper):
                 original_exception=exception,
             )
         
+        message = getattr(exception, "message", str(exception))
+        error_code = getattr(exception, "code", None)
         if isinstance(exception, OpenAIAPITimeoutError):
-            status_code = 504
-        elif isinstance(exception, OpenAIAPIConnectionError):
+            status_code = 504            
+        elif isinstance(exception, OpenAIAPIConnectionError):                
             status_code = 502
-        else:
+        elif isinstance(exception, OpenAIAPIStatusError):
             status_code = getattr(exception, "status_code", -1)
+        else:
+            status_code = 401 if "api_key" in message else getattr(exception, "status_code", -1)
         
         unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
         return unifai_exception_type(
-            message=exception.message, 
-            status_code=getattr(exception, "status_code", None), # ConnectionError and TimeoutError don't have status_code
-            error_code=exception.code, 
+            message=message, 
+            status_code=status_code,
+            error_code=error_code, 
             original_exception=exception
         )
         
@@ -107,9 +111,16 @@ class OpenAIWrapper(BaseAIClientWrapper):
     # Convert from UnifAI to AI Provider format        
         # Messages        
     def prep_input_user_message(self, message: Message) -> dict:
-        message_dict = {"role": "user", "content": message.content}
+        message_dict = {"role": "user"}        
         if message.images:
-            message_dict["images"] = self.prep_input_images(message.images)
+            content = []
+            if message.content:
+                content.append({"type": "text", "text": message.content})                
+            content.extend(map(self.prep_input_image, message.images))
+        else:
+            content = message.content
+        
+        message_dict["content"] = content
         return message_dict
     
 
@@ -128,7 +139,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
                 for tool_call in message.tool_calls
             ]
         if message.images:
-            message_dict["images"] = self.prep_input_images(message.images)
+            message_dict["images"] = list(map(self.prep_input_image, message.images))
         
         return message_dict   
     
@@ -168,10 +179,12 @@ class OpenAIWrapper(BaseAIClientWrapper):
 
 
         # Images
-    def prep_input_images(self, images: list[Image]) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")    
-    
-    
+    def prep_input_image(self, image: Image) -> dict:
+        if not (image_url := image.url):
+            image_url = image.data_uri         
+        return {"type": "image_url", "image_url": {"url": image_url, "detail": "high"}}
+
+
         # Tools
     def prep_input_tool(self, tool: Tool) -> dict:
         return tool.to_dict()
@@ -202,40 +215,53 @@ class OpenAIWrapper(BaseAIClientWrapper):
         raise ValueError(f"Invalid response_format: {response_format}")
         
     
-    # Convert from AI Provider to UnifAI format   
-    def extract_output_assistant_messages(self, response: ChatCompletion) -> tuple[Message, ChatCompletionMessage]:
-        choice = response.choices[0]
-        client_message = choice.message
+    # Convert Objects from AI Provider to UnifAI format    
+        # Images
+    def extract_image(self, response_image: Any) -> Image:
+        raise NotImplementedError("This method must be implemented by the subclass")
 
-        tool_calls = None
-        if client_message.tool_calls:
-            tool_calls = [
-                ToolCall(
-                    id=tool_call.id,
-                    tool_name=tool_call.function.name,
-                    arguments=json_loads(tool_call.function.arguments),
-                )
-                for tool_call in client_message.tool_calls
-            ]
-
-        images = None # TODO: Implement image extraction
-
+        # Tool Calls
+    def extract_tool_call(self, response_tool_call: ChatCompletionMessageToolCall) -> ToolCall:
+        return ToolCall(
+            id=response_tool_call.id,
+            tool_name=response_tool_call.function.name,
+            arguments=json_loads(response_tool_call.function.arguments),
+        )
+    
+        # Response Info (Model, Usage, Done Reason, etc.)
+    def extract_response_info(self, response: Any) -> ResponseInfo:
         model = response.model
-        if choice.finish_reason == "length":
+        finish_reason = response.choices[0].finish_reason
+
+        if finish_reason == "length":
             done_reason = "max_tokens"
-        elif choice.finish_reason == "function_call":
+        elif finish_reason == "function_call":
             done_reason = "tool_calls"
         else:
             # "stop", "tool_calls", "content_filter" or None
-            done_reason = choice.finish_reason
+            done_reason = finish_reason
 
         if response.usage:
             usage = Usage(input_tokens=response.usage.prompt_tokens, output_tokens=response.usage.completion_tokens)
         else:
             usage = None
         
+        return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
+    
+        # Assistant Messages (Content, Images, Tool Calls, Response Info)
+    def extract_assistant_message_both_formats(self, response: ChatCompletion) -> tuple[Message, ChatCompletionMessage]:
+        client_message = response.choices[0].message
+
+        tool_calls = None
+        if client_message.tool_calls:
+            tool_calls = list(map(self.extract_tool_call, client_message.tool_calls))
+
+        # if client_message.images:
+        #     images = self.extract_images(client_message.images)
+        images = None
+
         created_at = datetime.fromtimestamp(response.created)
-        response_info = ResponseInfo(model=model, done_reason=done_reason, usage=usage)        
+        response_info = self.extract_response_info(response)       
         
         std_message = Message(
             role=client_message.role,
@@ -282,7 +308,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
             top_p: Optional[float] = None, 
 
             **kwargs
-            ) -> ChatCompletion:
+            ) -> tuple[Message, ChatCompletionMessage]:
 
             if tool_choice and not tools:
                 tool_choice = None
@@ -305,5 +331,5 @@ class OpenAIWrapper(BaseAIClientWrapper):
                 top_p=top_p,
                 **kwargs
             )            
-            return response
+            return self.extract_assistant_message_both_formats(response)
 

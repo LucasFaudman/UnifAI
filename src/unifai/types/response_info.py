@@ -20,7 +20,7 @@ class Usage(BaseModel):
     
 class ResponseInfo(BaseModel):
     model: Optional[str] = None    
-    done_reason: Optional[Literal["stop", "tool_calls", "max_tokens", "content_filter"]] = None
+    done_reason: Optional[Literal["stop", "tool_calls", "max_tokens", "content_filter", "error"]] = None
     usage: Optional[Usage] = None
     # duration: Optional[int]
     # created_at: datetime = Field(default_factory=datetime.now)    

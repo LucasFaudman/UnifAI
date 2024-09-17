@@ -14,8 +14,9 @@ from anthropic.types import (
     ToolResultBlockParam as AnthropicToolResultBlockParam,
     ToolParam as AnthropicToolParam, 
 )
- # Anthropic
 from anthropic.types.image_block_param import Source as AnthropicImageSource
+
+
 from anthropic import (
     AnthropicError,
     APIError as AnthropicAPIError,
@@ -58,7 +59,7 @@ from unifai.type_conversions import stringify_content
 from ._base import BaseAIClientWrapper
 
 class AnthropicWrapper(BaseAIClientWrapper):
-    client: Anthropic
+    # client: Anthropic
     default_model = "claude-3-5-sonnet-20240620"
 
     def import_client(self):
@@ -75,17 +76,22 @@ class AnthropicWrapper(BaseAIClientWrapper):
                 original_exception=exception,
             )
         
-        if isinstance(exception, AnthropicAPITimeoutError):
-            status_code = 504
-        elif isinstance(exception, AnthropicAPIConnectionError):
-            status_code = 502
+        if isinstance(exception, AnthropicAPIError):
+            message = exception.message
+            if isinstance(exception, AnthropicAPITimeoutError):
+                status_code = 504
+            elif isinstance(exception, AnthropicAPIConnectionError):
+                status_code = 502
+            else:
+                status_code = getattr(exception, "status_code", -1)
         else:
-            status_code = getattr(exception, "status_code", -1)
+            message = str(exception)
+            status_code = 401 if "api_key" in message else -1
         
         unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
         return unifai_exception_type(
-            message=exception.message, 
-            status_code=getattr(exception, "status_code", None), # ConnectionError and TimeoutError don't have status_code
+            message=message,
+            status_code=status_code,
             original_exception=exception
         )
     
@@ -94,10 +100,10 @@ class AnthropicWrapper(BaseAIClientWrapper):
         # Messages
     def prep_input_user_message(self, message: Message) -> AnthropicMessageParam:
         content = []
+        if message.images:
+            content.extend(map(self.prep_input_image, message.images))        
         if message.content:
             content.append(AnthropicTextBlockParam(text=message.content, type="text"))
-        if message.images:
-            content.extend(self.prep_input_images(message.images))
 
         return AnthropicMessageParam(role="user", content=content)
 
@@ -115,8 +121,8 @@ class AnthropicWrapper(BaseAIClientWrapper):
                     type="tool_use"
                 )
                 content.append(tool_use_param)
-        # if message.images:
-        #     content.extend(self.prep_input_images(message.images))
+        if message.images:
+            content.extend(map(self.prep_input_image, message.images))
         return AnthropicMessageParam(role="assistant", content=content)
 
 
@@ -162,8 +168,15 @@ class AnthropicWrapper(BaseAIClientWrapper):
 
 
         # Images
-    def prep_input_images(self, images: list[Image]) -> list[AnthropicImageBlockParam]:
-        raise NotImplementedError("This method must be implemented by the subclass")    
+    def prep_input_image(self, image: Image) -> AnthropicImageBlockParam:
+        return AnthropicImageBlockParam(
+            type="image",
+            source=AnthropicImageSource(
+                type="base64",
+                data=image.path or image.base64_string,
+                media_type=image.media_type                
+            )
+        )
 
 
         # Tools
@@ -191,23 +204,21 @@ class AnthropicWrapper(BaseAIClientWrapper):
         return None
 
 
-    # Convert from AI Provider to UnifAI format    
-    def extract_output_assistant_messages(self, response: AnthropicMessage) -> tuple[Message, AnthropicMessageParam]:
-        client_message = AnthropicMessageParam(role=response.role, content=response.content)
-        content = ""
-        tool_calls = []
-        for block in response.content:
-            if block.type == "text":
-                content += block.text
-            elif block.type == "tool_use":
-                tool_calls.append(ToolCall(
-                    id=block.id,
-                    tool_name=block.name,
-                    arguments=block.input 
-                ))
+    # Convert Objects from AI Provider to UnifAI format    
+        # Images
+    def extract_image(self, response_image: Any) -> Image:
+        raise NotImplementedError("This method must be implemented by the subclass")
 
-        images = None # TODO: Implement image extraction  
-
+        # Tool Calls
+    def extract_tool_call(self, response_tool_call: AnthropicToolUseBlock) -> ToolCall:
+        return ToolCall(
+                    id=response_tool_call.id,
+                    tool_name=response_tool_call.name,
+                    arguments=response_tool_call.input 
+                )
+    
+        # Response Info (Model, Usage, Done Reason, etc.)
+    def extract_response_info(self, response: AnthropicMessage) -> ResponseInfo:
         model = response.model
         if response.stop_reason == "end_turn" or response.stop_reason == "stop_sequence":
             done_reason = "stop"
@@ -218,16 +229,35 @@ class AnthropicWrapper(BaseAIClientWrapper):
             done_reason = response.stop_reason
 
         if response.usage:
-            usage = Usage(input_tokens=response.usage.input_tokens, output_tokens=response.usage.output_tokens)
+            usage = Usage(
+                input_tokens=response.usage.input_tokens, 
+                output_tokens=response.usage.output_tokens
+            )
         else:
             usage = None                      
 
-        response_info = ResponseInfo(model=model, done_reason=done_reason, usage=usage)       
+        return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
+
+
+    # Assistant Messages (Content, Images, Tool Calls, Response Info)
+    def extract_assistant_message_both_formats(self, response: AnthropicMessage) -> tuple[Message, AnthropicMessageParam]:
+        client_message = AnthropicMessageParam(role=response.role, content=response.content)
+        content = ""
+        tool_calls = []
+        for block in response.content:
+            if block.type == "text":
+                content += block.text
+            elif block.type == "tool_use":
+                tool_calls.append(self.extract_tool_call(block))
+
+        images = None # TODO: Implement image extraction  
+        response_info = self.extract_response_info(response)
+
         std_message = Message(
             role=response.role,
-            content=content,
-            tool_calls=tool_calls,
-            images=images,
+            content=content or None,
+            tool_calls=tool_calls or None,
+            images=images or None,
             response_info=response_info,
         )
         return std_message, client_message 
@@ -279,7 +309,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
             top_k: Optional[int] = None,
             top_p: Optional[float] = None,             
             **kwargs
-            ) -> AnthropicMessage:
+            ) -> tuple[Message, AnthropicMessageParam]:
         
         if system_prompt:
             kwargs["system"] = system_prompt
@@ -305,7 +335,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
 
             **kwargs
         )
-        return response
+        return self.extract_assistant_message_both_formats(response)
 
     # Embeddings
     def embeddings(

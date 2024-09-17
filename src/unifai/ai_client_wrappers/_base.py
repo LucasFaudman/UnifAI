@@ -2,7 +2,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Calla
 
 from json import dumps as json_dumps
 
-from unifai.types import Message, Tool, ToolCall, Image
+from unifai.types import Message, Tool, ToolCall, Image, ResponseInfo
 from unifai.exceptions import UnifAIError
 
 T = TypeVar("T")
@@ -24,7 +24,8 @@ class BaseAIClientWrapper:
     @property
     def client(self) -> Type:
         if self._client is None:
-            return self.init_client(**self.client_kwargs)
+            # return self.init_client(**self.client_kwargs)
+            return self.run_func_convert_exceptions(self.init_client, **self.client_kwargs)
         return self._client
     
 
@@ -73,10 +74,13 @@ class BaseAIClientWrapper:
         raise NotImplementedError("This method must be implemented by the subclass")
        
         # Images
-    def prep_input_images(self, images: list[Image]) -> Any:
+    def prep_input_image(self, image: Image) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")    
     
         # Tools
+    def prep_input_tool_call(self, tool_call: ToolCall) -> Any:
+        raise NotImplementedError("This method must be implemented by the subclass")
+        
     def prep_input_tool(self, tool: Tool) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
         
@@ -87,9 +91,24 @@ class BaseAIClientWrapper:
     def prep_input_response_format(self, response_format: Union[str, dict]) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
 
+
     # Convert Objects from AI Provider to UnifAI format    
-    def extract_output_assistant_messages(self, response: Any) -> tuple[Message, Any]:
-        raise NotImplementedError("This method must be implemented by the subclass")   
+        # Images
+    def extract_image(self, response_image: Any) -> Image:
+        raise NotImplementedError("This method must be implemented by the subclass")
+
+        # Tool Calls
+    def extract_tool_call(self, response_tool_call: Any) -> ToolCall:
+        raise NotImplementedError("This method must be implemented by the subclass")
+    
+        # Response Info (Model, Usage, Done Reason, etc.)
+    def extract_response_info(self, response: Any) -> ResponseInfo:
+        raise NotImplementedError("This method must be implemented by the subclass")
+    
+        # Assistant Messages (Content, Images, Tool Calls, Response Info)
+    def extract_assistant_message_both_formats(self, response: Any) -> tuple[Message, Any]:
+        raise NotImplementedError("This method must be implemented by the subclass")     
+    
 
     def split_tool_outputs_into_messages(self, tool_calls: Sequence[ToolCall], content: Optional[str] = None) -> Iterator[Message]:
         raise NotImplementedError("This method must be implemented by the subclass")
@@ -101,23 +120,9 @@ class BaseAIClientWrapper:
 
 
     # Chat
-    def prep_chat_kwargs(self,                          
-                         max_tokens: Optional[int] = None,
-                         frequency_penalty: Optional[float] = None,
-                         presence_penalty: Optional[float] = None,
-                         seed: Optional[int] = None,
-                         stop_sequences: Optional[list[str]] = None, 
-                         temperature: Optional[float] = None,
-                         top_k: Optional[int] = None,
-                         top_p: Optional[float] = None,                         
-                         **kwargs
-                         ) -> dict:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-
     def chat(
             self,
-            messages: list[Message],     
+            messages: list[T],     
             model: Optional[str] = None,
             system_prompt: Optional[str] = None,                   
             tools: Optional[list[Any]] = None,
@@ -132,9 +137,9 @@ class BaseAIClientWrapper:
             temperature: Optional[float] = None,
             top_k: Optional[int] = None,
             top_p: Optional[float] = None, 
-                            
+
             **kwargs
-            ) -> Message:
+            ) -> tuple[Message, T]:
         raise NotImplementedError("This method must be implemented by the subclass")
 
 

@@ -10,7 +10,7 @@ from unifai.types import (
     ToolCall,
     Usage,
 )
-from unifai.type_conversions import standardize_tools, standardize_messages, standardize_tool_choice
+from unifai.type_conversions import standardize_tools, standardize_messages, standardize_tool_choice, standardize_response_format
 
 class Chat:
 
@@ -23,7 +23,7 @@ class Chat:
                  tools: Optional[Sequence[ToolInput]] = None,
                  tool_callables: Optional[dict[str, Callable]] = None,
                  tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,                 
-                 response_format: Optional[Union[str, dict[str, str]]] = None,
+                 response_format: Optional[Union[Literal["text", "json", "json_schema"], dict[Literal["type"], Literal["text", "json", "json_schema"]]]] = None,
                  
                  return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
                  enforce_tool_choice: bool = False,
@@ -133,18 +133,19 @@ class Chat:
         return self
     
 
-    def set_response_format(self, response_format: Optional[Union[str, dict[str, str]]]) -> Self:
+    def set_response_format(self, response_format: Optional[Union[Literal["text", "json", "json_schema"], dict[Literal["type"], Literal["text", "json", "json_schema"]]]]) -> Self:
         if response_format:
-            self.client_response_format = self.client.prep_input_response_format(response_format)
+            self.std_response_format = standardize_response_format(response_format)
+            self.client_response_format = self.client.prep_input_response_format(self.std_response_format)
         else:
-            self.client_response_format = None
+            self.std_response_format = self.client_response_format = None
         return self
     
 
     def enforce_tool_choice_needed(self) -> bool:
         return self.enforce_tool_choice and self.std_tool_choice != 'auto' and self.std_tool_choice is not None    
     
-    
+
     def check_tool_choice_obeyed(self, tool_choice: str, tool_calls: Optional[list[ToolCall]]) -> bool:
         if tool_calls:
             tool_names = [tool_call.tool_name for tool_call in tool_calls]
@@ -223,7 +224,28 @@ class Chat:
     
     def run(self, **kwargs) -> Self:
         while True:
-            response = self.client.chat(
+            # response = self.client.chat(
+            #     messages=self.client_messages,                 
+            #     model=self.model, 
+            #     system_prompt=self.system_prompt,
+            #     tools=self.client_tools, 
+            #     tool_choice=self.client_tool_choice,
+            #     response_format=self.client_response_format,
+
+            #     max_tokens=self.max_tokens,
+            #     frequency_penalty=self.frequency_penalty,
+            #     presence_penalty=self.presence_penalty,
+            #     seed=self.seed,
+            #     stop_sequences=self.stop_sequences,
+            #     temperature=self.temperature,
+            #     top_k=self.top_k,
+            #     top_p=self.top_p,
+            #     **kwargs
+            # )
+            # # TODO check if response is an APIError
+
+            # std_message, client_message = self.client.extract_assistant_message_both_formats(response)
+            std_message, client_message = self.client.chat(
                 messages=self.client_messages,                 
                 model=self.model, 
                 system_prompt=self.system_prompt,
@@ -243,7 +265,6 @@ class Chat:
             )
             # TODO check if response is an APIError
 
-            std_message, client_message = self.client.extract_output_assistant_messages(response)
             print("std_message:", std_message)
 
             # Update usage for entire chat

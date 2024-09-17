@@ -19,17 +19,8 @@ class UnifAIClient:
     EVAL_PARAMETERS: list[EvaluateParametersInput] = []
 
 
-    def import_client_wrapper(self, provider: AIProvider) -> Type[BaseAIClientWrapper]:
-        match provider:
-            case "anthropic":
-                from unifai.ai_client_wrappers import AnthropicWrapper
-                return AnthropicWrapper
-            case "openai":
-                from unifai.ai_client_wrappers import OpenAIWrapper
-                return OpenAIWrapper
-            case "ollama":
-                from unifai.ai_client_wrappers import OllamaWrapper
-                return OllamaWrapper
+
+
 
     
     def __init__(self, 
@@ -70,7 +61,25 @@ class UnifAIClient:
         if not eval_prameters: return
         self.eval_prameters.update(standardize_eval_prameters(eval_prameters))
 
-        
+
+    def import_client_wrapper(self, provider: AIProvider) -> Type[BaseAIClientWrapper]:
+        match provider:
+            case "anthropic":
+                from unifai.ai_client_wrappers import AnthropicWrapper
+                return AnthropicWrapper
+            case "google":
+                from unifai.ai_client_wrappers import GoogleAIWrapper
+                return GoogleAIWrapper
+            case "openai":
+                from unifai.ai_client_wrappers import OpenAIWrapper
+                return OpenAIWrapper
+            case "ollama":
+                from unifai.ai_client_wrappers import OllamaWrapper
+                return OllamaWrapper
+            case _:
+                raise ValueError(f"Invalid provider: {provider}")
+            
+                
     def init_client(self, provider: AIProvider, **client_kwargs) -> BaseAIClientWrapper:
         client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
         self._clients[provider] = self.import_client_wrapper(provider)(**client_kwargs)
@@ -81,7 +90,7 @@ class UnifAIClient:
         provider = provider or self.default_provider
         if provider not in self._clients:
             return self.init_client(provider)
-        return self._clients[provider]
+        return self._clients[provider]        
 
 
     # List Models

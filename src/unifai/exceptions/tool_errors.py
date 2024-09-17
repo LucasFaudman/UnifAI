@@ -14,7 +14,7 @@ class ToolValidationError(ToolError):
                  original_exception: Optional[Exception] = None
                  ):
         self.tool_input = tool_input
-        super().__init__(message, original_exception)    
+        super().__init__(message, original_exception)
 
 
 class ToolNotFoundError(ToolError):

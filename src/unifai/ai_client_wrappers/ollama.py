@@ -15,7 +15,7 @@ from ollama._types import (
     RequestError as OllamaRequestError,
     ResponseError as OllamaResponseError,
 )
-from httpx import NetworkError, TimeoutException, HTTPError
+from httpx import NetworkError, TimeoutException, HTTPError, RemoteProtocolError, TransportError
 
 from unifai.exceptions import (
     UnifAIError,
@@ -65,17 +65,17 @@ class OllamaWrapper(BaseAIClientWrapper):
     # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
     def convert_exception(self, exception: OllamaRequestError|OllamaResponseError|NetworkError|TimeoutError) -> UnifAIError:
         if isinstance(exception, OllamaRequestError):            
+            message = exception.error
             status_code = 400
-            message = exception.error
         elif isinstance(exception, OllamaResponseError):
-            status_code = exception.status_code
             message = exception.error
+            status_code = exception.status_code
         elif isinstance(exception, TimeoutException):
-            status_code = 504
             message = exception.args[0]
-        elif isinstance(exception, NetworkError):
-            status_code = 502
-            message = exception.args[0]            
+            status_code = 504            
+        elif isinstance(exception, TransportError):
+            message = exception.args[0]
+            status_code = 502 if '[Errno 65]' not in message else 504 # 502 is Bad Gateway, 504 is Gateway Timeout
         else:
             status_code = -1
             message = str(exception)
@@ -92,13 +92,13 @@ class OllamaWrapper(BaseAIClientWrapper):
         # Messages    
     def prep_input_user_message(self, message: Message) -> OllamaMessage:
         content = message.content or ''
-        images = self.prep_input_images(message.images) if message.images else None
+        images = list(map(self.prep_input_image, message.images)) if message.images else None
         return OllamaMessage(role='user', content=content, images=images)
 
 
     def prep_input_assistant_message(self, message: Message) -> OllamaMessage:
         content = message.content or ''
-        images = self.prep_input_images(message.images) if message.images else None
+        images = list(map(self.prep_input_image, message.images)) if message.images else None
         if message.tool_calls:
             tool_calls = [
                 OllamaToolCall(
@@ -117,7 +117,7 @@ class OllamaWrapper(BaseAIClientWrapper):
 
     def prep_input_tool_message(self, message: Message) -> OllamaMessage:
         content = message.content or ''
-        images = self.prep_input_images(message.images) if message.images else None
+        images = list(map(self.prep_input_image, message.images)) if message.images else None
         tool_calls = None
         return OllamaMessage(role='tool', content=content, images=images, tool_calls=tool_calls)
     
@@ -146,8 +146,8 @@ class OllamaWrapper(BaseAIClientWrapper):
     
        
         # Images
-    def prep_input_images(self, images: list[Image]) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass") 
+    def prep_input_image(self, image: Image) -> Any:
+        raise NotImplementedError("This method must be implemented by the subclass")    
 
 
         # Tools
@@ -181,32 +181,30 @@ class OllamaWrapper(BaseAIClientWrapper):
 
 
         # Response Format
-    def prep_input_response_format(self, response_format: Union[str, dict[str, str]]) -> str:
-        if response_format in ("json", "json_object"):
-            return 'json'
-        return ''
+    def prep_input_response_format(self, response_format: Literal["text", "json", "json_schema"]) -> Literal["", "json"]:
+        if "json" in response_format:
+            return "json"
+        return ""
 
 
-    # Convert from AI Provider to UnifAI format    
-    def extract_output_assistant_messages(self, response: OllamaChatResponse) -> tuple[Message, OllamaMessage]:
-        client_message = response['message']
-        
-        tool_calls = None
-        if client_message_tool_calls := client_message.get('tool_calls'):
-            tool_calls = [
-                ToolCall(
-                    id=f'call_{generate_random_id(24)}',
-                    tool_name=tool_call['function']['name'],
-                    arguments=tool_call['function'].get('arguments')
-                )
-                for tool_call in client_message_tool_calls
-            ]
-        
-        images = None # TODO: Implement image extraction
+    # Convert Objects from AI Provider to UnifAI format    
+        # Images
+    def extract_image(self, response_image: Any) -> Image:
+        raise NotImplementedError("This method must be implemented by the subclass")
 
+        # Tool Calls
+    def extract_tool_call(self, response_tool_call: OllamaToolCall) -> ToolCall:
+        return ToolCall(
+            id=f'call_{generate_random_id(24)}',
+            tool_name=response_tool_call['function']['name'],
+            arguments=response_tool_call['function'].get('arguments')
+        )
+    
+        # Response Info (Model, Usage, Done Reason, etc.)
+    def extract_response_info(self, response: Any) -> ResponseInfo:
         model = response["model"]
         done_reason = response["done_reason"]
-        if done_reason == "stop" and tool_calls:
+        if done_reason == "stop" and response["message"].get("tool_calls"):
             done_reason = "tool_calls"
         elif done_reason != "stop" and done_reason is not None:
             # TODO handle other done_reasons 
@@ -217,9 +215,22 @@ class OllamaWrapper(BaseAIClientWrapper):
             input_tokens=response["prompt_eval_count"], 
             output_tokens=response["eval_count"]
         )
+        
+        return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
+    
+        # Assistant Messages (Content, Images, Tool Calls, Response Info)
+    def extract_assistant_message_both_formats(self, response: OllamaChatResponse) -> tuple[Message, OllamaMessage]:
+        client_message = response['message']
+        
+        tool_calls = None
+        if client_message_tool_calls := client_message.get('tool_calls'):
+            tool_calls = list(map(self.extract_tool_call, client_message_tool_calls))
+
+        
+        images = None # TODO: Implement image extraction
 
         created_at = datetime.strptime(f'{response["created_at"][:26]}Z', '%Y-%m-%dT%H:%M:%S.%fZ')
-        response_info = ResponseInfo(model=model, done_reason=done_reason, usage=usage)          
+        response_info = self.extract_response_info(response)        
 
         std_message = Message(
             role=client_message['role'],
@@ -267,7 +278,7 @@ class OllamaWrapper(BaseAIClientWrapper):
             top_k: Optional[int] = None,
             top_p: Optional[float] = None,             
             **kwargs
-            ) -> OllamaChatResponse:
+            ) -> tuple[Message, OllamaMessage]:
         
             # if (tool_choice and tool_choice != "auto" and system_prompt
             #     and messages and messages[0]["role"] == "system"
@@ -334,7 +345,7 @@ class OllamaWrapper(BaseAIClientWrapper):
             #     response['message']['content'] = system_prompt
 
             # ollama-python is incorrectly typed as Mapping[str, Any] instead of OllamaChatResponse
-            return response
+            return self.extract_assistant_message_both_formats(response)
     
 
     # Ollama Specific Methods
