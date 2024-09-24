@@ -1,4 +1,4 @@
-from typing import Optional, Union, Sequence, Any, Literal, Mapping, Iterator
+from typing import Optional, Union, Sequence, Any, Literal, Mapping, Iterator, Generator
 
 import google.generativeai as genai
 from google.generativeai import (
@@ -20,6 +20,7 @@ from google.generativeai.types.content_types import (
 )
 from google.generativeai.types import (
     GenerateContentResponse,
+    ContentType,
     BlockedPromptException,
     StopCandidateException,
     IncompleteIterationError,
@@ -44,6 +45,7 @@ from google.generativeai.protos import (
     Tool as GoogleTool,
     ToolConfig,
     Candidate,
+    Content,
 )
 
 from google.api_core.exceptions import (
@@ -73,6 +75,7 @@ from google.protobuf.struct_pb2 import Struct as GoogleProtobufStruct
 
 from unifai.types import (
     Message, 
+    MessageChunk,
     Tool, 
     ToolCall, 
     Image, 
@@ -296,6 +299,26 @@ class GoogleAIWrapper(BaseAIClientWrapper):
         )
     
         # Response Info (Model, Usage, Done Reason, etc.)
+    def extract_done_reason(self, response_obj: Any, tools_called: bool) -> str|None:
+        done_reason = response_obj.finish_reason
+        if not done_reason:
+            return None
+        elif done_reason == 1:
+            return "stop" if not tools_called else "tool_calls"
+        elif done_reason == 2:
+            return "max_tokens"
+        elif done_reason in (5, 10):
+            return "error"
+        else:
+            return "content_filter"
+    
+    def extract_usage(self, response_obj: GenerateContentResponse) -> Usage|None:
+        if response_obj.usage_metadata:
+            return Usage(
+                input_tokens=response_obj.usage_metadata.prompt_token_count,
+                output_tokens=response_obj.usage_metadata.cached_content_token_count,
+            )
+
     def extract_response_info(
             self, 
             response: GenerateContentResponse, 
@@ -303,62 +326,111 @@ class GoogleAIWrapper(BaseAIClientWrapper):
             tools_called: bool = False
             ) -> ResponseInfo:
         
-        finish_reason = response.candidates[0].finish_reason
-        if not finish_reason:
-            done_reason = None
-        elif finish_reason == 1:
-            done_reason = "stop" if not tools_called else "tool_calls"
-        elif finish_reason == 2:
-            done_reason = "max_tokens"
-        elif finish_reason in (5, 10):
-            done_reason = "error"
-        else:
-            done_reason = "content_filter"
+        # finish_reason = response.candidates[0].finish_reason
+        # if not finish_reason:
+        #     done_reason = None
+        # elif finish_reason == 1:
+        #     done_reason = "stop" if not tools_called else "tool_calls"
+        # elif finish_reason == 2:
+        #     done_reason = "max_tokens"
+        # elif finish_reason in (5, 10):
+        #     done_reason = "error"
+        # else:
+        #     done_reason = "content_filter"
         
-        usage = Usage(
-                input_tokens=response.usage_metadata.prompt_token_count,
-                output_tokens=response.usage_metadata.cached_content_token_count,
-            )
-        
+        done_reason = self.extract_done_reason(response.candidates[0], tools_called)
+        # usage = Usage(
+        #         input_tokens=response.usage_metadata.prompt_token_count,
+        #         output_tokens=response.usage_metadata.cached_content_token_count,
+        #     )
+        usage = self.extract_usage(response)
         return ResponseInfo(model=model, done_reason=done_reason, usage=usage)
 
-        # Assistant Messages (Content, Images, Tool Calls, Response Info)
-    def extract_assistant_message_both_formats(self, response: GenerateContentResponse, **kwargs) -> tuple[Message, Any]:
-        client_message = response.candidates[0].content
-        content = ""
-        tool_calls = []
-        images = []
-        for part in client_message.parts:
+    def _extract_parts(self, parts: Sequence[Part]) -> tuple[str|None, list[ToolCall]|None, list[Image]|None]:   
+        content = None
+        tool_calls = None
+        images = None
+        for part in parts:
             if part.text:
+                if content is None:
+                    content = ""
                 content += part.text
             elif part.function_call:
+                if tool_calls is None:
+                    tool_calls = []
                 tool_calls.append(self.extract_tool_call(part.function_call))
             elif part.inline_data:
+                if images is None:
+                    images = []
                 images.append(self.extract_image(part.inline_data))
             elif part.file_data or part.executable_code or part.code_execution_result:
                 raise NotImplementedError("file_data, executable_code, and code_execution_result are not yet supported by UnifAI")
+        return content, tool_calls, images
 
+        # Assistant Messages (Content, Images, Tool Calls, Response Info)
+    def extract_assistant_message_both_formats(self, response: GenerateContentResponse, **kwargs) -> tuple[Message, Content]:
+        client_message = response.candidates[0].content
+        # content = ""
+        # tool_calls = []
+        # images = []
+        # for part in client_message.parts:
+        #     if part.text:
+        #         content += part.text
+        #     elif part.function_call:
+        #         tool_calls.append(self.extract_tool_call(part.function_call))
+        #     elif part.inline_data:
+        #         images.append(self.extract_image(part.inline_data))
+        #     elif part.file_data or part.executable_code or part.code_execution_result:
+        #         raise NotImplementedError("file_data, executable_code, and code_execution_result are not yet supported by UnifAI")
+
+        content, tool_calls, images = self._extract_parts(client_message.parts)
 
         model = kwargs.get("model")
         response_info = self.extract_response_info(response, model=model, tools_called=bool(tool_calls))
         std_message = Message(
             role="assistant",
-            content=content or None,
-            tool_calls=tool_calls or None,
-            images=images or None,
+            content=content,
+            tool_calls=tool_calls,
+            images=images,
             response_info=response_info
         )        
         return std_message, client_message
 
+    
+    def extract_stream_chunks(self, response: GenerateContentResponse) -> Generator[MessageChunk, None, tuple[Message, Content]]:
+        for chunk in response:
+            # content = ""
+            # tool_calls = []
+            # images = []
+            # for part in chunk.parts:
+            #     if part.text:
+            #         content += part.text
+            #     elif part.function_call:
+            #         tool_calls.append(self.extract_tool_call(part.function_call))
+            #     elif part.inline_data:
+            #         images.append(self.extract_image(part.inline_data))
+            #     elif part.file_data or part.executable_code or part.code_execution_result:
+            #         raise NotImplementedError("file_data, executable_code, and code_execution_result are not yet supported by UnifAI")
+            content, tool_calls, images = self._extract_parts(chunk.parts)
 
-    def split_tool_outputs_into_messages(self, 
-                                         tool_calls: list[ToolCall], 
-                                         content: Optional[str] = None) -> Iterator[Message]:
-        yield Message(
-            role="tool",
-            content=content,
-            tool_calls=tool_calls       
-        )
+            yield MessageChunk(
+                role="assistant",
+                content=content,
+                tool_calls=tool_calls,
+                images=images
+            )
+        
+        return self.extract_assistant_message_both_formats(response)
+
+
+    # def split_tool_outputs_into_messages(self, 
+    #                                      tool_calls: list[ToolCall], 
+    #                                      content: Optional[str] = None) -> Iterator[Message]:
+    #     yield Message(
+    #         role="tool",
+    #         content=content,
+    #         tool_calls=tool_calls       
+    #     )
 
 
     # List Models
@@ -370,15 +442,65 @@ class GoogleAIWrapper(BaseAIClientWrapper):
             return model
         return f"models/{model}"
 
+    # # Chat
+    # def chat(
+    #         self,
+    #         messages: list[Message],     
+    #         model: Optional[str] = None,
+    #         system_prompt: Optional[str] = None,                   
+    #         tools: Optional[list[Any]] = None,
+    #         tool_choice: Optional[Union[Tool, str, dict, Literal["auto", "required", "none"]]] = None,            
+    #         response_format: Optional[Union[str, dict[str, str]]] = None,
+
+    #         max_tokens: Optional[int] = None,
+    #         frequency_penalty: Optional[float] = None,
+    #         presence_penalty: Optional[float] = None,
+    #         seed: Optional[int] = None,
+    #         stop_sequences: Optional[list[str]] = None, 
+    #         temperature: Optional[float] = None,
+    #         top_k: Optional[int] = None,
+    #         top_p: Optional[float] = None, 
+
+    #         **kwargs
+    #         ) -> tuple[Message, Any]:
+        
+    #     model = self.format_model_name(model or self.default_model)
+    #     gen_config = GenerationConfig(
+    #         # candidate_count=1,
+    #         stop_sequences=stop_sequences,
+    #         max_output_tokens=max_tokens,
+    #         temperature=temperature,
+    #         top_k=top_k,
+    #         top_p=top_p,
+    #         response_mime_type=response_format, #text/plain or application/json
+    #     )
+
+    #     gen_model = self.client.GenerativeModel(
+    #         model_name=model,
+    #         safety_settings=kwargs.pop("safety_settings", None),
+    #         generation_config=gen_config,
+    #         tools=tools,
+    #         tool_config=tool_choice,
+    #         system_instruction=system_prompt,            
+    #     )
+
+    #     response = self.run_func_convert_exceptions(
+    #         gen_model.generate_content,
+    #         messages
+    #     )
+    #     return self.extract_assistant_message_both_formats(response, model=model)
+
     # Chat
-    def chat(
+    def get_chat_response(
             self,
-            messages: list[Message],     
+            messages: list[Content],     
             model: Optional[str] = None,
             system_prompt: Optional[str] = None,                   
             tools: Optional[list[Any]] = None,
             tool_choice: Optional[Union[Tool, str, dict, Literal["auto", "required", "none"]]] = None,            
             response_format: Optional[Union[str, dict[str, str]]] = None,
+
+            stream: bool = False,
 
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
@@ -411,13 +533,14 @@ class GoogleAIWrapper(BaseAIClientWrapper):
             tool_config=tool_choice,
             system_instruction=system_prompt,            
         )
-
-        response = self.run_func_convert_exceptions(
+        # genai.GenerativeModel.generate_content
+        return self.run_func_convert_exceptions(
             gen_model.generate_content,
-            messages
+            messages,
+            stream=stream,
+            **kwargs
         )
-        return self.extract_assistant_message_both_formats(response, model=model)
-
+        
 
     # Embeddings
     def embed(

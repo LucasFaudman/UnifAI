@@ -1,4 +1,4 @@
-from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable
+from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator
 
 from unifai.ai_client_wrappers import BaseAIClientWrapper
 from unifai.types import (
@@ -6,6 +6,7 @@ from unifai.types import (
     EvaluateParameters,
     EvaluateParametersInput, 
     Message,
+    MessageChunk,
     MessageInput, 
     Tool,
     ToolInput,
@@ -106,6 +107,56 @@ class UnifAIClient:
     #         return []
     #     return [tool for tool in tools if tool.name == tool_choice]
 
+    def start_chat(
+            self,
+            **kwargs
+            # messages: Optional[Sequence[MessageInput]] = None,
+            # provider: Optional[AIProvider] = None,            
+            # model: Optional[str] = None,
+            # system_prompt: Optional[str] = None,             
+            # tools: Optional[Sequence[ToolInput]] = None,
+            # tool_callables: Optional[dict[str, Callable]] = None,
+            # tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
+            # response_format: Optional[Union[str, dict[str, str]]] = None,
+
+            # return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
+            # enforce_tool_choice: bool = False,
+            # tool_choice_error_retries: int = 3,
+
+            # max_tokens: Optional[int] = None,
+            # frequency_penalty: Optional[float] = None,
+            # presence_penalty: Optional[float] = None,
+            # seed: Optional[int] = None,
+            # stop_sequences: Optional[list[str]] = None, 
+            # temperature: Optional[float] = None,
+            # top_k: Optional[int] = None,
+            # top_p: Optional[float] = None,
+            ) -> Chat:
+            return Chat(
+                parent=self,
+                provider=kwargs.pop("provider", self.default_provider),
+                messages=kwargs.pop("messages", []),
+                **kwargs
+                # model=model,
+                # system_prompt=system_prompt,
+                # tools=tools,
+                # tool_callables=tool_callables,
+                # tool_choice=tool_choice,
+                # response_format=response_format,
+                # return_on=return_on,
+                # enforce_tool_choice=enforce_tool_choice,
+                # tool_choice_error_retries=tool_choice_error_retries,
+
+                # max_tokens=max_tokens,
+                # frequency_penalty=frequency_penalty,
+                # presence_penalty=presence_penalty,
+                # seed=seed,
+                # stop_sequences=stop_sequences,
+                # temperature=temperature,
+                # top_k=top_k,
+                # top_p=top_p,                
+            )
+
     
     def chat(
             self,
@@ -119,7 +170,7 @@ class UnifAIClient:
             response_format: Optional[Union[str, dict[str, str]]] = None,
 
             return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
-            enforce_tool_choice: bool = False,
+            enforce_tool_choice: bool = True,
             tool_choice_error_retries: int = 3,
 
             max_tokens: Optional[int] = None,
@@ -127,23 +178,22 @@ class UnifAIClient:
             presence_penalty: Optional[float] = None,
             seed: Optional[int] = None,
             stop_sequences: Optional[list[str]] = None, 
-            stream: bool = False,
             temperature: Optional[float] = None,
             top_k: Optional[int] = None,
             top_p: Optional[float] = None,
 
             **kwargs
-            ):
-            chat = Chat(
-                parent=self,
-                provider=provider or self.default_provider,
-                messages=messages if messages is not None else [],
+            ) -> Chat:
+            chat = self.start_chat(
+                messages=messages,
+                provider=provider,
                 model=model,
                 system_prompt=system_prompt,
                 tools=tools,
                 tool_callables=tool_callables,
                 tool_choice=tool_choice,
                 response_format=response_format,
+
                 return_on=return_on,
                 enforce_tool_choice=enforce_tool_choice,
                 tool_choice_error_retries=tool_choice_error_retries,
@@ -155,12 +205,69 @@ class UnifAIClient:
                 stop_sequences=stop_sequences,
                 temperature=temperature,
                 top_k=top_k,
-                top_p=top_p,                
+                top_p=top_p,
             )
+
             if messages:
-                chat.run(**kwargs, stream=stream)
+                chat.run(**kwargs)
             return chat
         
+
+    def chat_stream(
+            self,
+            messages: Optional[Sequence[MessageInput]] = None,
+            provider: Optional[AIProvider] = None,            
+            model: Optional[str] = None,
+            system_prompt: Optional[str] = None,             
+            tools: Optional[Sequence[ToolInput]] = None,
+            tool_callables: Optional[dict[str, Callable]] = None,
+            tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
+            response_format: Optional[Union[str, dict[str, str]]] = None,
+
+            return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
+            enforce_tool_choice: bool = True,
+            tool_choice_error_retries: int = 3,
+
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None,
+
+            **kwargs
+            ) -> Generator[MessageChunk, None, Chat]:
+
+            chat = self.start_chat(
+                messages=messages,
+                provider=provider,
+                model=model,
+                system_prompt=system_prompt,
+                tools=tools,
+                tool_callables=tool_callables,
+                tool_choice=tool_choice,
+                response_format=response_format,
+
+                return_on=return_on,
+                enforce_tool_choice=enforce_tool_choice,
+                tool_choice_error_retries=tool_choice_error_retries,
+
+                max_tokens=max_tokens,
+                frequency_penalty=frequency_penalty,
+                presence_penalty=presence_penalty,
+                seed=seed,
+                stop_sequences=stop_sequences,
+                temperature=temperature,
+                top_k=top_k,
+                top_p=top_p,
+            )
+
+            if messages:
+                yield from chat.run_stream(**kwargs)
+            return chat
+    
 
     def embed(self, 
               input: str | Sequence[str],

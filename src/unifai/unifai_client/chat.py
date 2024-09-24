@@ -1,9 +1,10 @@
-from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping
+from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
 from unifai.ai_client_wrappers import BaseAIClientWrapper
 from unifai.types import (
     AIProvider, 
     Message,
+    MessageChunk,
     MessageInput, 
     Tool,
     ToolInput,
@@ -238,30 +239,36 @@ class Chat:
         self.client_messages.extend(map(self.client.prep_input_message, self.client.split_tool_message(tool_message)))
         # self.extend_messages(self.client.split_tool_outputs_into_messages(tool_calls, content))
              
+
+    def client_kwargs(self, stream: bool = False, **kwargs) -> dict[str, Any]:             
+        return dict(
+                    messages=self.client_messages,                 
+                    model=self.model, 
+                    system_prompt=self.system_prompt,
+                    tools=self.client_tools, 
+                    tool_choice=self.client_tool_choice,
+                    response_format=self.client_response_format,
+
+                    stream=stream,
+
+                    max_tokens=self.max_tokens,
+                    frequency_penalty=self.frequency_penalty,
+                    presence_penalty=self.presence_penalty,
+                    seed=self.seed,
+                    stop_sequences=self.stop_sequences,
+                    temperature=self.temperature,
+                    top_k=self.top_k,
+                    top_p=self.top_p,                    
+                    **kwargs
+            )
     
     def run(self, **kwargs) -> Self:
         while True:
             std_message, client_message = self.client.chat(
-                messages=self.client_messages,                 
-                model=self.model, 
-                system_prompt=self.system_prompt,
-                tools=self.client_tools, 
-                tool_choice=self.client_tool_choice,
-                response_format=self.client_response_format,
-
-                max_tokens=self.max_tokens,
-                frequency_penalty=self.frequency_penalty,
-                presence_penalty=self.presence_penalty,
-                seed=self.seed,
-                stop_sequences=self.stop_sequences,
-                temperature=self.temperature,
-                top_k=self.top_k,
-                top_p=self.top_p,
-                **kwargs
+                **self.client_kwargs(stream=False, **kwargs)
             )
-            # TODO check if response is an APIError
-
-            print("std_message:", std_message)
+            # TODO handle error messages
+            print("\nstd_message:", std_message)
 
             # Update usage for entire chat
             self.usage += std_message.response_info.usage
@@ -301,6 +308,55 @@ class Chat:
             break
 
         return self
+    
+    def run_stream(self, **kwargs) -> Generator[MessageChunk, None, Self]:
+        while True:
+            # print(f"{self.client_kwargs(stream=True, **kwargs)=}")
+            print(f"{self.client_kwargs(stream=True, **kwargs)['tool_choice']=}")
+            std_message, client_message = yield from self.client.chat_stream(
+                **self.client_kwargs(stream=True, **kwargs)
+            )
+            # TODO handle error messages
+            # print("\nstd_message:", std_message)
+
+            # Update usage for entire chat
+            self.usage += std_message.response_info.usage
+
+            # Enforce Tool Choice: Check if tool choice is obeyed
+            # auto:  
+            if self.enforce_tool_choice and self.std_tool_choice is not None:
+                if self.check_tool_choice_obeyed(self.std_tool_choice, std_message.tool_calls):
+                    self.handle_tool_choice_obeyed(std_message)
+                elif self.tool_choice_error_retries > 0:
+                    self.handle_tool_choice_not_obeyed(std_message)
+                    # Continue to next iteration without updating messages (retry)
+                    continue
+                else:
+                    print("Tool choice error retries exceeded")
+                    raise ValueError("Tool choice error retries exceeded")
+                
+            # Update messages with assistant message
+            self.std_messages.append(std_message)
+            self.client_messages.append(client_message)
+
+            if self.return_on == "message":
+                print("returning on message")
+                break
+
+            if tool_calls := std_message.tool_calls:
+                # Return on tool_call before processing messages
+                if self.check_return_on_tool_call(tool_calls):
+                    break
+
+                tool_calls = self.do_tool_calls(tool_calls)
+                self.extend_messages_with_tool_outputs(tool_calls)
+                # Process messages after submitting tool outputs
+                continue
+
+            print("Returning on content:", std_message.content)
+            break
+
+        return self    
 
 
     def clear_messages(self) -> Self:

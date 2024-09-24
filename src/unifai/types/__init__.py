@@ -1,6 +1,6 @@
 from .eval_parameters import EvaluateParameters
 from .image import Image
-from .message import Message
+from .message import Message, MessageChunk
 from .embedding import Embedding, EmbedResult
 from .response_info import ResponseInfo, Usage
 from .tool_call import ToolCall
@@ -25,6 +25,7 @@ __all__ = [
     "EvaluateParameters", 
     "Image", 
     "Message", 
+    "MessageChunk",
     "ResponseInfo", 
     "Usage",
     "ToolCall", 

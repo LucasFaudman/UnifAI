@@ -1,4 +1,5 @@
-from typing import Optional, Union, Sequence, Any, Literal, Mapping, Iterator
+from typing import Optional, Union, Sequence, Any, Literal, Mapping, Iterator, Generator
+from json import loads as json_loads
 
 from anthropic import Anthropic
 from anthropic.types import (
@@ -13,7 +14,9 @@ from anthropic.types import (
     ToolUseBlockParam as AnthropicToolUseBlockParam,
     ToolResultBlockParam as AnthropicToolResultBlockParam,
     ToolParam as AnthropicToolParam, 
+    RawMessageStreamEvent as AnthropicRawMessageStreamEvent,
 )
+from anthropic._streaming import Stream
 from anthropic.types.image_block_param import Source as AnthropicImageSource
 
 
@@ -55,13 +58,13 @@ from unifai.exceptions import (
 )
 
 
-from unifai.types import Message, Tool, ToolCall, Image, Usage, ResponseInfo, EmbedResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, EmbedResult
 from unifai.type_conversions import stringify_content
 from ._base import BaseAIClientWrapper
 
 class AnthropicWrapper(BaseAIClientWrapper):
     provider = "anthropic"
-    # client: Anthropic
+    client: Anthropic
     default_model = "claude-3-5-sonnet-20240620"
 
     def import_client(self):
@@ -222,24 +225,41 @@ class AnthropicWrapper(BaseAIClientWrapper):
                 )
     
         # Response Info (Model, Usage, Done Reason, etc.)
+    def extract_done_reason(self, response_obj: AnthropicMessage) -> str|None:
+        done_reason = response_obj.stop_reason
+        if done_reason == "end_turn" or done_reason == "stop_sequence":
+            return "stop"
+        if done_reason == "tool_use":
+            return "tool_calls"
+        # "max_tokens" or None
+        return done_reason
+
+    def extract_usage(self, response_obj: AnthropicMessage) -> Usage|None:
+        if response_usage := response_obj.usage:
+            return Usage(
+                input_tokens=response_usage.input_tokens, 
+                output_tokens=response_usage.output_tokens
+            )
+
     def extract_response_info(self, response: AnthropicMessage) -> ResponseInfo:
         model = response.model
-        if response.stop_reason == "end_turn" or response.stop_reason == "stop_sequence":
-            done_reason = "stop"
-        elif response.stop_reason == "tool_use":
-            done_reason = "tool_calls"
-        else:
-            # "max_tokens" or None
-            done_reason = response.stop_reason
+        # if response.stop_reason == "end_turn" or response.stop_reason == "stop_sequence":
+        #     done_reason = "stop"
+        # elif response.stop_reason == "tool_use":
+        #     done_reason = "tool_calls"
+        # else:
+        #     # "max_tokens" or None
+        #     done_reason = response.stop_reason
 
-        if response.usage:
-            usage = Usage(
-                input_tokens=response.usage.input_tokens, 
-                output_tokens=response.usage.output_tokens
-            )
-        else:
-            usage = None                      
-
+        # if response.usage:
+        #     usage = Usage(
+        #         input_tokens=response.usage.input_tokens, 
+        #         output_tokens=response.usage.output_tokens
+        #     )
+        # else:
+        #     usage = None                      
+        done_reason = self.extract_done_reason(response)
+        usage = self.extract_usage(response)
         return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
 
 
@@ -265,17 +285,81 @@ class AnthropicWrapper(BaseAIClientWrapper):
             response_info=response_info,
         )
         return std_message, client_message 
-    
 
-    def split_tool_outputs_into_messages(self, 
-                                              tool_calls: list[ToolCall],
-                                              content: Optional[str],
-                                              ) -> Iterator[Message]:        
-        yield Message(
-            role="tool",
-            content=content,
-            tool_calls=tool_calls            
-        )
+    
+    def extract_stream_chunks(self, response: Stream[AnthropicRawMessageStreamEvent]) -> Generator[MessageChunk, None, tuple[Message, AnthropicMessageParam]]:
+        message = None
+        pings = 0
+        # content = []        
+        for event in response:
+            event_type = event.type
+            if event_type == "ping":
+                pings += 1
+                continue
+            if event_type == "erorr":
+                #TODO: Implement error handling mid stream
+                error = event.error
+                raise NotImplementedError("Error handling not implemented")
+
+            if event_type == "message_start":
+                message = event.message
+                continue
+
+            if not message:
+                raise ValueError("No message found")
+
+            if event_type == "message_delta":
+                delta = event.delta
+                message.stop_reason = delta.stop_reason
+                message.stop_sequence = delta.stop_sequence
+                # message.usage.input_tokens = event.usage.input_tokens                 
+                message.usage.output_tokens += event.usage.output_tokens
+
+            if event_type == "message_stop":
+                break
+                
+            if event_type == "content_block_start":
+                index = event.index
+                content_block = event.content_block
+                if content_block.type == "tool_use":
+                    content_block.input = ""
+                message.content.insert(index, content_block)
+
+            if event_type == "content_block_delta":
+                index = event.index
+                delta = event.delta
+                
+                if delta.type == "text_delta":
+                    message.content[index].text += delta.text
+                    yield MessageChunk(role="assistant", content=delta.text)
+                elif delta.type == "input_json_delta":
+                    message.content[index].input += delta.partial_json
+
+            if event_type == "content_block_stop":
+                index = event.index
+                content_block = message.content[index]
+
+                if content_block.type == "tool_use":
+                    content_block.input = json_loads(content_block.input)
+                    tool_call = self.extract_tool_call(content_block)
+                    yield MessageChunk(role="assistant", tool_calls=[tool_call])
+
+        if message is None:
+            raise ValueError("No message found")
+                    
+        return self.extract_assistant_message_both_formats(message)
+
+
+
+    # def split_tool_outputs_into_messages(self, 
+    #                                           tool_calls: list[ToolCall],
+    #                                           content: Optional[str],
+    #                                           ) -> Iterator[Message]:        
+    #     yield Message(
+    #         role="tool",
+    #         content=content,
+    #         tool_calls=tool_calls            
+    #     )
         
 
 
@@ -295,7 +379,53 @@ class AnthropicWrapper(BaseAIClientWrapper):
 
 
     # Chat 
-    def chat(
+    # def chat(
+    #         self,
+    #         messages: list[AnthropicMessageParam],     
+    #         model: str = default_model, 
+    #         system_prompt: Optional[str] = None,                 
+    #         tools: Optional[list[AnthropicToolParam]] = None,
+    #         tool_choice: Optional[dict] = None,
+    #         response_format: Optional[Union[str, dict[str, str]]] = None,
+
+    #         max_tokens: Optional[int] = None,
+    #         frequency_penalty: Optional[float] = None,
+    #         presence_penalty: Optional[float] = None,
+    #         seed: Optional[int] = None,
+    #         stop_sequences: Optional[list[str]] = None, 
+    #         temperature: Optional[float] = None,
+    #         top_k: Optional[int] = None,
+    #         top_p: Optional[float] = None,             
+    #         **kwargs
+    #         ) -> tuple[Message, AnthropicMessageParam]:
+        
+    #     if system_prompt:
+    #         kwargs["system"] = system_prompt
+    #     if tools:
+    #         kwargs["tools"] = tools
+    #         if tool_choice and tool_choice.get("type") != "none":
+    #             kwargs["tool_choice"] = tool_choice
+    #     max_tokens = max_tokens or 4096
+    #     if stop_sequences is not None:
+    #         kwargs["stop_sequences"] = stop_sequences
+    #     if temperature is not None:
+    #         kwargs["temperature"] = temperature
+    #     if top_k is not None:
+    #         kwargs["top_k"] = top_k
+    #     if top_p is not None:
+    #         kwargs["top_p"] = top_p
+
+    #     response = self.run_func_convert_exceptions(
+    #         func=self.client.messages.create,
+    #         max_tokens=max_tokens,
+    #         messages=messages,
+    #         model=model,
+
+    #         **kwargs
+    #     )
+    #     return self.extract_assistant_message_both_formats(response)
+
+    def get_chat_response(
             self,
             messages: list[AnthropicMessageParam],     
             model: str = default_model, 
@@ -303,6 +433,8 @@ class AnthropicWrapper(BaseAIClientWrapper):
             tools: Optional[list[AnthropicToolParam]] = None,
             tool_choice: Optional[dict] = None,
             response_format: Optional[Union[str, dict[str, str]]] = None,
+
+            stream: bool = False,
 
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
@@ -313,14 +445,19 @@ class AnthropicWrapper(BaseAIClientWrapper):
             top_k: Optional[int] = None,
             top_p: Optional[float] = None,             
             **kwargs
-            ) -> tuple[Message, AnthropicMessageParam]:
+            ) -> AnthropicMessage|Stream[AnthropicRawMessageStreamEvent]:
         
         if system_prompt:
             kwargs["system"] = system_prompt
         if tools:
             kwargs["tools"] = tools
             if tool_choice and tool_choice.get("type") != "none":
+                # TODO Fix tool_choice == "none" bug (Should not call tools, currently equivalent to None not "none")
                 kwargs["tool_choice"] = tool_choice
+
+        if stream:
+            kwargs["stream"] = True
+
         max_tokens = max_tokens or 4096
         if stop_sequences is not None:
             kwargs["stop_sequences"] = stop_sequences
@@ -331,7 +468,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
         if top_p is not None:
             kwargs["top_p"] = top_p
 
-        response = self.run_func_convert_exceptions(
+        return self.run_func_convert_exceptions(
             func=self.client.messages.create,
             max_tokens=max_tokens,
             messages=messages,
@@ -339,9 +476,6 @@ class AnthropicWrapper(BaseAIClientWrapper):
 
             **kwargs
         )
-        return self.extract_assistant_message_both_formats(response)
-
-
 
     def generate(
             self,

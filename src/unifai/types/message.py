@@ -17,3 +17,7 @@ class Message(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     response_info: Optional[ResponseInfo] = None
 
+
+class MessageChunk(Message):
+    pass
+

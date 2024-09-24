@@ -13,12 +13,15 @@ ai = UnifAIClient(
 )
 messages = ["Hello this is a test"]
 
-for provider in ["openai", "google", "anthropic", "ollama"]:
-    try:
-        for chunk in ai.chat(messages=messages, provider=provider, stream=True):
-            print(chunk)
-            print()
-    except Exception as e:
-        print(e)
-        print()
-        continue
+for provider in ["openai", 
+                #  "google", "anthropic", "ollama"
+                 ]:
+    # try:
+    print(f"Provider: {provider}")
+    for message_chunk in ai.chat_stream(messages=messages, provider=provider):
+        print(message_chunk.content, flush=True, end="")
+    print("\n")
+    # except Exception as e:
+    #     print(e)
+    #     print()
+    #     continue

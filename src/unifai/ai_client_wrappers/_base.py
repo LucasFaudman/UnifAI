@@ -1,8 +1,8 @@
-from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator, Iterable
+from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator, Iterable, Generator
 
 from json import dumps as json_dumps
 
-from unifai.types import Message, Tool, ToolCall, Image, ResponseInfo, EmbedResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, EmbedResult, Usage
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
 
 T = TypeVar("T")
@@ -106,7 +106,13 @@ class BaseAIClientWrapper:
     def extract_tool_call(self, response_tool_call: Any) -> ToolCall:
         raise NotImplementedError("This method must be implemented by the subclass")
     
-        # Response Info (Model, Usage, Done Reason, etc.)
+        # Response Info (Model, Usage, Done Reason, etc.)    
+    def extract_done_reason(self, response_obj: Any) -> str|None:
+        raise NotImplementedError("This method must be implemented by the subclass")
+    
+    def extract_usage(self, response_obj: Any) -> Usage|None:
+        raise NotImplementedError("This method must be implemented by the subclass")
+    
     def extract_response_info(self, response: Any) -> ResponseInfo:
         raise NotImplementedError("This method must be implemented by the subclass")
     
@@ -114,9 +120,10 @@ class BaseAIClientWrapper:
     def extract_assistant_message_both_formats(self, response: Any) -> tuple[Message, Any]:
         raise NotImplementedError("This method must be implemented by the subclass")     
     
-
-    def split_tool_outputs_into_messages(self, tool_calls: Sequence[ToolCall], content: Optional[str] = None) -> Iterator[Message]:
+    def extract_stream_chunks(self, response: Any) -> Generator[MessageChunk, None, tuple[Message, Any]]:
         raise NotImplementedError("This method must be implemented by the subclass")
+    # def split_tool_outputs_into_messages(self, tool_calls: Sequence[ToolCall], content: Optional[str] = None) -> Iterator[Message]:
+    #     raise NotImplementedError("This method must be implemented by the subclass")
 
 
     # List Models
@@ -125,15 +132,15 @@ class BaseAIClientWrapper:
 
 
     # Chat
-    def chat(
+    def get_chat_response(
             self,
-            messages: list[T],     
-            model: Optional[str] = None,
-            system_prompt: Optional[str] = None,                   
-            tools: Optional[list[Any]] = None,
-            tool_choice: Optional[Union[Tool, str, dict, Literal["auto", "required", "none"]]] = None,            
-            response_format: Optional[Union[str, dict[str, str]]] = None,
-
+            messages: list[Any],     
+            model: str = default_model,
+            system_prompt: Optional[str] = None,                    
+            tools: Optional[list[dict]] = None,
+            tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
+            response_format: Optional[str] = None,
+            stream: bool = False,
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
             presence_penalty: Optional[float] = None,
@@ -144,9 +151,80 @@ class BaseAIClientWrapper:
             top_p: Optional[float] = None, 
 
             **kwargs
-            ) -> tuple[Message, T]:
+            ) -> Any:
         raise ProviderUnsupportedFeatureError(f"{self.provider} does not support chat")
+            
+    # def chat(
+    #         self,
+    #         messages: list[T],     
+    #         model: Optional[str] = None,
+    #         system_prompt: Optional[str] = None,                   
+    #         tools: Optional[list[Any]] = None,
+    #         tool_choice: Optional[Union[Tool, str, dict, Literal["auto", "required", "none"]]] = None,            
+    #         response_format: Optional[Union[str, dict[str, str]]] = None,
 
+    #         max_tokens: Optional[int] = None,
+    #         frequency_penalty: Optional[float] = None,
+    #         presence_penalty: Optional[float] = None,
+    #         seed: Optional[int] = None,
+    #         stop_sequences: Optional[list[str]] = None, 
+    #         temperature: Optional[float] = None,
+    #         top_k: Optional[int] = None,
+    #         top_p: Optional[float] = None, 
+
+    #         **kwargs
+    #         ) -> tuple[Message, T]:
+    #     raise ProviderUnsupportedFeatureError(f"{self.provider} does not support chat")
+
+    def chat(
+            self,
+            messages: list[T],     
+            # model: str = default_model,
+            # system_prompt: Optional[str] = None,                    
+            # tools: Optional[list[dict]] = None,
+            # tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
+            # response_format: Optional[str] = None,
+            # stream: bool = False,
+            # max_tokens: Optional[int] = None,
+            # frequency_penalty: Optional[float] = None,
+            # presence_penalty: Optional[float] = None,
+            # seed: Optional[int] = None,
+            # stop_sequences: Optional[list[str]] = None, 
+            # temperature: Optional[float] = None,
+            # top_k: Optional[int] = None,
+            # top_p: Optional[float] = None, 
+
+            **kwargs
+            ) -> tuple[Message, T]:
+        
+        response = self.get_chat_response(messages=messages, **kwargs)
+        std_message, client_message = self.extract_assistant_message_both_formats(response)
+        return std_message, client_message
+    
+    def chat_stream(
+            self,
+            messages: list[T],     
+            # model: str = default_model,
+            # system_prompt: Optional[str] = None,                    
+            # tools: Optional[list[dict]] = None,
+            # tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
+            # response_format: Optional[str] = None,
+            # stream: bool = False,
+            # max_tokens: Optional[int] = None,
+            # frequency_penalty: Optional[float] = None,
+            # presence_penalty: Optional[float] = None,
+            # seed: Optional[int] = None,
+            # stop_sequences: Optional[list[str]] = None, 
+            # temperature: Optional[float] = None,
+            # top_k: Optional[int] = None,
+            # top_p: Optional[float] = None, 
+
+            **kwargs
+            ) -> Generator[MessageChunk, None, tuple[Message, T]]:
+        
+        response = self.get_chat_response(messages=messages, **kwargs)
+        std_message, client_message = yield from self.extract_stream_chunks(response)
+        return std_message, client_message
 
     # Embeddings
     def embed(

@@ -19,13 +19,15 @@
 # from openai.types.beta.function_tool import FunctionTool
 
 # from tiktoken import get_encoding, encoding_for_model
-from typing import Optional, Union, Any, Literal, Mapping, Iterator, Sequence
+from typing import Optional, Union, Any, Literal, Mapping, Iterator, Sequence, Generator
 from json import loads as json_loads, JSONDecodeError
 from datetime import datetime
 
 
 from openai import OpenAI
-from openai.types.chat.chat_completion import ChatCompletion
+from openai._streaming import Stream
+from openai.types.chat.chat_completion_chunk import ChatCompletionChunk, ChoiceDeltaToolCall, Choice as ChunkChoice
+from openai.types.chat.chat_completion import ChatCompletion, Choice as CompletionChoice
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
 from openai.types.chat.chat_completion_message_tool_call import ChatCompletionMessageToolCall
 from openai.types.create_embedding_response import CreateEmbeddingResponse
@@ -66,7 +68,7 @@ from unifai.exceptions import (
     STATUS_CODE_TO_EXCEPTION_MAP   
 )
 
-from unifai.types import Message, Tool, ToolCall, Image, Usage, ResponseInfo, Embedding, EmbedResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embedding, EmbedResult
 from unifai.type_conversions import stringify_content
 from ._base import BaseAIClientWrapper
 
@@ -164,7 +166,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
                 yield Message(role="tool", tool_calls=[tool_call])
         if message.content is not None:
             yield Message(role="user", content=message.content) 
-              
+
     
     def prep_input_system_message(self, message: Message) -> dict:
         return {"role": "system", "content": message.content}
@@ -239,30 +241,33 @@ class OpenAIWrapper(BaseAIClientWrapper):
         raise NotImplementedError("This method must be implemented by the subclass")
 
         # Tool Calls
-    def extract_tool_call(self, response_tool_call: ChatCompletionMessageToolCall) -> ToolCall:
+    def extract_tool_call(self, response_tool_call: ChatCompletionMessageToolCall|ChoiceDeltaToolCall) -> ToolCall:
         return ToolCall(
             id=response_tool_call.id,
             tool_name=response_tool_call.function.name,
             arguments=json_loads(response_tool_call.function.arguments),
         )
     
+
+    def extract_done_reason(self, response_obj: CompletionChoice|ChunkChoice) -> str|None:
+        done_reason = response_obj.finish_reason
+        if done_reason == "length":
+            return "max_tokens"
+        if done_reason == "function_call":
+            return "tool_calls"
+        
+        # "stop", "tool_calls", "content_filter" or None
+        return done_reason
+    
+    def extract_usage(self, response_obj: Any) -> Usage|None:
+        if response_usage := response_obj.usage:
+            return Usage(input_tokens=response_usage.prompt_tokens, output_tokens=response_usage.completion_tokens)
+
         # Response Info (Model, Usage, Done Reason, etc.)
     def extract_response_info(self, response: Any) -> ResponseInfo:
         model = response.model
-        finish_reason = response.choices[0].finish_reason
-
-        if finish_reason == "length":
-            done_reason = "max_tokens"
-        elif finish_reason == "function_call":
-            done_reason = "tool_calls"
-        else:
-            # "stop", "tool_calls", "content_filter" or None
-            done_reason = finish_reason
-
-        if response.usage:
-            usage = Usage(input_tokens=response.usage.prompt_tokens, output_tokens=response.usage.completion_tokens)
-        else:
-            usage = None
+        done_reason = self.extract_done_reason(response.choices[0])
+        usage = self.extract_usage(response.usage)
         
         return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
     
@@ -292,22 +297,143 @@ class OpenAIWrapper(BaseAIClientWrapper):
         return std_message, client_message
 
 
-    def split_tool_outputs_into_messages(self, tool_calls: list[ToolCall], content: Optional[str] = None) -> Iterator[Message]:        
-        for tool_call in tool_calls:
-            yield Message(role="tool", content=stringify_content(tool_call.output), tool_calls=[tool_call])        
-        if content is not None:
-            yield Message(role="user", content=content)
+    # def split_tool_outputs_into_messages(self, tool_calls: list[ToolCall], content: Optional[str] = None) -> Iterator[Message]:        
+    #     for tool_call in tool_calls:
+    #         yield Message(role="tool", content=stringify_content(tool_call.output), tool_calls=[tool_call])        
+    #     if content is not None:
+    #         yield Message(role="user", content=content)
 
+    def extract_stream_chunks(self, response: Stream[ChatCompletionChunk]) -> Generator[MessageChunk, None, tuple[Message, ChatCompletionMessage]]:        
+        content = ""
+        tool_calls = []
+        last_tool_call_yielded = -1
+        model = None
+        usage = None
+        done_reason = None
+        
+        for chunk in response:
+            if chunk.usage:
+                usage = self.extract_usage(chunk)
+                break
+            if not chunk.choices:
+                continue
 
+            choice = chunk.choices[0]
+            delta = choice.delta
+            if not model:
+                model = chunk.model
+            if choice.finish_reason:
+                done_reason = self.extract_done_reason(choice)
+            if delta_content := delta.content:
+                content += delta_content    
+                yield MessageChunk(
+                    role="assistant", 
+                    content=delta_content, 
+                    response_info=ResponseInfo(model=chunk.model, done_reason=done_reason), 
+                    created_at=datetime.fromtimestamp(chunk.created)
+                )                               
+            
+            if delta_tool_calls := delta.tool_calls:
+                tool_call_delta = delta_tool_calls[0]
+                index = tool_call_delta.index
+                len_tool_calls = len(tool_calls)
+                if index == len_tool_calls:
+                    # if tool_calls:
+                    #     tool_calls[-1] = self.extract_tool_call(tool_calls[-1])
+                    #     yield MessageChunk(
+                    #         role="assistant", 
+                    #         tool_calls=[tool_calls[-1]], 
+                    #         response_info=ResponseInfo(model=chunk.model, done_reason=done_reason), 
+                    #         created_at=datetime.fromtimestamp(chunk.created)
+                    #     )
+                    #     last_tool_call_yielded = index - 1                        
+                    tool_calls.append(tool_call_delta)
+                elif index < len_tool_calls:
+                     tool_calls[index].function.arguments += tool_call_delta.function.arguments
+                
 
+        for i, tool_call in enumerate(tool_calls[last_tool_call_yielded + 1:], start=last_tool_call_yielded + 1):
+            tool_call = self.extract_tool_call(tool_call)
+            tool_calls[i] = tool_call
+            yield MessageChunk(
+                role="assistant", 
+                tool_calls=[tool_call], 
+                response_info=ResponseInfo(model=chunk.model, done_reason=done_reason), 
+                created_at=datetime.fromtimestamp(chunk.created)
+            )
+                    
+                
+        response_info = ResponseInfo(model=model, done_reason=done_reason, usage=usage)
+        std_message = Message(
+            role="assistant",
+            content=content,
+            tool_calls=tool_calls,
+            response_info=response_info
+        )
+        return std_message, self.prep_input_message(std_message)
 
 
     # List Models
     def list_models(self) -> list[str]:
         return [model.id for model in self.client.models.list()]
 
+    # # Chat 
+    # def chat(
+    #         self,
+    #         messages: list[dict],     
+    #         model: str = default_model,
+    #         system_prompt: Optional[str] = None,                    
+    #         tools: Optional[list[dict]] = None,
+    #         tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
+    #         response_format: Optional[str] = None,
+    #         stream: bool = False,
+    #         max_tokens: Optional[int] = None,
+    #         frequency_penalty: Optional[float] = None,
+    #         presence_penalty: Optional[float] = None,
+    #         seed: Optional[int] = None,
+    #         stop_sequences: Optional[list[str]] = None, 
+    #         temperature: Optional[float] = None,
+    #         top_k: Optional[int] = None,
+    #         top_p: Optional[float] = None, 
+
+    #         **kwargs
+    #         ) -> tuple[Message, ChatCompletionMessage]|Generator[MessageChunk, None, tuple[Message, ChatCompletionMessage]]:
+
+    #         if tool_choice and not tools:
+    #             tool_choice = None
+
+    #         if stream:
+    #             kwargs["stream_options"] = kwargs.get("stream_options", {})
+    #             kwargs["stream_options"]["include_usage"] = True
+
+    #         response = self.run_func_convert_exceptions(
+    #             func=self.client.chat.completions.create,
+    #             messages=messages,
+    #             model=model,
+    #             tools=tools,
+    #             tool_choice=tool_choice,
+    #             response_format=response_format,
+
+    #             stream=stream,
+
+    #             max_tokens=max_tokens,
+    #             frequency_penalty=frequency_penalty, 
+    #             presence_penalty=presence_penalty,
+    #             seed=seed,
+    #             stop=stop_sequences,
+    #             temperature=temperature,
+    #             # top_k=top_k,
+    #             top_p=top_p,
+    #             **kwargs
+    #         ) 
+    #         if not stream:
+    #             return self.extract_assistant_message_both_formats(response)
+            
+    #         std_message, client_message = yield from self.extract_stream_chunks(response)
+    #         return std_message, client_message
+
     # Chat 
-    def chat(
+    def get_chat_response(
             self,
             messages: list[dict],     
             model: str = default_model,
@@ -315,7 +441,9 @@ class OpenAIWrapper(BaseAIClientWrapper):
             tools: Optional[list[dict]] = None,
             tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
             response_format: Optional[str] = None,
-
+            
+            stream: bool = False,
+            
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
             presence_penalty: Optional[float] = None,
@@ -326,18 +454,24 @@ class OpenAIWrapper(BaseAIClientWrapper):
             top_p: Optional[float] = None, 
 
             **kwargs
-            ) -> tuple[Message, ChatCompletionMessage]:
+            ) -> ChatCompletion|Stream[ChatCompletionChunk]:
 
             if tool_choice and not tools:
                 tool_choice = None
 
-            response = self.run_func_convert_exceptions(
+            if stream:
+                kwargs["stream_options"] = kwargs.get("stream_options", {})
+                kwargs["stream_options"]["include_usage"] = True
+
+            return self.run_func_convert_exceptions(
                 func=self.client.chat.completions.create,
                 messages=messages,
                 model=model,
                 tools=tools,
                 tool_choice=tool_choice,
                 response_format=response_format,
+
+                stream=stream,
 
                 max_tokens=max_tokens,
                 frequency_penalty=frequency_penalty, 
@@ -348,9 +482,57 @@ class OpenAIWrapper(BaseAIClientWrapper):
                 # top_k=top_k,
                 top_p=top_p,
                 **kwargs
-            )            
-            return self.extract_assistant_message_both_formats(response)
+            ) 
+    
+    # def chat(
+    #         self,
+    #         # messages: list[dict],     
+    #         # model: str = default_model,
+    #         # system_prompt: Optional[str] = None,                    
+    #         # tools: Optional[list[dict]] = None,
+    #         # tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
+    #         # response_format: Optional[str] = None,
+    #         # stream: bool = False,
+    #         # max_tokens: Optional[int] = None,
+    #         # frequency_penalty: Optional[float] = None,
+    #         # presence_penalty: Optional[float] = None,
+    #         # seed: Optional[int] = None,
+    #         # stop_sequences: Optional[list[str]] = None, 
+    #         # temperature: Optional[float] = None,
+    #         # top_k: Optional[int] = None,
+    #         # top_p: Optional[float] = None, 
 
+    #         **kwargs
+    #         ) -> tuple[Message, ChatCompletionMessage]:
+        
+    #     response = self.get_chat_response(**kwargs)
+    #     std_message, client_message = self.extract_assistant_message_both_formats(response)
+    #     return std_message, client_message
+    
+    # def chat_stream(
+    #         self,
+    #         # messages: list[dict],     
+    #         # model: str = default_model,
+    #         # system_prompt: Optional[str] = None,                    
+    #         # tools: Optional[list[dict]] = None,
+    #         # tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
+    #         # response_format: Optional[str] = None,
+    #         # stream: bool = False,
+    #         # max_tokens: Optional[int] = None,
+    #         # frequency_penalty: Optional[float] = None,
+    #         # presence_penalty: Optional[float] = None,
+    #         # seed: Optional[int] = None,
+    #         # stop_sequences: Optional[list[str]] = None, 
+    #         # temperature: Optional[float] = None,
+    #         # top_k: Optional[int] = None,
+    #         # top_p: Optional[float] = None, 
+
+    #         **kwargs
+    #         ) -> Generator[MessageChunk, None, tuple[Message, ChatCompletionMessage]]:
+        
+    #     response = self.get_chat_response(**kwargs)
+    #     std_message, client_message = yield from self.extract_stream_chunks(response)
+    #     return std_message, client_message
 
     # def extract_embed_result(self, response: CreateEmbeddingResponse) -> EmbedResult:
     #     embeddings = [Embedding]
