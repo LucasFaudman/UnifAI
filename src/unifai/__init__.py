@@ -4,6 +4,7 @@
 # from .ollama_wrapper import OllamaWrapper
 
 from .types import *
+from .type_conversions import tool
 from .unifai_client import UnifAIClient, Chat
 
 # __all__ = [

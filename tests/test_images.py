@@ -1,6 +1,6 @@
 import pytest
 from unifai import UnifAIClient, AIProvider
-from unifai.types import Message, Tool, Image, ImageFromBase64, ImageFromFile, ImageFromDataURI, ImageFromUrl
+from unifai.types import Message, Tool, Image
 from basetest import base_test_all_providers
 
 from pathlib import Path
@@ -74,19 +74,21 @@ def test_image_input_animals(
     ):
 
     if provider == "openai":
-        func_kwargs["model"] = "gpt-4-0125-preview"
+        func_kwargs["model"] = "gpt-4-turbo"
+    if provider == "ollama":
+        func_kwargs["model"] = "llava-llama3:latest"        
 
     if image_source.startswith("base64"):
-        image = ImageFromBase64(
+        image = Image.from_base64(
             base64_data=TEST_IMAGES[image_name][image_format][image_source],
-            media_type=f"image/{image_format}"
+            mime_type=f"image/{image_format}"
         )
     elif image_source == "path":
-        image = ImageFromFile(path=TEST_IMAGES[image_name][image_format]["path"])
+        image = Image.from_file(path=TEST_IMAGES[image_name][image_format]["path"])
     elif image_source == "data_uri":
-        image = ImageFromDataURI(data_uri=TEST_IMAGES[image_name][image_format]["data_uri"])        
+        image = Image.from_data_uri(data_uri=TEST_IMAGES[image_name][image_format]["data_uri"])        
     elif image_source == "url":
-        image = ImageFromUrl(url=TEST_IMAGES[image_name][image_format]["url"])
+        image = Image.from_url(url=TEST_IMAGES[image_name][image_format]["url"])
 
     
     print(f"Image Source: {image_source}")

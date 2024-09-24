@@ -1,4 +1,4 @@
-from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union
+from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable
 
 from unifai.ai_client_wrappers import BaseAIClientWrapper
 from unifai.types import (
@@ -8,7 +8,8 @@ from unifai.types import (
     Message,
     MessageInput, 
     Tool,
-    ToolInput
+    ToolInput,
+    EmbedResult,
 )
 from unifai.type_conversions import make_few_shot_prompt, standardize_eval_prameters, standardize_tools
 from .chat import Chat
@@ -79,7 +80,7 @@ class UnifAIClient:
             case _:
                 raise ValueError(f"Invalid provider: {provider}")
             
-                
+
     def init_client(self, provider: AIProvider, **client_kwargs) -> BaseAIClientWrapper:
         client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
         self._clients[provider] = self.import_client_wrapper(provider)(**client_kwargs)
@@ -157,9 +158,22 @@ class UnifAIClient:
                 top_p=top_p,                
             )
             if messages:
-                chat.run(**kwargs)
+                chat.run(**kwargs, stream=stream)
             return chat
         
+
+    def embed(self, 
+              input: str | Sequence[str],
+              model: Optional[str] = None,
+              provider: Optional[AIProvider] = None,
+              max_dimensions: Optional[int] = None,
+              **kwargs
+              ) -> EmbedResult:
+        
+        if max_dimensions is not None and max_dimensions < 1:
+            raise ValueError(f"Embedding max_dimensions must be greater than 0. Got: {max_dimensions}")
+        return self.get_client(provider).embed(input, model, max_dimensions, **kwargs)
+
 
     def evaluate(self, 
                  eval_type: str | EvaluateParameters, 

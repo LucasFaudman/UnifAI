@@ -1,4 +1,4 @@
-from typing import Optional, Union, Sequence, Any, Literal, Mapping,  Iterator
+from typing import Optional, Union, Sequence, Any, Literal, Mapping,  Iterator, Iterable
 from datetime import datetime
 
 from ollama import Client as OllamaClient
@@ -37,7 +37,7 @@ from unifai.exceptions import (
 )
 
 
-from unifai.types import Message, Tool, ToolCall, Image, Usage, ResponseInfo
+from unifai.types import Message, Tool, ToolCall, Image, Usage, ResponseInfo, Embedding, EmbedResult
 from unifai.type_conversions import stringify_content
 from ._base import BaseAIClientWrapper
 
@@ -52,8 +52,10 @@ def sha256_hash(string: str) -> str:
     return sha256(string.encode()).hexdigest()
 
 class OllamaWrapper(BaseAIClientWrapper):
+    provider = "ollama"
     client: OllamaClient
     default_model = "mistral:7b-instruct"
+    default_embedding_model = "llama3.1:8b-instruct-q2_K"
 
     def import_client(self):
         from ollama import Client as OllamaClient
@@ -116,11 +118,21 @@ class OllamaWrapper(BaseAIClientWrapper):
         
 
     def prep_input_tool_message(self, message: Message) -> OllamaMessage:
-        content = message.content or ''
-        images = list(map(self.prep_input_image, message.images)) if message.images else None
-        tool_calls = None
-        return OllamaMessage(role='tool', content=content, images=images, tool_calls=tool_calls)
-    
+        if message.tool_calls:
+            tool_call = message.tool_calls[0]        
+            content = stringify_content(tool_call.output)
+            images = list(map(self.prep_input_image, message.images)) if message.images else None
+            tool_calls = None
+            return OllamaMessage(role='tool', content=content, images=images, tool_calls=tool_calls) 
+        
+        raise ValueError("Tool message must have tool_calls") 
+
+    def split_tool_message(self, message: Message) -> Iterator[Message]:        
+        if tool_calls := message.tool_calls:
+            for tool_call in tool_calls:
+                yield Message(role="tool", tool_calls=[tool_call])
+        if message.content is not None:
+            yield Message(role="user", content=message.content)     
 
     def prep_input_system_message(self, message: Message) -> OllamaMessage:
         return OllamaMessage(role='system', content=message.content or '')
@@ -147,7 +159,7 @@ class OllamaWrapper(BaseAIClientWrapper):
        
         # Images
     def prep_input_image(self, image: Image) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")    
+        return image.raw_bytes
 
 
         # Tools
@@ -212,8 +224,8 @@ class OllamaWrapper(BaseAIClientWrapper):
 
 
         usage = Usage(
-            input_tokens=response["prompt_eval_count"], 
-            output_tokens=response["eval_count"]
+            input_tokens=response.get("prompt_eval_count", 0), 
+            output_tokens=response.get("eval_count", 0)
         )
         
         return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
@@ -346,7 +358,37 @@ class OllamaWrapper(BaseAIClientWrapper):
 
             # ollama-python is incorrectly typed as Mapping[str, Any] instead of OllamaChatResponse
             return self.extract_assistant_message_both_formats(response)
-    
+
+
+    # Embeddings
+    def embed(
+            self,            
+            input: str | Sequence[str],
+            model: Optional[str] = None,
+            max_dimensions: Optional[int] = None,
+            **kwargs
+            ) -> EmbedResult:
+        
+        model = model or self.default_embedding_model
+        truncate = kwargs.pop('truncate', True)
+        keep_alive = kwargs.pop('keep_alive', None)
+        options = OllamaOptions(**kwargs) if kwargs else None
+        response = self.run_func_convert_exceptions(
+            func=self.client.embed,
+            input=input,
+            model=model,
+            truncate=truncate,
+            keep_alive=keep_alive,
+            options=options
+        )
+        # if isinstance(input, str):
+        #     embeddings = [Embedding(vector=response['embeddings'], index=0)]
+        # else:
+        #     embeddings = [Embedding(vector=vector, index=i) for i, vector in enumerate(response['embeddings'])]
+        embeddings = [Embedding(vector=vector[:max_dimensions], index=i) for i, vector in enumerate(response['embeddings'])]
+        usage = Usage(input_tokens=response['prompt_eval_count'])
+        response_info = ResponseInfo(model=model, usage=usage)
+        return EmbedResult(embeddings=embeddings, response_info=response_info)
 
     # Ollama Specific Methods
     def get_custom_model(self, base_model: str, system_prompt: str) -> str:

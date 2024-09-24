@@ -2,8 +2,8 @@ from typing import Optional, Literal, Self
 from pydantic import BaseModel
 
 class Usage(BaseModel):
-    input_tokens: int
-    output_tokens: int
+    input_tokens: int = 0
+    output_tokens: int = 0
 
     @property
     def total_tokens(self):

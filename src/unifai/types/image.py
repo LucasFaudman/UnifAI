@@ -5,10 +5,10 @@ from pydantic import BaseModel
 
 
 T = TypeVar('T', bytes, str)
-ImageMediaType = Literal['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+ImageMimeType = Literal['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 
-def media_type_from_path_or_url(path_or_url: str) -> ImageMediaType:
+def mime_type_from_path_or_url(path_or_url: str) -> ImageMimeType:
     ext = Path(path_or_url).suffix
     if ext == '.jpeg' or ext == '.jpg':
         return 'image/jpeg'
@@ -25,13 +25,13 @@ class Image(BaseModel):
     # data: bytes
     source: str|bytes
     format: Literal['base64', 'url', 'file'] = 'base64'
-    media_type: ImageMediaType = 'image/jpeg'
+    mime_type: ImageMimeType = 'image/jpeg'
     
 
     def __init__(self,
                  source: bytes|str|Path,
                  format: Literal['base64', 'url', 'file'] = 'base64',
-                 media_type: ImageMediaType = 'image/jpeg',
+                 mime_type: ImageMimeType = 'image/jpeg',
                  cache_raw_bytes: bool = False,
                  cache_base64_bytes: bool = False,
                  cache_base64_string: bool = False
@@ -39,18 +39,62 @@ class Image(BaseModel):
         
         if isinstance(source, Path):
             source = str(source)
-        if media_type.endswith('jpg'):
-            media_type = 'image/jpeg'
-        if not media_type.startswith('image/'):
-            media_type = f'image/{media_type}'
+        if mime_type.endswith('jpg'):
+            mime_type = 'image/jpeg'
+        if not mime_type.startswith('image/'):
+            mime_type = f'image/{mime_type}'
 
-        BaseModel.__init__(self, source=source, format=format, media_type=media_type)
+        BaseModel.__init__(self, source=source, format=format, mime_type=mime_type)
         self._raw_bytes = None
         self._base64_bytes = None
         self._base64_string = None
         self._cache_raw_bytes = cache_raw_bytes
         self._cache_base64_bytes = cache_base64_bytes
         self._cache_base64_string = cache_base64_string
+
+
+    @classmethod
+    def from_base64(cls, 
+                    base64_data: str|bytes,
+                    mime_type: ImageMimeType = 'image/jpeg'
+                    ) -> 'Image':
+        return cls(source=base64_data, format='base64', mime_type=mime_type)
+
+    @classmethod
+    def from_data_uri(cls, 
+                      data_uri: str,
+                      mime_type: Optional[ImageMimeType] = None
+                      ) -> 'Image':
+         
+        if not data_uri.startswith('data:image/'):
+            raise ValueError('Invalid data URI. ')
+        
+        split_uri = data_uri.split(';')        
+        mime_type = mime_type or split_uri[0][5:] # strip 'data:'
+        format, data = split_uri[-1].split(',', 1)        
+        
+        if not data:
+            raise ValueError('No data in data URI.')
+    
+        return cls(source=data, format=format, mime_type=mime_type)
+    
+
+    @classmethod
+    def from_url(cls, 
+                 url: str,
+                 mime_type: Optional[ImageMimeType] = None,
+                 ) -> 'Image':
+        
+        mime_type = mime_type or mime_type_from_path_or_url(url)
+        return cls(source=url, format='url', mime_type=mime_type)
+    
+    @classmethod
+    def from_file(cls,
+                      path: str|Path,
+                      mime_type: Optional[ImageMimeType] = None,
+                      ) -> 'Image':
+        mime_type = mime_type or mime_type_from_path_or_url(path)
+        return cls(source=path, format='file', mime_type=mime_type)
 
 
     @property
@@ -125,7 +169,7 @@ class Image(BaseModel):
 
     @property
     def data_uri(self) -> str:
-        return f'data:{self.media_type};base64,{self.base64_string}'
+        return f'data:{self.mime_type};base64,{self.base64_string}'
         
 
     def __str__(self):
@@ -153,83 +197,4 @@ class Image(BaseModel):
         if self.format != 'file':
             return None        
         return Path(self.source_string)
-
-        
-class ImageFromBase64(Image):
-    format: Literal['base64'] = 'base64'
     
-    def __init__(self, 
-                 base64_data: str|bytes,
-                 media_type: ImageMediaType = 'image/jpeg'
-                 ):
-        super().__init__(source=base64_data, format='base64', media_type=media_type)
-        
-
-class ImageFromDataURI(Image):
-    def __init__(self,
-                 data_uri: str,
-                 media_type: Optional[ImageMediaType] = None
-                ):
-        if not data_uri.startswith('data:image/'):
-            raise ValueError('Invalid data URI. ')
-        
-        split_uri = data_uri.split(';')        
-        media_type = media_type or split_uri[0][5:] # strip 'data:'
-        format, data = split_uri[-1].split(',', 1)        
-        
-        if not data:
-            raise ValueError('No data in data URI.')
-        
-        super().__init__(source=data, format='base64', media_type=media_type)
-
-        # _media_type = media_type or split_uri[0][5:] # strip 'data:'
-        # if _media_type not in MEDIA_TYPES:
-        #     raise ValueError(f'Invalid media type: {_media_type}')
-                
-        # format, base64_data = split_uri[-1].split(',', 1)
-        # if format != 'base64':
-        #     raise ValueError(f'Invalid data URI format: {format}. Only base64 is supported.')
-        # if not base64_data:
-        #     raise ValueError('No data in data URI.')
-        
-        # super().__init__(source=base64_data, format='base64', media_type=_media_type)
-
-        
-class ImageFromUrl(Image):
-    format: Literal['url'] = 'url'
-
-    def __init__(self, 
-                 url: str,
-                 media_type: Optional[ImageMediaType] = None,
-                 read_on_init: bool = False
-                 ):
-        
-        media_type = media_type or media_type_from_path_or_url(url)
-        super().__init__(source=url, format='url', media_type=media_type)
-        if read_on_init:
-            assert self.raw_bytes
-
-
-class ImageFromFile(Image):
-    format: Literal['file'] = 'file'
-
-    def __init__(self,
-                 path: str,
-                 media_type: Optional[ImageMediaType] = None,
-                 read_on_init: bool = False
-                ):
-            
-            media_type = media_type or media_type_from_path_or_url(path)
-            super().__init__(source=path, format='file', media_type=media_type)
-            if read_on_init:
-                assert self.raw_bytes
-
-
-# Image(source='data:image/jpeg;base64,abc', format='base64', media_type='image/jpeg')
-# Image(source=b'abc', format='base64', media_type='image/jpeg')
-# Image(source='https://example.com/image.jpg', format='url', media_type='image/jpeg')
-# Image(source='image.jpg', format='file', media_type='image/jpeg')
-
-# ImageFromBase64(base64_data='abc', media_type='image/jpeg')
-# ImageFromUrl(url='https://example.com/image.jpg', media_type='image/jpeg')
-# ImageFromFile(path='image.jpg', media_type='image/jpeg')

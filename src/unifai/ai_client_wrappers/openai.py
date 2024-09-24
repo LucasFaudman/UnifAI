@@ -19,7 +19,7 @@
 # from openai.types.beta.function_tool import FunctionTool
 
 # from tiktoken import get_encoding, encoding_for_model
-from typing import Optional, Union, Any, Literal, Mapping, Iterator
+from typing import Optional, Union, Any, Literal, Mapping, Iterator, Sequence
 from json import loads as json_loads, JSONDecodeError
 from datetime import datetime
 
@@ -28,6 +28,7 @@ from openai import OpenAI
 from openai.types.chat.chat_completion import ChatCompletion
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
 from openai.types.chat.chat_completion_message_tool_call import ChatCompletionMessageToolCall
+from openai.types.create_embedding_response import CreateEmbeddingResponse
 from openai import (
     OpenAIError,
     APIError as OpenAIAPIError,
@@ -65,13 +66,15 @@ from unifai.exceptions import (
     STATUS_CODE_TO_EXCEPTION_MAP   
 )
 
-from unifai.types import Message, Tool, ToolCall, Image, Usage, ResponseInfo
+from unifai.types import Message, Tool, ToolCall, Image, Usage, ResponseInfo, Embedding, EmbedResult
 from unifai.type_conversions import stringify_content
 from ._base import BaseAIClientWrapper
 
 class OpenAIWrapper(BaseAIClientWrapper):
+    provider = "openai"
     client: OpenAI
     default_model = "gpt-4o"
+    default_embedding_model = "text-embedding-3-small"
 
     def import_client(self):
         from openai import OpenAI
@@ -98,7 +101,8 @@ class OpenAIWrapper(BaseAIClientWrapper):
             status_code = getattr(exception, "status_code", -1)
         else:
             status_code = 401 if "api_key" in message else getattr(exception, "status_code", -1)
-        
+        #TODO model does not support tool calls, images, etc feature errors
+
         unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
         return unifai_exception_type(
             message=message, 
@@ -125,7 +129,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
     
 
     def prep_input_assistant_message(self, message: Message) -> dict:
-        message_dict = {"role": "assistant", "content": message.content}
+        message_dict = {"role": "assistant", "content": message.content or ""}
         if message.tool_calls:
             message_dict["tool_calls"] = [
                 {
@@ -150,10 +154,17 @@ class OpenAIWrapper(BaseAIClientWrapper):
             return {
                 "role": "tool",
                 "tool_call_id": tool_call.id,
-                "content": message.content,
+                "content": stringify_content(tool_call.output),
             }
         raise ValueError("Tool message must have tool_calls")
     
+    def split_tool_message(self, message: Message) -> Iterator[Message]:        
+        if tool_calls := message.tool_calls:
+            for tool_call in tool_calls:
+                yield Message(role="tool", tool_calls=[tool_call])
+        if message.content is not None:
+            yield Message(role="user", content=message.content) 
+              
     
     def prep_input_system_message(self, message: Message) -> dict:
         return {"role": "system", "content": message.content}
@@ -174,7 +185,14 @@ class OpenAIWrapper(BaseAIClientWrapper):
         else:
             system_prompt = None
 
-        client_messages = [self.prep_input_message(message) for message in messages]
+        # client_messages = [self.prep_input_message(message) for message in messages]
+        client_messages = []
+        for message in messages:
+            if message.role != "tool":
+                client_messages.append(self.prep_input_message(message))
+            else:
+                client_messages.extend(map(self.prep_input_message, self.split_tool_message(message)))
+
         return client_messages, system_prompt
 
 
@@ -182,7 +200,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
     def prep_input_image(self, image: Image) -> dict:
         if not (image_url := image.url):
             image_url = image.data_uri         
-        return {"type": "image_url", "image_url": {"url": image_url, "detail": "high"}}
+        return {"type": "image_url", "image_url": {"url": image_url, "detail": "auto"}}
 
 
         # Tools
@@ -333,3 +351,33 @@ class OpenAIWrapper(BaseAIClientWrapper):
             )            
             return self.extract_assistant_message_both_formats(response)
 
+
+    # def extract_embed_result(self, response: CreateEmbeddingResponse) -> EmbedResult:
+    #     embeddings = [Embedding]
+
+    # Embeddings
+    def embed(
+            self,            
+            input: str | Sequence[str],
+            model: Optional[str] = None,
+            max_dimensions: Optional[int] = None,
+            **kwargs
+            ) -> EmbedResult:
+        
+        if max_dimensions is not None:
+            kwargs["dimensions"] = max_dimensions
+        
+        response = self.run_func_convert_exceptions(
+            func=self.client.embeddings.create,
+            input=input,
+            model=model or self.default_embedding_model,            
+            **kwargs
+        )
+
+        embeddings = [Embedding(vector=embedding.embedding, index=embedding.index) for embedding in response.data]
+        usage = Usage(input_tokens=response.usage.prompt_tokens, output_tokens=0)
+        response_info = ResponseInfo(model=response.model, usage=usage)
+        return EmbedResult(embeddings=embeddings, response_info=response_info)
+
+
+        # return self.extract_embed_result(response)

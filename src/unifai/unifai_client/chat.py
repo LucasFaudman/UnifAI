@@ -67,14 +67,25 @@ class Chat:
         self.usage = Usage(input_tokens=0, output_tokens=0)
 
 
-    def set_provider(self, provider: AIProvider) -> Self:        
+    def set_provider(self, provider: AIProvider, model: Optional[str]=None) -> Self:        
         self.client = self.parent.get_client(provider)
         if provider != self.provider:
-            pass
-            # Need reformat args?
+            self.reformat_client_args()
         self.provider = provider
+        self.set_model(model)
         return self
     
+    def reformat_client_args(self) -> Self:
+        self.client_messages, self.system_prompt = self.client.prep_input_messages_and_system_prompt(
+            self.std_messages,self.system_prompt)
+        if self.std_tools:
+            self.client_tools = [self.client.prep_input_tool(tool) for tool in self.std_tools.values()]
+        if self.std_tool_choice:
+            self.client_tool_choice = self.client.prep_input_tool_choice(self.std_tool_choice)
+        if self.std_response_format:
+            self.client_response_format = self.client.prep_input_response_format(self.std_response_format)
+        return self
+
     def set_model(self, model: Optional[str]) -> Self:
         self.model = model or self.client.default_model
         return self
@@ -147,6 +158,10 @@ class Chat:
     
 
     def check_tool_choice_obeyed(self, tool_choice: str, tool_calls: Optional[list[ToolCall]]) -> bool:
+        if tool_choice == "auto":
+            print("tool_choice='auto' OBEYED")
+            return True
+        
         if tool_calls:
             tool_names = [tool_call.tool_name for tool_call in tool_calls]
             if (
@@ -217,34 +232,15 @@ class Chat:
                                         tool_calls: Sequence[ToolCall],
                                         content: Optional[str] = None
                                         ) -> None:
-        # std_tool_messages = self.client.split_tool_call_outputs_into_messages(tool_calls, content)
-        # self.extend_messages(std_tool_messages)
-        self.extend_messages(self.client.split_tool_outputs_into_messages(tool_calls, content))
+
+        tool_message = Message(role="tool", tool_calls=tool_calls, content=content)
+        self.std_messages.append(tool_message)
+        self.client_messages.extend(map(self.client.prep_input_message, self.client.split_tool_message(tool_message)))
+        # self.extend_messages(self.client.split_tool_outputs_into_messages(tool_calls, content))
              
     
     def run(self, **kwargs) -> Self:
         while True:
-            # response = self.client.chat(
-            #     messages=self.client_messages,                 
-            #     model=self.model, 
-            #     system_prompt=self.system_prompt,
-            #     tools=self.client_tools, 
-            #     tool_choice=self.client_tool_choice,
-            #     response_format=self.client_response_format,
-
-            #     max_tokens=self.max_tokens,
-            #     frequency_penalty=self.frequency_penalty,
-            #     presence_penalty=self.presence_penalty,
-            #     seed=self.seed,
-            #     stop_sequences=self.stop_sequences,
-            #     temperature=self.temperature,
-            #     top_k=self.top_k,
-            #     top_p=self.top_p,
-            #     **kwargs
-            # )
-            # # TODO check if response is an APIError
-
-            # std_message, client_message = self.client.extract_assistant_message_both_formats(response)
             std_message, client_message = self.client.chat(
                 messages=self.client_messages,                 
                 model=self.model, 
@@ -272,7 +268,7 @@ class Chat:
 
             # Enforce Tool Choice: Check if tool choice is obeyed
             # auto:  
-            if self.enforce_tool_choice and self.std_tool_choice != 'auto' and self.std_tool_choice is not None:
+            if self.enforce_tool_choice and self.std_tool_choice is not None:
                 if self.check_tool_choice_obeyed(self.std_tool_choice, std_message.tool_calls):
                     self.handle_tool_choice_obeyed(std_message)
                 elif self.tool_choice_error_retries > 0:
@@ -306,6 +302,11 @@ class Chat:
 
         return self
 
+
+    def clear_messages(self) -> Self:
+        self.std_messages = []
+        self.client_messages = []
+        return self
 
     @property
     def messages(self) -> list[Message]:
@@ -376,3 +377,7 @@ class Chat:
                 tool_call.output = tool_output
         self.extend_messages_with_tool_outputs(tool_calls)
         return self.run(**kwargs)
+    
+
+    def __str__(self) -> str:
+        return f"Chat(provider={self.provider}, model={self.model},  messages={len(self.std_messages)}, tools={len(self.std_tools) if self.std_tools else None}, tool_choice={self.std_tool_choice}, response_format={self.std_response_format})"

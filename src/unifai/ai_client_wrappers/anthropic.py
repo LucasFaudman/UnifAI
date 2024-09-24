@@ -50,15 +50,17 @@ from unifai.exceptions import (
     PermissionDeniedError,
     RateLimitError,
     UnprocessableEntityError,
-    STATUS_CODE_TO_EXCEPTION_MAP   
+    STATUS_CODE_TO_EXCEPTION_MAP,
+    ProviderUnsupportedFeatureError  
 )
 
 
-from unifai.types import Message, Tool, ToolCall, Image, Usage, ResponseInfo
+from unifai.types import Message, Tool, ToolCall, Image, Usage, ResponseInfo, EmbedResult
 from unifai.type_conversions import stringify_content
 from ._base import BaseAIClientWrapper
 
 class AnthropicWrapper(BaseAIClientWrapper):
+    provider = "anthropic"
     # client: Anthropic
     default_model = "claude-3-5-sonnet-20240620"
 
@@ -135,6 +137,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
                 tool_result_content = []
                 # if message.content:
                 #     tool_result_content.append(AnthropicTextBlockParam(text=message.content, type="text"))                
+                tool_result_content.append(AnthropicTextBlock(text=stringify_content(tool_call.output), type="text"))
 
                 tool_result_param = AnthropicToolResultBlockParam(
                     tool_use_id=tool_call.id,
@@ -148,7 +151,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
 
 
     def prep_input_system_message(self, message: Message) -> AnthropicMessageParam:
-        raise ValueError("Anthropic does not support system messages")
+        raise ProviderUnsupportedFeatureError("Anthropic does not support system messages")
     
 
     def prep_input_messages_and_system_prompt(self, 
@@ -191,6 +194,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
     def prep_input_tool_choice(self, tool_choice: str) -> dict:
         if tool_choice == "any":
             tool_choice = "required"
+        # if tool_choice in ("auto", "required", "none"):
         if tool_choice in ("auto", "required", "none"):
             return {"type": tool_choice}
         
@@ -315,7 +319,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
             kwargs["system"] = system_prompt
         if tools:
             kwargs["tools"] = tools
-            if tool_choice:
+            if tool_choice and tool_choice.get("type") != "none":
                 kwargs["tool_choice"] = tool_choice
         max_tokens = max_tokens or 4096
         if stop_sequences is not None:
@@ -337,16 +341,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
         )
         return self.extract_assistant_message_both_formats(response)
 
-    # Embeddings
-    def embeddings(
-            self,
-            model: Optional[str] = None,
-            texts: Optional[Sequence[str]] = None,
-            **kwargs
-            ):
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-    # Generate
+
 
     def generate(
             self,

@@ -19,6 +19,11 @@ from .api_errors import (
     TeapotError,
     STATUS_CODE_TO_EXCEPTION_MAP,
 )
+from .feature_errors import (
+    UnsupportedFeatureError,
+    ProviderUnsupportedFeatureError,
+    ModelUnsupportedFeatureError,
+)
 from .tool_errors import (
     ToolError,
     ToolValidationError,
@@ -51,6 +56,11 @@ __all__ = [
     "UnprocessableEntityError",
     "TeapotError",
     "STATUS_CODE_TO_EXCEPTION_MAP",
+
+    "UnsupportedFeatureError",
+    "ProviderUnsupportedFeatureError",
+    "ModelUnsupportedFeatureError",
+
     "ToolError",
     "ToolValidationError",
     "ToolNotFoundError",
@@ -60,4 +70,5 @@ __all__ = [
     "ToolCallFailed",
     "ToolChoiceError",
     "ToolChoiceErrorRetriesExceeded",
+
 ]

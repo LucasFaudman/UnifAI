@@ -1,20 +1,22 @@
-from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator
+from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator, Iterable
 
 from json import dumps as json_dumps
 
-from unifai.types import Message, Tool, ToolCall, Image, ResponseInfo
-from unifai.exceptions import UnifAIError
+from unifai.types import Message, Tool, ToolCall, Image, ResponseInfo, EmbedResult
+from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
 
 T = TypeVar("T")
 
 class BaseAIClientWrapper:
+    provider = "base"
     default_model = "mistral:7b-instruct"
 
     def import_client(self) -> Type:
         raise NotImplementedError("This method must be implemented by the subclass")
     
     def init_client(self, **client_kwargs) -> Any:
-        self._client = self.import_client()(**client_kwargs)
+        self.client_kwargs.update(client_kwargs)
+        self._client = self.import_client()(**self.client_kwargs)
         return self._client
 
     def __init__(self, **client_kwargs):
@@ -64,6 +66,9 @@ class BaseAIClientWrapper:
     def prep_input_tool_message(self, message: Message) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
     
+    def split_tool_message(self, message: Message) -> Iterator[Message]:     
+        yield message
+
     def prep_input_system_message(self, message: Message) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
     
@@ -140,42 +145,32 @@ class BaseAIClientWrapper:
 
             **kwargs
             ) -> tuple[Message, T]:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        raise ProviderUnsupportedFeatureError(f"{self.provider} does not support chat")
 
-
-    # Generate
-    def generate(
-            self,
-            model: Optional[str] = None,
-            prompt: Optional[str] = None,
-            **kwargs
-            ):
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
 
     # Embeddings
-    def embeddings(
-            self,
+    def embed(
+            self,            
+            input: str | Sequence[str],
             model: Optional[str] = None,
-            texts: Optional[Sequence[str]] = None,
+            max_dimensions: Optional[int] = None,
             **kwargs
-            ):
-        raise NotImplementedError("This method must be implemented by the subclass")
+            ) -> EmbedResult:
+        raise ProviderUnsupportedFeatureError(f"{self.provider} does not support embeddings")
     
-
-
+    
     def create_assistant(self, **kwargs):
-        raise NotImplementedError("This method must be implemented by the subclass")
+        raise ProviderUnsupportedFeatureError(f"{self.provider} does not support chat")
         
     def update_assistant(self, ass_id, **kwargs):
-        raise NotImplementedError("This method must be implemented by the subclass")
+        raise ProviderUnsupportedFeatureError(f"{self.provider} does not support chat")
     
 
     def create_thread(self):
-        raise NotImplementedError("This method must be implemented by the subclass")
+        raise ProviderUnsupportedFeatureError(f"{self.provider} does not support chat")
     
     def create_run(self):
-        raise NotImplementedError("This method must be implemented by the subclass")    
+        raise ProviderUnsupportedFeatureError(f"{self.provider} does not support chat")    
     
 
 

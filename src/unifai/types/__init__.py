@@ -1,6 +1,7 @@
 from .eval_parameters import EvaluateParameters
-from .image import Image, ImageFromBase64, ImageFromFile, ImageFromDataURI, ImageFromUrl
+from .image import Image
 from .message import Message
+from .embedding import Embedding, EmbedResult
 from .response_info import ResponseInfo, Usage
 from .tool_call import ToolCall
 from .tool_parameter import (
@@ -23,10 +24,6 @@ from .valid_inputs import AIProvider, EvaluateParametersInput, MessageInput, Too
 __all__ = [
     "EvaluateParameters", 
     "Image", 
-    "ImageFromBase64", 
-    "ImageFromFile",
-    "ImageFromDataURI",
-    "ImageFromUrl",
     "Message", 
     "ResponseInfo", 
     "Usage",
@@ -50,4 +47,6 @@ __all__ = [
     "ToolInput",
     "ToolChoiceInput",
     "ResponseFormatInput",
+    "Embedding",
+    "EmbedResult",
 ]

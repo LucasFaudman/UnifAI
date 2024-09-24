@@ -87,6 +87,8 @@ from unifai.types import (
     ArrayToolParameter,
     ObjectToolParameter,
     AnyOfToolParameter,
+    Embedding,
+    EmbedResult,
 )
 from unifai.type_conversions import stringify_content
 from ._base import BaseAIClientWrapper
@@ -97,7 +99,9 @@ def generate_random_id(length=8):
     return ''.join(random_choices(ascii_letters + digits, k=length))
 
 class GoogleAIWrapper(BaseAIClientWrapper):
+    provider = "google"
     default_model = "gemini-1.5-flash-latest"
+    default_embedding_model = "text-embedding-004"
 
     def import_client(self):
         import google.generativeai as genai
@@ -210,7 +214,7 @@ class GoogleAIWrapper(BaseAIClientWrapper):
        
         # Images
     def prep_input_image(self, image: Image) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")    
+        return Blob(data=image.raw_bytes, mime_type=image.mime_type)
     
 
         # Tools
@@ -361,6 +365,10 @@ class GoogleAIWrapper(BaseAIClientWrapper):
     def list_models(self) -> list[str]:
         return [model.name[7:] for model in self.client.list_models()]
 
+    def format_model_name(self, model: str) -> str:
+        if model.startswith("models/"):
+            return model
+        return f"models/{model}"
 
     # Chat
     def chat(
@@ -383,11 +391,8 @@ class GoogleAIWrapper(BaseAIClientWrapper):
 
             **kwargs
             ) -> tuple[Message, Any]:
-
-        model = model or self.default_model
-        if not model.startswith("models/"):
-            model = f"models/{model}"
-
+        
+        model = self.format_model_name(model or self.default_model)
         gen_config = GenerationConfig(
             # candidate_count=1,
             stop_sequences=stop_sequences,
@@ -414,24 +419,31 @@ class GoogleAIWrapper(BaseAIClientWrapper):
         return self.extract_assistant_message_both_formats(response, model=model)
 
 
-    # Generate
-    def generate(
-            self,
-            model: Optional[str] = None,
-            prompt: Optional[str] = None,
-            **kwargs
-            ):
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-
     # Embeddings
-    def embeddings(
-            self,
+    def embed(
+            self,            
+            input: str | Sequence[str],
             model: Optional[str] = None,
-            texts: Optional[Sequence[str]] = None,
+            max_dimensions: Optional[int] = None,
             **kwargs
-            ):
-        raise NotImplementedError("This method must be implemented by the subclass")
+            ) -> EmbedResult:
+        
+        if isinstance(input, str):
+            input = [input]
+        
+        model=self.format_model_name(model or self.default_embedding_model)
+        response = self.run_func_convert_exceptions(
+            self.client.embed_content,
+            content=input,
+            model=model,
+            output_dimensionality=max_dimensions,
+            **kwargs
+        )
+        embeddings = [Embedding(vector=vector, index=i) for i, vector in enumerate(response["embedding"])]
+        response_info = ResponseInfo(model=model, usage=Usage())
+        return EmbedResult(embeddings=embeddings, response_info=response_info)
+            
+    
     
 
 

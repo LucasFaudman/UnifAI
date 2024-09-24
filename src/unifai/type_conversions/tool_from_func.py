@@ -27,7 +27,7 @@ def parse_docstring_and_annotations(
         ) -> tuple[str, ObjectToolParameter]:
     
     from re import compile as re_compile
-    param_pattern = re_compile(r'(?P<indent>\s*)(?P<name>\w+)(?: ?\(?(?P<type>\w+)\)?)?: ?(?P<description>.+)?')
+    param_pattern = re_compile(r'(?P<indent>\s*)(?P<name>\w+)(?: *\(?(?P<type>\w+)\)?)?: *(?P<description>.+)?')
 
     if "Returns:" in docstring:
         docstring, returns = docstring.rsplit("Returns:", 1)
