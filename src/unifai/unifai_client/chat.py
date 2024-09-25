@@ -405,9 +405,8 @@ class Chat:
     def last_tool_call_args(self) -> Optional[Mapping[str, Any]]:
         if last_tool_call := self.last_tool_call:
             return last_tool_call.arguments
-        
 
-    def send_message(self, *message: Union[Message, str, dict[str, Any]], **kwargs) -> Message:
+    def _send_message(self, *message: Union[Message, str, dict[str, Any]], **kwargs):
         if not message:
             raise ValueError("No message(s) provided")
 
@@ -420,19 +419,79 @@ class Chat:
             self.extend_messages_with_tool_outputs(last_message.tool_calls, content=messages.pop(0).content)
         
         self.extend_messages(messages)
-        return self.run(**kwargs).last_message
+        
+
+    def send_message(self, *message: Union[Message, str, dict[str, Any]], **kwargs) -> Message:
+        self._send_message(*message, **kwargs)
+        self.run(**kwargs)
+        return self.last_message
     
     
-    def submit_tool_outputs(self, 
+    def send_message_stream(self, *message: Union[Message, str, dict[str, Any]], **kwargs) -> Generator[MessageChunk, None, Message]:
+        self._send_message(*message, **kwargs)
+        yield from self.run_stream(**kwargs)
+        return self.last_message
+
+
+    
+    def _submit_tool_outputs(self, 
                             tool_calls: Sequence[ToolCall], 
                             tool_outputs: Optional[Sequence[Any]],
                             **kwargs
-                            ) -> Self:
+                            ):
         if tool_outputs:
             for tool_call, tool_output in zip(tool_calls, tool_outputs):
                 tool_call.output = tool_output
         self.extend_messages_with_tool_outputs(tool_calls)
+        
+
+    def submit_tool_outputs(self,
+                            tool_calls: Sequence[ToolCall], 
+                            tool_outputs: Optional[Sequence[Any]],
+                            **kwargs
+                            ) -> Self:
+        self._submit_tool_outputs(tool_calls, tool_outputs, **kwargs)
         return self.run(**kwargs)
+    
+
+    def submit_tool_outputs_stream(self,
+                            tool_calls: Sequence[ToolCall], 
+                            tool_outputs: Optional[Sequence[Any]],
+                            **kwargs
+                            ) -> Generator[MessageChunk, None, Self]:
+        self._submit_tool_outputs(tool_calls, tool_outputs, **kwargs)
+        yield from self.run_stream(**kwargs)
+        return self
+
+
+
+
+    # def send_message(self, *message: Union[Message, str, dict[str, Any]], **kwargs) -> Message:
+    #     if not message:
+    #         raise ValueError("No message(s) provided")
+
+    #     messages = standardize_messages(message)
+
+    #     # prevent error when using multiple return_tools without submitting tool outputs
+    #     if (last_message := self.last_message) and last_message.role == "assistant" and last_message.tool_calls:
+    #         # Submit tool outputs before sending new messages. 
+    #         # Use first new message content as content of tool message or send after as user message based on provider
+    #         self.extend_messages_with_tool_outputs(last_message.tool_calls, content=messages.pop(0).content)
+        
+    #     self.extend_messages(messages)
+    #     return self.run(**kwargs).last_message
+    
+    
+    # def submit_tool_outputs(self, 
+    #                         tool_calls: Sequence[ToolCall], 
+    #                         tool_outputs: Optional[Sequence[Any]],
+    #                         **kwargs
+    #                         ) -> Self:
+    #     if tool_outputs:
+    #         for tool_call, tool_output in zip(tool_calls, tool_outputs):
+    #             tool_call.output = tool_output
+    #     self.extend_messages_with_tool_outputs(tool_calls)
+    #     return self.run(**kwargs)
     
 
     def __str__(self) -> str:

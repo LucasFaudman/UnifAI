@@ -41,7 +41,7 @@ class Image(BaseModel):
             source = str(source)
         if mime_type.endswith('jpg'):
             mime_type = 'image/jpeg'
-        if not mime_type.startswith('image/'):
+        elif not mime_type.startswith('image/'):
             mime_type = f'image/{mime_type}'
 
         BaseModel.__init__(self, source=source, format=format, mime_type=mime_type)

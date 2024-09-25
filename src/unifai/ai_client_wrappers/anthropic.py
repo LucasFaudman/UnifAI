@@ -180,7 +180,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
             source=AnthropicImageSource(
                 type="base64",
                 data=image.path or image.base64_string,
-                media_type=image.media_type                
+                media_type=image.mime_type                
             )
         )
 
@@ -213,11 +213,11 @@ class AnthropicWrapper(BaseAIClientWrapper):
 
     # Convert Objects from AI Provider to UnifAI format    
         # Images
-    def extract_image(self, response_image: Any) -> Image:
+    def extract_image(self, response_image: Any, **kwargs) -> Image:
         raise NotImplementedError("This method must be implemented by the subclass")
 
         # Tool Calls
-    def extract_tool_call(self, response_tool_call: AnthropicToolUseBlock) -> ToolCall:
+    def extract_tool_call(self, response_tool_call: AnthropicToolUseBlock, **kwargs) -> ToolCall:
         return ToolCall(
                     id=response_tool_call.id,
                     tool_name=response_tool_call.name,
@@ -225,7 +225,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
                 )
     
         # Response Info (Model, Usage, Done Reason, etc.)
-    def extract_done_reason(self, response_obj: AnthropicMessage) -> str|None:
+    def extract_done_reason(self, response_obj: AnthropicMessage, **kwargs) -> str|None:
         done_reason = response_obj.stop_reason
         if done_reason == "end_turn" or done_reason == "stop_sequence":
             return "stop"
@@ -234,14 +234,14 @@ class AnthropicWrapper(BaseAIClientWrapper):
         # "max_tokens" or None
         return done_reason
 
-    def extract_usage(self, response_obj: AnthropicMessage) -> Usage|None:
+    def extract_usage(self, response_obj: AnthropicMessage, **kwargs) -> Usage|None:
         if response_usage := response_obj.usage:
             return Usage(
                 input_tokens=response_usage.input_tokens, 
                 output_tokens=response_usage.output_tokens
             )
 
-    def extract_response_info(self, response: AnthropicMessage) -> ResponseInfo:
+    def extract_response_info(self, response: AnthropicMessage, **kwargs) -> ResponseInfo:
         model = response.model
         # if response.stop_reason == "end_turn" or response.stop_reason == "stop_sequence":
         #     done_reason = "stop"
@@ -264,7 +264,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
 
 
     # Assistant Messages (Content, Images, Tool Calls, Response Info)
-    def extract_assistant_message_both_formats(self, response: AnthropicMessage) -> tuple[Message, AnthropicMessageParam]:
+    def extract_assistant_message_both_formats(self, response: AnthropicMessage, **kwargs) -> tuple[Message, AnthropicMessageParam]:
         client_message = AnthropicMessageParam(role=response.role, content=response.content)
         content = ""
         tool_calls = []
@@ -287,7 +287,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
         return std_message, client_message 
 
     
-    def extract_stream_chunks(self, response: Stream[AnthropicRawMessageStreamEvent]) -> Generator[MessageChunk, None, tuple[Message, AnthropicMessageParam]]:
+    def extract_stream_chunks(self, response: Stream[AnthropicRawMessageStreamEvent], **kwargs) -> Generator[MessageChunk, None, tuple[Message, AnthropicMessageParam]]:
         message = None
         pings = 0
         # content = []        
@@ -347,7 +347,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
         if message is None:
             raise ValueError("No message found")
                     
-        return self.extract_assistant_message_both_formats(message)
+        return self.extract_assistant_message_both_formats(message, **kwargs)
 
 
 

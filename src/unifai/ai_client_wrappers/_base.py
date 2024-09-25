@@ -99,28 +99,28 @@ class BaseAIClientWrapper:
 
     # Convert Objects from AI Provider to UnifAI format    
         # Images
-    def extract_image(self, response_image: Any) -> Image:
+    def extract_image(self, response_image: Any, **kwargs) -> Image:
         raise NotImplementedError("This method must be implemented by the subclass")
 
         # Tool Calls
-    def extract_tool_call(self, response_tool_call: Any) -> ToolCall:
+    def extract_tool_call(self, response_tool_call: Any, **kwargs) -> ToolCall:
         raise NotImplementedError("This method must be implemented by the subclass")
     
         # Response Info (Model, Usage, Done Reason, etc.)    
-    def extract_done_reason(self, response_obj: Any) -> str|None:
+    def extract_done_reason(self, response_obj: Any, **kwargs) -> str|None:
         raise NotImplementedError("This method must be implemented by the subclass")
     
-    def extract_usage(self, response_obj: Any) -> Usage|None:
+    def extract_usage(self, response_obj: Any, **kwargs) -> Usage|None:
         raise NotImplementedError("This method must be implemented by the subclass")
     
-    def extract_response_info(self, response: Any) -> ResponseInfo:
+    def extract_response_info(self, response: Any, **kwargs) -> ResponseInfo:
         raise NotImplementedError("This method must be implemented by the subclass")
     
         # Assistant Messages (Content, Images, Tool Calls, Response Info)
-    def extract_assistant_message_both_formats(self, response: Any) -> tuple[Message, Any]:
+    def extract_assistant_message_both_formats(self, response: Any, **kwargs) -> tuple[Message, Any]:
         raise NotImplementedError("This method must be implemented by the subclass")     
     
-    def extract_stream_chunks(self, response: Any) -> Generator[MessageChunk, None, tuple[Message, Any]]:
+    def extract_stream_chunks(self, response: Any, **kwargs) -> Generator[MessageChunk, None, tuple[Message, Any]]:
         raise NotImplementedError("This method must be implemented by the subclass")
     # def split_tool_outputs_into_messages(self, tool_calls: Sequence[ToolCall], content: Optional[str] = None) -> Iterator[Message]:
     #     raise NotImplementedError("This method must be implemented by the subclass")
@@ -198,7 +198,7 @@ class BaseAIClientWrapper:
             ) -> tuple[Message, T]:
         
         response = self.get_chat_response(messages=messages, **kwargs)
-        std_message, client_message = self.extract_assistant_message_both_formats(response)
+        std_message, client_message = self.extract_assistant_message_both_formats(response, **kwargs)
         return std_message, client_message
     
     def chat_stream(
@@ -223,7 +223,7 @@ class BaseAIClientWrapper:
             ) -> Generator[MessageChunk, None, tuple[Message, T]]:
         
         response = self.get_chat_response(messages=messages, **kwargs)
-        std_message, client_message = yield from self.extract_stream_chunks(response)
+        std_message, client_message = yield from self.extract_stream_chunks(response, **kwargs)
         return std_message, client_message
 
     # Embeddings

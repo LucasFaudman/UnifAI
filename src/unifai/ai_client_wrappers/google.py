@@ -291,7 +291,7 @@ class GoogleAIWrapper(BaseAIClientWrapper):
         raise NotImplementedError("This method must be implemented by the subclass")
 
         # Tool Calls
-    def extract_tool_call(self, response_tool_call: FunctionCall) -> ToolCall:
+    def extract_tool_call(self, response_tool_call: FunctionCall, **kwargs) -> ToolCall:
             return ToolCall(
                 id=f'call_{generate_random_id(24)}',
                 tool_name=response_tool_call.name,
@@ -299,12 +299,12 @@ class GoogleAIWrapper(BaseAIClientWrapper):
         )
     
         # Response Info (Model, Usage, Done Reason, etc.)
-    def extract_done_reason(self, response_obj: Any, tools_called: bool) -> str|None:
+    def extract_done_reason(self, response_obj: Any, **kwargs) -> str|None:
         done_reason = response_obj.finish_reason
         if not done_reason:
             return None
         elif done_reason == 1:
-            return "stop" if not tools_called else "tool_calls"
+            return "tool_calls" if kwargs.get("tools_called") else "stop"
         elif done_reason == 2:
             return "max_tokens"
         elif done_reason in (5, 10):
@@ -312,19 +312,14 @@ class GoogleAIWrapper(BaseAIClientWrapper):
         else:
             return "content_filter"
     
-    def extract_usage(self, response_obj: GenerateContentResponse) -> Usage|None:
+    def extract_usage(self, response_obj: GenerateContentResponse, **kwargs) -> Usage|None:
         if response_obj.usage_metadata:
             return Usage(
                 input_tokens=response_obj.usage_metadata.prompt_token_count,
                 output_tokens=response_obj.usage_metadata.cached_content_token_count,
             )
 
-    def extract_response_info(
-            self, 
-            response: GenerateContentResponse, 
-            model: Optional[str] = None,
-            tools_called: bool = False
-            ) -> ResponseInfo:
+    def extract_response_info(self, response: GenerateContentResponse, **kwargs) -> ResponseInfo:
         
         # finish_reason = response.candidates[0].finish_reason
         # if not finish_reason:
@@ -338,13 +333,13 @@ class GoogleAIWrapper(BaseAIClientWrapper):
         # else:
         #     done_reason = "content_filter"
         
-        done_reason = self.extract_done_reason(response.candidates[0], tools_called)
+        done_reason = self.extract_done_reason(response.candidates[0], **kwargs)
         # usage = Usage(
         #         input_tokens=response.usage_metadata.prompt_token_count,
         #         output_tokens=response.usage_metadata.cached_content_token_count,
         #     )
         usage = self.extract_usage(response)
-        return ResponseInfo(model=model, done_reason=done_reason, usage=usage)
+        return ResponseInfo(model=kwargs.get("model"), done_reason=done_reason, usage=usage)
 
     def _extract_parts(self, parts: Sequence[Part]) -> tuple[str|None, list[ToolCall]|None, list[Image]|None]:   
         content = None
@@ -385,8 +380,7 @@ class GoogleAIWrapper(BaseAIClientWrapper):
 
         content, tool_calls, images = self._extract_parts(client_message.parts)
 
-        model = kwargs.get("model")
-        response_info = self.extract_response_info(response, model=model, tools_called=bool(tool_calls))
+        response_info = self.extract_response_info(response, tools_called=bool(tool_calls), **kwargs)
         std_message = Message(
             role="assistant",
             content=content,
@@ -397,7 +391,7 @@ class GoogleAIWrapper(BaseAIClientWrapper):
         return std_message, client_message
 
     
-    def extract_stream_chunks(self, response: GenerateContentResponse) -> Generator[MessageChunk, None, tuple[Message, Content]]:
+    def extract_stream_chunks(self, response: GenerateContentResponse, **kwargs) -> Generator[MessageChunk, None, tuple[Message, Content]]:
         for chunk in response:
             # content = ""
             # tool_calls = []
@@ -420,7 +414,7 @@ class GoogleAIWrapper(BaseAIClientWrapper):
                 images=images
             )
         
-        return self.extract_assistant_message_both_formats(response)
+        return self.extract_assistant_message_both_formats(response, **kwargs)
 
 
     # def split_tool_outputs_into_messages(self, 

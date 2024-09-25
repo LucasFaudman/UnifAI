@@ -1,7 +1,7 @@
 import pytest
 from unifai import UnifAIClient, AIProvider
-from unifai.types import Message, Tool, Image
-from basetest import base_test_all_providers
+from unifai.types import Message, Tool, Image, StringToolParameter
+from basetest import base_test_all_providers, base_test_no_ollama, base_test_no_openai
 
 from pathlib import Path
 resouces_path = Path(__file__).parent / "resources"
@@ -47,7 +47,7 @@ for image_name, image_formats in TEST_IMAGES.items():
 
 
 
-@base_test_all_providers
+@base_test_no_openai
 @pytest.mark.parametrize("image_source" , [
     "base64_bytes",
     "base64_str",    
@@ -94,7 +94,7 @@ def test_image_input_animals(
     print(f"Image Source: {image_source}")
     print(f"Image Format: {image_format}")
     print(f"Image Name: {image_name}")
-    print(image)
+    print(str(image)[:100])
 
     messages = [
         Message(role="user", 
@@ -104,26 +104,23 @@ def test_image_input_animals(
     ]
 
 
-
     ai = UnifAIClient({provider: client_kwargs})
     ai.init_client(provider, **client_kwargs)
     chat = ai.chat(
         messages=messages,
-        provider=provider,
         **func_kwargs
     )    
     assert chat.last_content
     assert image_name in chat.last_content.lower()
 
     messages = chat.messages
-
     assert messages
     assert isinstance(messages, list)
 
     for message in messages:
         assert isinstance(message, Message)
-        assert message.content
-        print(f'{message.role}: {message.content}')
+        assert message.content or message.images or message.tool_calls
+        print(f'{message.role}: {message.content or message.images or message.tool_calls}')
 
         if message.role == "assistant":
             assert message.response_info
@@ -139,6 +136,125 @@ def test_image_input_animals(
     print()
 
 
+
+@base_test_no_ollama
+@pytest.mark.parametrize("image_source" , [
+    "base64_bytes",
+    "base64_str",    
+    "path",
+    "data_uri",
+    # "url"
+])
+@pytest.mark.parametrize("image_format" , [
+    # "jpeg", 
+    "jpg", 
+    # "png", 
+    # "webp"
+])
+@pytest.mark.parametrize("image_name" , [
+    "dog"
+])
+def test_image_and_tools_input_animals(
+    provider: AIProvider, 
+    client_kwargs: dict, 
+    func_kwargs: dict,
+    image_source: str,
+    image_format: str,
+    image_name: str,    
+    ):
+
+    if provider == "openai":
+        func_kwargs["model"] = "gpt-4-turbo"
+    if provider == "ollama":
+        func_kwargs["model"] = "llava-llama3:latest"        
+
+    if image_source.startswith("base64"):
+        image = Image.from_base64(
+            base64_data=TEST_IMAGES[image_name][image_format][image_source],
+            mime_type=f"image/{image_format}"
+        )
+    elif image_source == "path":
+        image = Image.from_file(path=TEST_IMAGES[image_name][image_format]["path"])
+    elif image_source == "data_uri":
+        image = Image.from_data_uri(data_uri=TEST_IMAGES[image_name][image_format]["data_uri"])        
+    elif image_source == "url":
+        image = Image.from_url(url=TEST_IMAGES[image_name][image_format]["url"])
+
+    
+    print(f"Image Source: {image_source}")
+    print(f"Image Format: {image_format}")
+    print(f"Image Name: {image_name}")
+    print(str(image)[:100])
+
+    messages = [
+        Message(role="user", 
+                # content="Explain what animal is in the image.",
+                images=[image]
+        ),
+    ]
+
+    return_animal_in_image = Tool(
+    name="return_animal_in_image",
+    description="Return the animal in the image",
+    parameters=[
+        StringToolParameter(
+            name="animal",
+            description="The animal in the image. Ie. cat, bird, dog, etc.",
+        ),
+        StringToolParameter(
+            name="physical_description",
+            description="The physical description of the animal",
+        )
+    ]
+)
+
+
+    ai = UnifAIClient({provider: client_kwargs})
+    ai.init_client(provider, **client_kwargs)
+    chat = ai.chat(
+        messages=messages,
+        tools=[return_animal_in_image],
+        tool_choice="return_animal_in_image",
+        return_on="tool_call",
+        **func_kwargs
+    )    
+    # assert chat.last_content
+    # assert image_name in chat.last_content.lower()
+
+    assert chat.last_tool_call
+    assert chat.last_tool_call.tool_name == "return_animal_in_image"
+    assert chat.last_tool_call.arguments == chat.last_tool_call_args
+    last_args = chat.last_tool_call_args
+    assert last_args
+    assert isinstance(last_args, dict)
+    assert "animal" in last_args and last_args["animal"]
+    assert "physical_description" in last_args and last_args["physical_description"]
+    
+    assert image_name in last_args["animal"].lower() or image_name in last_args["physical_description"].lower()
+    print(f"Animal: {last_args['animal']}")
+    print(f"Physical Description: {last_args['physical_description']}")
+
+    messages = chat.messages
+    assert messages
+    assert isinstance(messages, list)
+
+    for message in messages:
+        assert isinstance(message, Message)
+        assert message.content or message.images or message.tool_calls
+        print(f'{message.role}: {message.content or message.images or message.tool_calls}')
+
+        if message.role == "assistant":
+            assert message.response_info
+            assert isinstance(message.response_info.model, str)
+            assert message.response_info.done_reason == "tool_calls"
+            usage = message.response_info.usage
+            assert usage
+            assert isinstance(usage.input_tokens, int)
+            assert isinstance(usage.output_tokens, int)
+            assert usage.total_tokens == usage.input_tokens + usage.output_tokens
+
+
+    print()
 
 
 

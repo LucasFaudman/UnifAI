@@ -14,6 +14,8 @@ from unifai.types import (
 )
 from unifai.type_conversions import make_few_shot_prompt, standardize_eval_prameters, standardize_tools
 from .chat import Chat
+from .chroma_emebedding import UnifAIChromaEmbeddingFunction, get_chroma_client
+from pathlib import Path
 
 class UnifAIClient:
     TOOLS: list[ToolInput] = []
@@ -30,7 +32,6 @@ class UnifAIClient:
                  tools: Optional[list[ToolInput]] = None,
                  tool_callables: Optional[dict[str, Callable]] = None,
                  eval_prameters: Optional[list[EvaluateParametersInput]] = None
-
                  ):
         self.provider_client_kwargs = provider_client_kwargs if provider_client_kwargs is not None else {}
         self.providers = list(self.provider_client_kwargs.keys())
@@ -44,7 +45,8 @@ class UnifAIClient:
         self.add_tools(tools or self.TOOLS)
         self.add_tool_callables(tool_callables)
         self.add_eval_prameters(eval_prameters or self.EVAL_PARAMETERS)
-    
+        
+        self._chroma_client = None
 
     def add_tools(self, tools: Optional[list[ToolInput]]):
         if not tools: return
@@ -185,7 +187,7 @@ class UnifAIClient:
             **kwargs
             ) -> Chat:
             chat = self.start_chat(
-                messages=messages,
+                messages=messages if messages is not None else [],
                 provider=provider,
                 model=model,
                 system_prompt=system_prompt,
@@ -281,6 +283,28 @@ class UnifAIClient:
             raise ValueError(f"Embedding max_dimensions must be greater than 0. Got: {max_dimensions}")
         return self.get_client(provider).embed(input, model, max_dimensions, **kwargs)
 
+    def init_chroma_client(self, path: str|Path):
+        self._chroma_client = get_chroma_client(path)
+        return self._chroma_client
+    
+    def get_chroma_collection(self, 
+                              name: str,
+                              model: Optional[str] = None,
+                              provider: Optional[AIProvider] = None,
+                              max_dimensions: Optional[int] = None,                                                            
+                              ):
+
+        if self._chroma_client is None:
+            raise ValueError("Chroma client not initialized. Run init_chroma_client() first.")
+        return self._chroma_client.get_or_create_collection(
+            name=name,
+            embedding_function=UnifAIChromaEmbeddingFunction(
+                parent=self,
+                provider=provider,
+                model=model,
+                max_dimensions=max_dimensions
+            )
+        )
 
     def evaluate(self, 
                  eval_type: str | EvaluateParameters, 

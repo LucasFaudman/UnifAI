@@ -202,11 +202,11 @@ class OllamaWrapper(BaseAIClientWrapper):
 
     # Convert Objects from AI Provider to UnifAI format    
         # Images
-    def extract_image(self, response_image: Any) -> Image:
+    def extract_image(self, response_image: Any, **kwargs) -> Image:
         raise NotImplementedError("This method must be implemented by the subclass")
 
         # Tool Calls
-    def extract_tool_call(self, response_tool_call: OllamaToolCall) -> ToolCall:
+    def extract_tool_call(self, response_tool_call: OllamaToolCall, **kwargs) -> ToolCall:
         return ToolCall(
             id=f'call_{generate_random_id(24)}',
             tool_name=response_tool_call['function']['name'],
@@ -214,7 +214,7 @@ class OllamaWrapper(BaseAIClientWrapper):
         )
     
         # Response Info (Model, Usage, Done Reason, etc.)
-    def extract_done_reason(self, response_obj: OllamaChatResponse) -> str|None:        
+    def extract_done_reason(self, response_obj: OllamaChatResponse, **kwargs) -> str|None:        
         if not (done_reason := response_obj.get("done_reason")):
             return None
         elif done_reason == "stop" and response_obj["message"].get("tool_calls"):
@@ -225,14 +225,14 @@ class OllamaWrapper(BaseAIClientWrapper):
         return done_reason
     
 
-    def extract_usage(self, response_obj: OllamaChatResponse) -> Usage|None:
+    def extract_usage(self, response_obj: OllamaChatResponse, **kwargs) -> Usage|None:
         return Usage(
             input_tokens=response_obj.get("prompt_eval_count", 0), 
             output_tokens=response_obj.get("eval_count", 0)
         )
 
 
-    def extract_response_info(self, response: Any) -> ResponseInfo:
+    def extract_response_info(self, response: Any, **kwargs) -> ResponseInfo:
         model = response["model"]
         done_reason = self.extract_done_reason(response)
         usage = self.extract_usage(response)
@@ -252,7 +252,7 @@ class OllamaWrapper(BaseAIClientWrapper):
         return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
     
         # Assistant Messages (Content, Images, Tool Calls, Response Info)
-    def extract_assistant_message_both_formats(self, response: OllamaChatResponse) -> tuple[Message, OllamaMessage]:
+    def extract_assistant_message_both_formats(self, response: OllamaChatResponse, **kwargs) -> tuple[Message, OllamaMessage]:
         client_message = response['message']
         
         tool_calls = None
@@ -283,7 +283,7 @@ class OllamaWrapper(BaseAIClientWrapper):
     #         yield Message(role="user", content=content)
 
 
-    def extract_stream_chunks(self, response: Iterator[OllamaChatResponse]) -> Generator[MessageChunk, None, tuple[Message, OllamaMessage]]:
+    def extract_stream_chunks(self, response: Iterator[OllamaChatResponse], **kwargs) -> Generator[MessageChunk, None, tuple[Message, OllamaMessage]]:
         content = ""
         tool_calls = []
         model = None

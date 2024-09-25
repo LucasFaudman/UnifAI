@@ -237,7 +237,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
     
     # Convert Objects from AI Provider to UnifAI format    
         # Images
-    def extract_image(self, response_image: Any) -> Image:
+    def extract_image(self, response_image: Any, **kwargs) -> Image:
         raise NotImplementedError("This method must be implemented by the subclass")
 
         # Tool Calls
@@ -249,7 +249,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
         )
     
 
-    def extract_done_reason(self, response_obj: CompletionChoice|ChunkChoice) -> str|None:
+    def extract_done_reason(self, response_obj: CompletionChoice|ChunkChoice, **kwargs) -> str|None:
         done_reason = response_obj.finish_reason
         if done_reason == "length":
             return "max_tokens"
@@ -259,20 +259,20 @@ class OpenAIWrapper(BaseAIClientWrapper):
         # "stop", "tool_calls", "content_filter" or None
         return done_reason
     
-    def extract_usage(self, response_obj: Any) -> Usage|None:
+    def extract_usage(self, response_obj: Any, **kwargs) -> Usage|None:
         if response_usage := response_obj.usage:
             return Usage(input_tokens=response_usage.prompt_tokens, output_tokens=response_usage.completion_tokens)
 
         # Response Info (Model, Usage, Done Reason, etc.)
-    def extract_response_info(self, response: Any) -> ResponseInfo:
+    def extract_response_info(self, response: Any, **kwargs) -> ResponseInfo:
         model = response.model
         done_reason = self.extract_done_reason(response.choices[0])
-        usage = self.extract_usage(response.usage)
+        usage = self.extract_usage(response)
         
         return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
     
         # Assistant Messages (Content, Images, Tool Calls, Response Info)
-    def extract_assistant_message_both_formats(self, response: ChatCompletion) -> tuple[Message, ChatCompletionMessage]:
+    def extract_assistant_message_both_formats(self, response: ChatCompletion, **kwargs) -> tuple[Message, ChatCompletionMessage]:
         client_message = response.choices[0].message
 
         tool_calls = None
@@ -303,7 +303,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
     #     if content is not None:
     #         yield Message(role="user", content=content)
 
-    def extract_stream_chunks(self, response: Stream[ChatCompletionChunk]) -> Generator[MessageChunk, None, tuple[Message, ChatCompletionMessage]]:        
+    def extract_stream_chunks(self, response: Stream[ChatCompletionChunk], **kwargs) -> Generator[MessageChunk, None, tuple[Message, ChatCompletionMessage]]:        
         content = ""
         tool_calls = []
         last_tool_call_yielded = -1
