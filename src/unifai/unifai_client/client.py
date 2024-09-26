@@ -1,8 +1,20 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator
-
+from typing import overload
 from unifai.ai_client_wrappers import BaseAIClientWrapper
+from unifai.wrappers.ai_clients._base_ai_client import BaseAIClient
+from unifai.wrappers._base_client_wrapper import BaseClientWrapper
+
+from unifai.wrappers.vector_db_clients._base_vector_db_client import (
+    BaseVectorDBClient, 
+    BaseVectorDBIndex,
+    VectorDBGetResult,
+    VectorDBQueryResult
+)
+
 from unifai.types import (
-    AIProvider, 
+    AIProvider,
+    VectorDBProvider,
+    Provider, 
     EvaluateParameters,
     EvaluateParametersInput, 
     Message,
@@ -10,12 +22,17 @@ from unifai.types import (
     MessageInput, 
     Tool,
     ToolInput,
-    EmbedResult,
+    Embeddings,
+    Embedding
 )
 from unifai.type_conversions import make_few_shot_prompt, standardize_eval_prameters, standardize_tools
 from .chat import Chat
-from .chroma_emebedding import UnifAIChromaEmbeddingFunction, get_chroma_client
+# from .chroma_emebedding import UnifAIChromaEmbeddingFunction, get_chroma_client
 from pathlib import Path
+
+AI_PROVIDERS: frozenset[AIProvider] = frozenset(("anthropic", "google", "openai", "ollama"))
+VECTOR_DB_PROVIDERS: frozenset[VectorDBProvider] = frozenset(("chroma", "pinecone"))
+REQUIRES_PARENT: frozenset[Provider] = frozenset(("chroma", "pinecone"))
 
 class UnifAIClient:
     TOOLS: list[ToolInput] = []
@@ -28,16 +45,25 @@ class UnifAIClient:
 
     
     def __init__(self, 
-                 provider_client_kwargs: Optional[dict[AIProvider, dict[str, Any]]] = None,
+                 provider_client_kwargs: Optional[dict[Provider, dict[str, Any]]] = None,
                  tools: Optional[list[ToolInput]] = None,
                  tool_callables: Optional[dict[str, Callable]] = None,
-                 eval_prameters: Optional[list[EvaluateParametersInput]] = None
+                 eval_prameters: Optional[list[EvaluateParametersInput]] = None,
+                 default_ai_provider: Optional[AIProvider] = None,
+                 default_vector_db_provider: Optional[VectorDBProvider] = None,                 
                  ):
-        self.provider_client_kwargs = provider_client_kwargs if provider_client_kwargs is not None else {}
-        self.providers = list(self.provider_client_kwargs.keys())
-        self.default_provider: AIProvider = self.providers[0] if len(self.providers) > 0 else "openai"
         
-        self._clients: dict[AIProvider, BaseAIClientWrapper] = {}
+        # self.provider_client_kwargs = provider_client_kwargs if provider_client_kwargs is not None else {}        
+        # self.providers = list(self.provider_client_kwargs.keys())        
+        # self.ai_providers = [provider for provider in self.providers if provider in AI_PROVIDERS]
+        # self.vector_db_providers = [provider for provider in self.providers if provider in VECTOR_DB_PROVIDERS]
+        # self.default_ai_provider: Provider = self.providers[0] if len(self.providers) > 0 else "openai"
+
+        self.set_provider_client_kwargs(provider_client_kwargs)
+        self.set_default_ai_provider(default_ai_provider)
+        self.set_default_vector_db_provider(default_vector_db_provider)
+        
+        self._clients: dict[Provider, BaseAIClientWrapper|BaseVectorDBClient] = {}
         self.tools: dict[str, Tool] = {}
         self.tool_callables: dict[str, Callable] = {}
         self.eval_prameters: dict[str, EvaluateParameters] = {}
@@ -46,7 +72,33 @@ class UnifAIClient:
         self.add_tool_callables(tool_callables)
         self.add_eval_prameters(eval_prameters or self.EVAL_PARAMETERS)
         
-        self._chroma_client = None
+
+    def set_provider_client_kwargs(self, provider_client_kwargs: Optional[dict[Provider, dict[str, Any]]] = None):
+        self.provider_client_kwargs = provider_client_kwargs if provider_client_kwargs is not None else {}        
+        self.providers: list[Provider] = list(self.provider_client_kwargs.keys())
+        self.ai_providers: list[AIProvider] = [provider for provider in self.providers if provider in AI_PROVIDERS]
+        self.vector_db_providers: list[VectorDBProvider] = [provider for provider in self.providers if provider in VECTOR_DB_PROVIDERS]        
+
+    def set_default_ai_provider(self, provider: Optional[AIProvider] = None, check: bool = True):
+        if check and provider and provider not in AI_PROVIDERS:
+            raise ValueError(f"Invalid AI provider: {provider}. Must be one of: {AI_PROVIDERS}")
+        if provider:
+            self.default_ai_provider: AIProvider = provider
+        elif self.ai_providers:
+            self.default_ai_provider = self.ai_providers[0]
+        else:
+            self.default_ai_provider = "openai"
+
+    def set_default_vector_db_provider(self, provider: Optional[VectorDBProvider] = None, check: bool = True):
+        if check and provider and provider not in VECTOR_DB_PROVIDERS:
+            raise ValueError(f"Invalid Vector DB provider: {provider}. Must be one of: {VECTOR_DB_PROVIDERS}")
+        if provider:
+            self.default_vector_db_provider: VectorDBProvider = provider
+        elif self.vector_db_providers:
+            self.default_vector_db_provider = self.vector_db_providers[0]
+        else:
+            self.default_vector_db_provider = "chroma"
+
 
     def add_tools(self, tools: Optional[list[ToolInput]]):
         if not tools: return
@@ -66,8 +118,9 @@ class UnifAIClient:
         self.eval_prameters.update(standardize_eval_prameters(eval_prameters))
 
 
-    def import_client_wrapper(self, provider: AIProvider) -> Type[BaseAIClientWrapper]:
+    def import_client_wrapper(self, provider: Provider) -> Type[BaseAIClientWrapper|BaseVectorDBClient]:
         match provider:
+            # AI Client Wrappers
             case "anthropic":
                 from unifai.ai_client_wrappers import AnthropicWrapper
                 return AnthropicWrapper
@@ -80,26 +133,47 @@ class UnifAIClient:
             case "ollama":
                 from unifai.ai_client_wrappers import OllamaWrapper
                 return OllamaWrapper
+            # Embedding Vector DB Client Wrappers
+            case "chroma":
+                from unifai.wrappers.vector_db_clients.chroma import ChromaClient
+                return ChromaClient
             case _:
                 raise ValueError(f"Invalid provider: {provider}")
             
 
-    def init_client(self, provider: AIProvider, **client_kwargs) -> BaseAIClientWrapper:
+    def init_client(self, provider: Provider, **client_kwargs) -> BaseAIClientWrapper|BaseVectorDBClient:
         client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
+        if provider in REQUIRES_PARENT and "parent" not in client_kwargs:
+            client_kwargs["parent"] = self
         self._clients[provider] = self.import_client_wrapper(provider)(**client_kwargs)
         return self._clients[provider]
     
 
-    def get_client(self, provider: Optional[AIProvider] = None) -> BaseAIClientWrapper:
-        provider = provider or self.default_provider
-        if provider not in self._clients:
-            return self.init_client(provider)
-        return self._clients[provider]        
+    @overload
+    def get_client(self, provider: AIProvider, **client_kwargs) -> BaseAIClientWrapper:
+        ...
 
+    @overload
+    def get_client(self, provider: VectorDBProvider, **client_kwargs) -> BaseVectorDBClient:
+        ...        
+
+    def get_client(self, provider: Provider, **client_kwargs) -> BaseAIClientWrapper|BaseVectorDBClient:
+        provider = provider or self.default_ai_provider
+        if provider not in self._clients or (client_kwargs and self._clients[provider].client_kwargs != client_kwargs):
+            return self.init_client(provider, **client_kwargs)
+        return self._clients[provider]
+
+    def get_ai_client(self, provider: Optional[AIProvider] = None, **client_kwargs) -> BaseAIClientWrapper:
+        provider = provider or self.default_ai_provider
+        return self.get_client(provider, **client_kwargs)
+
+    def get_vector_db_client(self, provider: Optional[VectorDBProvider] = None, **client_kwargs) -> BaseVectorDBClient:
+        provider = provider or self.default_vector_db_provider
+        return self.get_client(provider, **client_kwargs)
 
     # List Models
     def list_models(self, provider: Optional[AIProvider] = None) -> list[str]:
-        return self.get_client(provider).list_models()
+        return self.get_ai_client(provider).list_models()
 
 
     # def filter_tools_by_tool_choice(self, tools: list[Tool], tool_choice: str) -> list[Tool]:
@@ -136,7 +210,7 @@ class UnifAIClient:
             ) -> Chat:
             return Chat(
                 parent=self,
-                provider=kwargs.pop("provider", self.default_provider),
+                provider=kwargs.pop("provider", self.default_ai_provider),
                 messages=kwargs.pop("messages", []),
                 **kwargs
                 # model=model,
@@ -271,41 +345,6 @@ class UnifAIClient:
             return chat
     
 
-    def embed(self, 
-              input: str | Sequence[str],
-              model: Optional[str] = None,
-              provider: Optional[AIProvider] = None,
-              max_dimensions: Optional[int] = None,
-              **kwargs
-              ) -> EmbedResult:
-        
-        if max_dimensions is not None and max_dimensions < 1:
-            raise ValueError(f"Embedding max_dimensions must be greater than 0. Got: {max_dimensions}")
-        return self.get_client(provider).embed(input, model, max_dimensions, **kwargs)
-
-    def init_chroma_client(self, path: str|Path):
-        self._chroma_client = get_chroma_client(path)
-        return self._chroma_client
-    
-    def get_chroma_collection(self, 
-                              name: str,
-                              model: Optional[str] = None,
-                              provider: Optional[AIProvider] = None,
-                              max_dimensions: Optional[int] = None,                                                            
-                              ):
-
-        if self._chroma_client is None:
-            raise ValueError("Chroma client not initialized. Run init_chroma_client() first.")
-        return self._chroma_client.get_or_create_collection(
-            name=name,
-            embedding_function=UnifAIChromaEmbeddingFunction(
-                parent=self,
-                provider=provider,
-                model=model,
-                max_dimensions=max_dimensions
-            )
-        )
-
     def evaluate(self, 
                  eval_type: str | EvaluateParameters, 
                  content: Any, 
@@ -360,3 +399,136 @@ class UnifAIClient:
         # Return the desired attribute of the chat object or the chat object itself based on eval_parameters.return_as
         return getattr(chat, eval_parameters.return_as) if eval_parameters.return_as != "chat" else chat
     
+
+
+    def embed(self, 
+              input: str | Sequence[str],
+              model: Optional[str] = None,
+              provider: Optional[AIProvider] = None,
+              max_dimensions: Optional[int] = None,
+              **kwargs
+              ) -> Embeddings:
+        
+        if max_dimensions is not None and max_dimensions < 1:
+            raise ValueError(f"Embedding max_dimensions must be greater than 0. Got: {max_dimensions}")
+        return self.get_ai_client(provider).embed(input, model, max_dimensions, **kwargs)
+
+    # def init_chroma_client(self, path: str|Path):
+    #     self._chroma_client = get_chroma_client(path)
+    #     return self._chroma_client
+    
+    # def get_chroma_collection(self, 
+    #                           name: str,
+    #                           model: Optional[str] = None,
+    #                           provider: Optional[AIProvider] = None,
+    #                           max_dimensions: Optional[int] = None,                                                            
+    #                           ):
+
+    #     if self._chroma_client is None:
+    #         raise ValueError("Chroma client not initialized. Run init_chroma_client() first.")
+    #     return self._chroma_client.get_or_create_collection(
+    #         name=name,
+    #         embedding_function=UnifAIChromaEmbeddingFunction(
+    #             parent=self,
+    #             provider=provider,
+    #             model=model,
+    #             max_dimensions=max_dimensions
+    #         )
+    #     )    
+
+    def get_or_create_index(self, 
+                            name: str,
+                            vector_db_provider: Optional[VectorDBProvider] = None,                            
+                            embedding_provider: Optional[AIProvider] = None,
+                            embedding_model: Optional[str] = None,
+                            dimensions: Optional[int] = None,
+                            distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 
+                            index_metadata: Optional[dict] = None,
+                            **kwargs
+                            ) -> BaseVectorDBIndex:
+        return self.get_vector_db_client(vector_db_provider).get_or_create_index(
+            name=name,
+            embedding_provider=embedding_provider,
+            embedding_model=embedding_model,
+            dimensions=dimensions,
+            distance_metric=distance_metric,
+            index_metadata=index_metadata,
+            **kwargs
+        )
+    
+    def upsert_index(self,
+                     name: str,
+                     ids: list[str],
+                     metadatas: Optional[list[dict]] = None,
+                     documents: Optional[list[str]] = None,
+                     embeddings: Optional[list[Embedding]] = None,
+                     vector_db_provider: Optional[VectorDBProvider] = None,                            
+                     embedding_provider: Optional[AIProvider] = None,
+                     embedding_model: Optional[str] = None,
+                     dimensions: Optional[int] = None,
+                     distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 
+                     index_metadata: Optional[dict] = None
+                     ) -> BaseVectorDBIndex:
+        return self.get_or_create_index(
+              name=name,
+              vector_db_provider=vector_db_provider,
+              embedding_provider=embedding_provider,
+              embedding_model=embedding_model,
+              dimensions=dimensions,
+              distance_metric=distance_metric,
+              index_metadata=index_metadata
+            ).upsert(
+                ids=ids,
+                metadatas=metadatas,
+                documents=documents,
+                embeddings=embeddings
+            )
+    
+    def query_index(self, 
+                    name: str,
+                    query: str | list[str] | Embedding | list[Embedding] | Embeddings,
+                    n_results: int = 10,
+                    where: Optional[dict] = None,
+                    where_document: Optional[dict] = None,
+                    include: Sequence[Literal["metadatas", "documents", "distances"]] = ("metadatas", "documents", "distances"),
+                    vector_db_provider: Optional[VectorDBProvider] = None,                            
+                    embedding_provider: Optional[AIProvider] = None,
+                    embedding_model: Optional[str] = None,
+                    dimensions: Optional[int] = None,
+                    distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 
+                    index_metadata: Optional[dict] = None                    
+              ) -> VectorDBQueryResult:                     
+        
+        query_texts = None
+        query_embeddings = None                            
+        if isinstance(query, str):
+            query_texts = [query] # Single string
+        elif isinstance(query, list):
+            item_0 = query[0]
+            if isinstance(item_0, str):
+                query_texts = query # List of strings
+            elif isinstance(item_0, float):
+                query_embeddings = [query] # Single Embedding (list of floats)
+            elif isinstance(item_0, list) and isinstance(item_0[0], float):
+                query_embeddings = query # List of Embeddings (list of lists of floats)
+        
+        if not query_texts and not query_embeddings:
+            raise ValueError(f"Invalid query type: {type(query)}. Must be a str, list of str, Embedding (list[float]), list of Embedding list[list[float]] or Embeddings object returned by embed()")
+
+                    
+        return self.get_or_create_index(
+                name=name,
+                vector_db_provider=vector_db_provider,
+                embedding_provider=embedding_provider,
+                embedding_model=embedding_model,
+                dimensions=dimensions,
+                distance_metric=distance_metric,
+                index_metadata=index_metadata
+                ).query(
+                    query_texts=query_texts,
+                    query_embeddings=query_embeddings,
+                    n_results=n_results,
+                    where=where,
+                    where_document=where_document,
+                    include=include
+                )

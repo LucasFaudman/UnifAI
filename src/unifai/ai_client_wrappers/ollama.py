@@ -38,7 +38,7 @@ from unifai.exceptions import (
 )
 
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embedding, EmbedResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
 from unifai.type_conversions import stringify_content
 from ._base import BaseAIClientWrapper
 
@@ -409,7 +409,7 @@ class OllamaWrapper(BaseAIClientWrapper):
             model: Optional[str] = None,
             max_dimensions: Optional[int] = None,
             **kwargs
-            ) -> EmbedResult:
+            ) -> Embeddings:
         
         model = model or self.default_embedding_model
         truncate = kwargs.pop('truncate', True)
@@ -424,8 +424,13 @@ class OllamaWrapper(BaseAIClientWrapper):
             options=options
         )
         
-        embeddings = [Embedding(vector=vector[:max_dimensions], index=i) for i, vector in enumerate(response['embeddings'])]
-        usage = Usage(input_tokens=response['prompt_eval_count'])
-        response_info = ResponseInfo(model=model, usage=usage)
-        return EmbedResult(embeddings=embeddings, response_info=response_info)
+        return Embeddings(
+            root=[embedding[:max_dimensions] for embedding in response["embeddings"]],
+            response_info=ResponseInfo(
+                model=model, 
+                usage=Usage(
+                    input_tokens=response['prompt_eval_count'], 
+                )
+            )
+        )    
 

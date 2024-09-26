@@ -68,7 +68,7 @@ from unifai.exceptions import (
     STATUS_CODE_TO_EXCEPTION_MAP   
 )
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embedding, EmbedResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
 from unifai.type_conversions import stringify_content
 from ._base import BaseAIClientWrapper
 
@@ -435,7 +435,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
             model: Optional[str] = None,
             max_dimensions: Optional[int] = None,
             **kwargs
-            ) -> EmbedResult:
+            ) -> Embeddings:
         
         if max_dimensions is not None:
             kwargs["dimensions"] = max_dimensions
@@ -447,10 +447,13 @@ class OpenAIWrapper(BaseAIClientWrapper):
             **kwargs
         )
 
-        embeddings = [Embedding(vector=embedding.embedding, index=embedding.index) for embedding in response.data]
-        usage = Usage(input_tokens=response.usage.prompt_tokens, output_tokens=0)
-        response_info = ResponseInfo(model=response.model, usage=usage)
-        return EmbedResult(embeddings=embeddings, response_info=response_info)
-
-
-        # return self.extract_embed_result(response)
+        return Embeddings(
+            root=[embedding.embedding for embedding in response.data],
+            response_info=ResponseInfo(
+                model=response.model, 
+                usage=Usage(
+                    input_tokens=response.usage.prompt_tokens, 
+                    output_tokens=0
+                )
+            )
+        )

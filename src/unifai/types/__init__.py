@@ -1,7 +1,7 @@
 from .eval_parameters import EvaluateParameters
 from .image import Image
 from .message import Message, MessageChunk
-from .embedding import Embedding, EmbedResult
+from .embeddings import Embeddings, Embedding
 from .response_info import ResponseInfo, Usage
 from .tool_call import ToolCall
 from .tool_parameter import (
@@ -20,7 +20,17 @@ from .tool_parameter import (
     ToolValPyTypes,
 )
 from .tool import Tool, ProviderTool, PROVIDER_TOOLS
-from .valid_inputs import AIProvider, EvaluateParametersInput, MessageInput, ToolInput, ToolChoiceInput, ResponseFormatInput
+from .valid_inputs import (
+    AIProvider, 
+    VectorDBProvider, 
+    Provider,
+    EvaluateParametersInput, 
+    MessageInput, 
+    ToolInput, 
+    ToolChoiceInput, 
+    ResponseFormatInput
+)
+from .vector_db import VectorDBGetResult, VectorDBQueryResult
 
 __all__ = [
     "EvaluateParameters", 
@@ -44,11 +54,15 @@ __all__ = [
     "ProviderTool",
     "PROVIDER_TOOLS",
     "AIProvider",
+    "VectorDBProvider",
+    "Provider",
     "EvaluateParametersInput",
     "MessageInput",
     "ToolInput",
     "ToolChoiceInput",
     "ResponseFormatInput",
+    "Embeddings",
     "Embedding",
-    "EmbedResult",
+    "VectorDBGetResult",
+    "VectorDBQueryResult",
 ]

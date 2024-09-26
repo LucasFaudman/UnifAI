@@ -91,8 +91,7 @@ from unifai.types import (
     ObjectToolParameter,
     AnyOfToolParameter,
     RefToolParameter,
-    Embedding,
-    EmbedResult,
+    Embeddings,
 )
 from unifai.type_conversions import stringify_content
 from ._base import BaseAIClientWrapper
@@ -463,7 +462,7 @@ class GoogleAIWrapper(BaseAIClientWrapper):
             model: Optional[str] = None,
             max_dimensions: Optional[int] = None,
             **kwargs
-            ) -> EmbedResult:
+            ) -> Embeddings:
         
         if isinstance(input, str):
             input = [input]
@@ -476,6 +475,11 @@ class GoogleAIWrapper(BaseAIClientWrapper):
             output_dimensionality=max_dimensions,
             **kwargs
         )
-        embeddings = [Embedding(vector=vector, index=i) for i, vector in enumerate(response["embedding"])]
-        response_info = ResponseInfo(model=model, usage=Usage())
-        return EmbedResult(embeddings=embeddings, response_info=response_info)            
+
+        return Embeddings(
+            root=response["embedding"],
+            response_info=ResponseInfo(
+                model=model, 
+                usage=Usage()
+            )
+        )    

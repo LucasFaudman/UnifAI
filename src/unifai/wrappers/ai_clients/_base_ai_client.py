@@ -1,47 +1,15 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator, Iterable, Generator
 
-from json import dumps as json_dumps
+from .._base_client_wrapper import BaseClientWrapper
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embeddings, Usage
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
 
 T = TypeVar("T")
 
-class BaseAIClientWrapper:
-    provider = "base"
+class BaseAIClient(BaseClientWrapper):
+    provider = "base_ai"
     default_model = "mistral:7b-instruct"
-
-    def import_client(self) -> Type:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-    def init_client(self, **client_kwargs) -> Any:
-        self.client_kwargs.update(client_kwargs)
-        self._client = self.import_client()(**self.client_kwargs)
-        return self._client
-
-    def __init__(self, **client_kwargs):
-        self._client = None
-        self.client_kwargs = client_kwargs
-
-    @property
-    def client(self) -> Type:
-        if self._client is None:
-            # return self.init_client(**self.client_kwargs)
-            return self.run_func_convert_exceptions(self.init_client, **self.client_kwargs)
-        return self._client
-    
-
-    # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
-    def convert_exception(self, exception: Exception) -> UnifAIError:
-        raise NotImplementedError("This method must be implemented by the subclass")
-
-
-    def run_func_convert_exceptions(self, func: Callable[..., T], *args, **kwargs) -> T:
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            raise self.convert_exception(e) from e
-
 
     # Convert Objects from UnifAI to AI Provider format        
         # Messages

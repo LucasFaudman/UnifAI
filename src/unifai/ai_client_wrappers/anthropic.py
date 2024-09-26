@@ -58,7 +58,7 @@ from unifai.exceptions import (
 )
 
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, EmbedResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
 from unifai.type_conversions import stringify_content
 from ._base import BaseAIClientWrapper
 

@@ -31,29 +31,65 @@ PROVIDER_DEFAULTS = {
         {"host": "http://librem-2.local:11434"},
         {"keep_alive": "10m", 'model': 'llama3.1-8b-num_ctx-8192:latest'}
     ),
+
+    "chroma": (
+        "chroma",
+        {"persist_directory": "/Users/lucasfaudman/Documents/UnifAI/scratch/gita_embeddings"},
+        {}
+    ),
+
+    "pinecone": (
+        "pinecone",
+        {"persist_directory": "/Users/lucasfaudman/Documents/UnifAI/scratch/gita_embeddings"},
+        {}
+    ),    
 }
 
+AI_PROVIDER_DEFAULTS = [
+    PROVIDER_DEFAULTS["anthropic"],
+    PROVIDER_DEFAULTS["google"],
+    PROVIDER_DEFAULTS["openai"],
+    PROVIDER_DEFAULTS["ollama"]
+]
+
+VECTOR_DB_PROVIDER_DEFAULTS = [
+    PROVIDER_DEFAULTS["chroma"],
+    PROVIDER_DEFAULTS["pinecone"]
+]
+
 def base_test_all_providers(func):
-    return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
-        *list(PROVIDER_DEFAULTS.values())[:-1]
-    ])(func)
+    return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", AI_PROVIDER_DEFAULTS)(func)
 
 def base_test_no_anthropic(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
-        defaults for provider, defaults in PROVIDER_DEFAULTS.items() if provider != "anthropic"
+        defaults for defaults in AI_PROVIDER_DEFAULTS if defaults[0] != "anthropic"
     ])(func)
 
 def base_test_no_google(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
-        defaults for provider, defaults in PROVIDER_DEFAULTS.items() if provider != "google"
+        defaults for defaults in AI_PROVIDER_DEFAULTS if defaults[0] != "google"
     ])(func)
 
 def base_test_no_openai(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
-        defaults for provider, defaults in PROVIDER_DEFAULTS.items() if provider != "openai"
+        defaults for defaults in AI_PROVIDER_DEFAULTS if defaults[0] != "openai"
     ])(func)
 
 def base_test_no_ollama(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
-        defaults for provider, defaults in PROVIDER_DEFAULTS.items() if provider != "ollama"
+        defaults for defaults in AI_PROVIDER_DEFAULTS if defaults[0] != "ollama"
+    ])(func)
+
+
+def base_test_all_db_providers(func):
+    return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", VECTOR_DB_PROVIDER_DEFAULTS)(func)
+
+def base_test_db_no_chroma(func):
+    return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
+        defaults for defaults in VECTOR_DB_PROVIDER_DEFAULTS if defaults[0] != "chroma"
+    ])(func)
+
+def base_test_db_no_pinecone(func):
+    return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
+        defaults for defaults in VECTOR_DB_PROVIDER_DEFAULTS if defaults[0] != "pinecone"
     ])(func)

@@ -1,6 +1,6 @@
 import pytest
 from unifai import UnifAIClient, AIProvider
-from unifai.types import Message, Tool, EmbedResult, Embedding, ResponseInfo, Usage
+from unifai.types import Message, Tool, Embeddings, Embedding, ResponseInfo, Usage
 from unifai.exceptions import ProviderUnsupportedFeatureError, BadRequestError
 from basetest import base_test_all_providers, base_test_no_anthropic
 
@@ -28,11 +28,10 @@ def test_embeddings_simple(
     
     result = ai.embed(input, provider=provider, **func_kwargs)
 
-    assert isinstance(result, EmbedResult)
-    assert isinstance(result.embeddings, list)
-    assert all(isinstance(embedding, Embedding) for embedding in result.embeddings)
-    assert all(isinstance(embedding.vector, list) for embedding in result.embeddings)
-    assert all(isinstance(embedding.vector[0], float) for embedding in result.embeddings)
+    assert isinstance(result, Embeddings)
+    assert isinstance(result.list(), list)
+    assert all(isinstance(embedding, list) for embedding in result)
+    assert all(isinstance(embedding[0], float) for embedding in result)
     assert isinstance(result.response_info, ResponseInfo)
     assert isinstance(result.response_info.usage, Usage)
     assert isinstance(result.response_info.usage.total_tokens, int)
@@ -41,38 +40,37 @@ def test_embeddings_simple(
     assert result.response_info.usage.total_tokens == result.response_info.usage.input_tokens
 
 
-    assert result[0] == result.embeddings[0]
-    assert isinstance(result[0], Embedding)
-    assert len(result) == len(result.embeddings)    
+    assert result[0] == result[0]
+    assert isinstance(result[0], list)
+    assert len(result) == len(result)    
     expected_length = 1 if isinstance(input, str) else len(input) if hasattr(input, "__len__") else 2
     assert len(result) == expected_length
 
     for i, embedding in enumerate(result):
         assert embedding in result
         assert result[i] == embedding
-        assert result[i].vector == embedding.vector
-        assert result[i].index == embedding.index
-        assert embedding.index == i
+        assert result[i] == embedding
+
         
-    other_result = EmbedResult(
-        embeddings=[Embedding(vector=[0.0], index=1)], 
+    other_result = Embeddings(
+        root=[[0.1]], 
         response_info=ResponseInfo(model="other_model", usage=Usage(input_tokens=1, output_tokens=0))
     )
     combined_result = result + other_result
-    assert isinstance(combined_result, EmbedResult)
+    assert isinstance(combined_result, Embeddings)
     assert len(combined_result) == len(result) + len(other_result)
-    assert combined_result.embeddings == result.embeddings + other_result.embeddings
+    assert combined_result == result + other_result
 
     result += other_result
-    assert isinstance(result, EmbedResult)
+    assert isinstance(result, Embeddings)
     assert len(result) == len(combined_result)
-    assert result.embeddings == combined_result.embeddings
+    assert result == combined_result
+    assert result.response_info and combined_result.response_info
     assert result.response_info.model == combined_result.response_info.model
-
 
     texts = input if isinstance(input, list) else [input]
     for text, embedding in zip(texts, result):
-        print(f"Text: {text}\nEmbedding: {embedding.vector[0]} and {len(embedding.vector) -1 } more\n")
+        print(f"Text: {text}\nEmbedding: {embedding[0]} and {len(embedding) -1 } more\n")
 
 @pytest.mark.parametrize("input, max_dimensions", [
     ("Embed this", 100),
@@ -99,10 +97,10 @@ def test_embeddings_max_dimensions(
                       max_dimensions=max_dimensions,
                       **func_kwargs)     
     
-    assert isinstance(result, EmbedResult)
+    assert isinstance(result, Embeddings)
     for embedding in result:
-        assert len(embedding.vector) <= max_dimensions
-        assert all(isinstance(value, float) for value in embedding.vector)
+        assert len(embedding) <= max_dimensions
+        assert all(isinstance(value, float) for value in embedding)
 
 
 @pytest.mark.parametrize("input, max_dimensions", [
@@ -125,11 +123,11 @@ def test_embeddings_max_dimensions_errors(
                       provider=provider, 
                       max_dimensions=max_dimensions,
                       **func_kwargs)            
-        assert isinstance(result, EmbedResult)
+        assert isinstance(result, Embeddings)
         for embedding in result:
-            assert len(embedding.vector) <= max_dimensions
-            assert all(isinstance(value, float) for value in embedding.vector)
-            print(f"Embedding: {embedding.vector[0]} and {len(embedding.vector) -1 } more\n")
+            assert len(embedding) <= max_dimensions
+            assert all(isinstance(value, float) for value in embedding)
+            print(f"Embedding: {embedding[0]} and {len(embedding) -1 } more\n")
 
     else:                
         with pytest.raises((BadRequestError, ValueError)):
