@@ -1,4 +1,4 @@
-from typing import Optional, Union, Sequence, Any, Literal
+from typing import Optional, Union, Sequence, Any, Literal, Mapping
 from pydantic import BaseModel
 
 
@@ -43,6 +43,16 @@ class NullToolParameter(ToolParameter):
     type: Literal["null"] = "null"
 
 
+class RefToolParameter(ToolParameter):
+    type: Literal["ref"] = "ref"
+    ref: str
+
+    def to_dict(self) -> dict:
+        return {
+            "$ref": self.ref
+        }
+
+
 class ArrayToolParameter(ToolParameter):
     type: Literal["array"] = "array"
     items: ToolParameter
@@ -58,8 +68,9 @@ class ObjectToolParameter(ToolParameter):
     type: Literal["object"] = "object"
     properties: Sequence[ToolParameter]
     additionalProperties: bool = False
+    defs: Optional[Mapping[str, ToolParameter]] = None
     
-    def to_dict(self) -> dict:
+    def to_dict(self, include=("additionalProperties", "defs")) -> dict:
         properties = {}
         required = []
         for prop in self.properties:
@@ -67,17 +78,42 @@ class ObjectToolParameter(ToolParameter):
             if prop.required:
                 required.append(prop.name)
 
-        return { 
+        self_dict = { 
             **ToolParameter.to_dict(self),
             "properties": properties,
             "required": required,
-            "additionalProperties": self.additionalProperties
         }
+        if "additionalProperties" in include:
+            self_dict["additionalProperties"] = self.additionalProperties
+
+        if self.defs and "defs" in include:
+            self_dict["$defs"] = {name: prop.to_dict() for name, prop in self.defs.items()}
+        
+        return self_dict
+        # return { 
+        #     **ToolParameter.to_dict(self),
+        #     "properties": properties,
+        #     "required": required,
+        #     "additionalProperties": self.additionalProperties
+        # }
     
 
 class AnyOfToolParameter(ToolParameter):
     type: Literal["anyOf"] = "anyOf"
     anyOf: list[ToolParameter]
+
+    def __init__(self, 
+                 name: str, 
+                 anyOf: list[ToolParameter], 
+                 description: Optional[str] = None,
+                 required: bool = True, 
+                 **kwargs):
+        
+        for tool_parameter in anyOf:
+            if not tool_parameter.name:
+                tool_parameter.name = name
+        
+        BaseModel.__init__(self, name=name, description=description, required=required, anyOf=anyOf, **kwargs)
 
     def to_dict(self) -> dict:
         return {

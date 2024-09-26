@@ -9,6 +9,7 @@ from unifai.types import (
     ArrayToolParameter,
     ObjectToolParameter,
     AnyOfToolParameter,
+    RefToolParameter,
     Tool,
     ProviderTool,
     PROVIDER_TOOLS,
@@ -24,8 +25,13 @@ def tool_parameter_from_dict(
     
     # if isinstance(required := param_dict.get('required'), bool):
     #     param_required = required
+    # param_name = param_dict.get('name', param_name)
+
+    if (ref := param_dict.get('$ref')) is not None:
+        return RefToolParameter(name=param_name, ref=ref, required=param_required)
 
     if (anyof_param_dicts := param_dict.get('anyOf')) is not None:
+        param_name = param_dict.get('name', param_name)
         anyOf = [
             tool_parameter_from_dict(param_dict=anyof_param_dict, param_name=param_name, param_required=param_required)
             for anyof_param_dict in anyof_param_dicts
@@ -72,9 +78,18 @@ def tool_parameter_from_dict(
                 for prop_dict in param_properties
             ]
         additionalProperties = param_dict.get('additionalProperties', False)
+        if def_dicts := param_dict.get('$defs'): 
+            defs = {
+                def_name: tool_parameter_from_dict(param_dict=def_dict)
+                for def_name, def_dict in def_dicts.items()
+            }
+        else:
+            defs = None
+
         return ObjectToolParameter(name=param_name, description=param_description, 
                                    required=param_required, enum=param_enum, 
-                                   properties=properties, additionalProperties=additionalProperties)
+                                   properties=properties, additionalProperties=additionalProperties,
+                                   defs=defs)
     
     raise ValueError(f"Invalid parameter type: {param_type}")
 

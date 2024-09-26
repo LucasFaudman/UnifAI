@@ -12,6 +12,7 @@ from .tool_parameter import (
     BooleanToolParameter,
     NullToolParameter,
     ArrayToolParameter,
+    RefToolParameter,
     ObjectToolParameter,
     AnyOfToolParameter,
     ToolParameters,

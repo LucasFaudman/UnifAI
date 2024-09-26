@@ -90,6 +90,7 @@ from unifai.types import (
     ArrayToolParameter,
     ObjectToolParameter,
     AnyOfToolParameter,
+    RefToolParameter,
     Embedding,
     EmbedResult,
 )
@@ -106,9 +107,11 @@ class GoogleAIWrapper(BaseAIClientWrapper):
     default_model = "gemini-1.5-flash-latest"
     default_embedding_model = "text-embedding-004"
 
+
     def import_client(self):
         import google.generativeai as genai
         return genai
+
 
     def init_client(self, **client_kwargs) -> Any:
         self._client = self.import_client()
@@ -152,15 +155,16 @@ class GoogleAIWrapper(BaseAIClientWrapper):
         # Messages    
     def prep_input_user_message(self, message: Message) -> Any:
         parts = []
-        if message.content:
+        if message.content is not None:
             parts.append(Part(text=message.content))
         if message.images:
             parts.extend(map(self.prep_input_image, message.images))
         return {"role": "user", "parts": parts}
 
+
     def prep_input_assistant_message(self, message: Message) -> Any:
         parts = []
-        if message.content:
+        if message.content is not None:
             parts.append(Part(text=message.content))
         if message.tool_calls:
             for tool_call in message.tool_calls:
@@ -176,6 +180,7 @@ class GoogleAIWrapper(BaseAIClientWrapper):
             parts.extend(map(self.prep_input_image, message.images))
         return {"role": "model", "parts": parts}
         
+
     def prep_input_tool_message(self, message: Message) -> Any:
         parts = []
         # if message.content:
@@ -214,7 +219,8 @@ class GoogleAIWrapper(BaseAIClientWrapper):
 
         client_messages = [self.prep_input_message(message) for message in messages]
         return client_messages, system_prompt   
-       
+
+
         # Images
     def prep_input_image(self, image: Image) -> Any:
         return Blob(data=image.raw_bytes, mime_type=image.mime_type)
@@ -224,8 +230,8 @@ class GoogleAIWrapper(BaseAIClientWrapper):
     def prep_input_tool(self, tool: Tool) -> GoogleTool:
 
         def tool_parameter_to_schema(tool_parameter: ToolParameter) -> Schema:        
-            if isinstance(tool_parameter, AnyOfToolParameter):
-                raise ValueError("AnyOfToolParameter is not supported by GoogleAI")
+            if isinstance(tool_parameter, (AnyOfToolParameter, RefToolParameter)):
+                raise ValueError(f"{tool_parameter.__class__.__name__} is not supported by GoogleAI")
 
             items = None
             properties = None
@@ -290,6 +296,7 @@ class GoogleAIWrapper(BaseAIClientWrapper):
     def extract_image(self, response_image: Any) -> Image:
         raise NotImplementedError("This method must be implemented by the subclass")
 
+
         # Tool Calls
     def extract_tool_call(self, response_tool_call: FunctionCall, **kwargs) -> ToolCall:
             return ToolCall(
@@ -298,6 +305,7 @@ class GoogleAIWrapper(BaseAIClientWrapper):
                 arguments=dict(response_tool_call.args)
         )
     
+
         # Response Info (Model, Usage, Done Reason, etc.)
     def extract_done_reason(self, response_obj: Any, **kwargs) -> str|None:
         done_reason = response_obj.finish_reason
@@ -312,6 +320,7 @@ class GoogleAIWrapper(BaseAIClientWrapper):
         else:
             return "content_filter"
     
+
     def extract_usage(self, response_obj: GenerateContentResponse, **kwargs) -> Usage|None:
         if response_obj.usage_metadata:
             return Usage(
@@ -319,36 +328,24 @@ class GoogleAIWrapper(BaseAIClientWrapper):
                 output_tokens=response_obj.usage_metadata.cached_content_token_count,
             )
 
-    def extract_response_info(self, response: GenerateContentResponse, **kwargs) -> ResponseInfo:
-        
-        # finish_reason = response.candidates[0].finish_reason
-        # if not finish_reason:
-        #     done_reason = None
-        # elif finish_reason == 1:
-        #     done_reason = "stop" if not tools_called else "tool_calls"
-        # elif finish_reason == 2:
-        #     done_reason = "max_tokens"
-        # elif finish_reason in (5, 10):
-        #     done_reason = "error"
-        # else:
-        #     done_reason = "content_filter"
-        
-        done_reason = self.extract_done_reason(response.candidates[0], **kwargs)
-        # usage = Usage(
-        #         input_tokens=response.usage_metadata.prompt_token_count,
-        #         output_tokens=response.usage_metadata.cached_content_token_count,
-        #     )
-        usage = self.extract_usage(response)
-        return ResponseInfo(model=kwargs.get("model"), done_reason=done_reason, usage=usage)
+
+    def extract_response_info(self, response: GenerateContentResponse, **kwargs) -> ResponseInfo:        
+        return ResponseInfo(
+            model=kwargs.get("model"), 
+            done_reason=self.extract_done_reason(response.candidates[0], **kwargs), 
+            usage=self.extract_usage(response)
+        )
+
 
     def _extract_parts(self, parts: Sequence[Part]) -> tuple[str|None, list[ToolCall]|None, list[Image]|None]:   
-        content = None
+        # content = None
+        content = ""
         tool_calls = None
         images = None
         for part in parts:
             if part.text:
-                if content is None:
-                    content = ""
+                # if content is None:
+                #     content = ""
                 content += part.text
             elif part.function_call:
                 if tool_calls is None:
@@ -362,24 +359,11 @@ class GoogleAIWrapper(BaseAIClientWrapper):
                 raise NotImplementedError("file_data, executable_code, and code_execution_result are not yet supported by UnifAI")
         return content, tool_calls, images
 
+
         # Assistant Messages (Content, Images, Tool Calls, Response Info)
     def extract_assistant_message_both_formats(self, response: GenerateContentResponse, **kwargs) -> tuple[Message, Content]:
         client_message = response.candidates[0].content
-        # content = ""
-        # tool_calls = []
-        # images = []
-        # for part in client_message.parts:
-        #     if part.text:
-        #         content += part.text
-        #     elif part.function_call:
-        #         tool_calls.append(self.extract_tool_call(part.function_call))
-        #     elif part.inline_data:
-        #         images.append(self.extract_image(part.inline_data))
-        #     elif part.file_data or part.executable_code or part.code_execution_result:
-        #         raise NotImplementedError("file_data, executable_code, and code_execution_result are not yet supported by UnifAI")
-
         content, tool_calls, images = self._extract_parts(client_message.parts)
-
         response_info = self.extract_response_info(response, tools_called=bool(tool_calls), **kwargs)
         std_message = Message(
             role="assistant",
@@ -392,97 +376,33 @@ class GoogleAIWrapper(BaseAIClientWrapper):
 
     
     def extract_stream_chunks(self, response: GenerateContentResponse, **kwargs) -> Generator[MessageChunk, None, tuple[Message, Content]]:
+        parts = []
         for chunk in response:
-            # content = ""
-            # tool_calls = []
-            # images = []
-            # for part in chunk.parts:
-            #     if part.text:
-            #         content += part.text
-            #     elif part.function_call:
-            #         tool_calls.append(self.extract_tool_call(part.function_call))
-            #     elif part.inline_data:
-            #         images.append(self.extract_image(part.inline_data))
-            #     elif part.file_data or part.executable_code or part.code_execution_result:
-            #         raise NotImplementedError("file_data, executable_code, and code_execution_result are not yet supported by UnifAI")
-            content, tool_calls, images = self._extract_parts(chunk.parts)
-
+            chunk_parts = list(chunk.parts)
+            parts.extend(chunk_parts)
+            content, tool_calls, images = self._extract_parts(chunk_parts)
+        
             yield MessageChunk(
                 role="assistant",
                 content=content,
                 tool_calls=tool_calls,
                 images=images
             )
-        
+
+        # response.parts.extend(parts)
+        response.candidates[0].content.parts = parts
         return self.extract_assistant_message_both_formats(response, **kwargs)
-
-
-    # def split_tool_outputs_into_messages(self, 
-    #                                      tool_calls: list[ToolCall], 
-    #                                      content: Optional[str] = None) -> Iterator[Message]:
-    #     yield Message(
-    #         role="tool",
-    #         content=content,
-    #         tool_calls=tool_calls       
-    #     )
 
 
     # List Models
     def list_models(self) -> list[str]:
         return [model.name[7:] for model in self.client.list_models()]
 
+
     def format_model_name(self, model: str) -> str:
         if model.startswith("models/"):
             return model
         return f"models/{model}"
-
-    # # Chat
-    # def chat(
-    #         self,
-    #         messages: list[Message],     
-    #         model: Optional[str] = None,
-    #         system_prompt: Optional[str] = None,                   
-    #         tools: Optional[list[Any]] = None,
-    #         tool_choice: Optional[Union[Tool, str, dict, Literal["auto", "required", "none"]]] = None,            
-    #         response_format: Optional[Union[str, dict[str, str]]] = None,
-
-    #         max_tokens: Optional[int] = None,
-    #         frequency_penalty: Optional[float] = None,
-    #         presence_penalty: Optional[float] = None,
-    #         seed: Optional[int] = None,
-    #         stop_sequences: Optional[list[str]] = None, 
-    #         temperature: Optional[float] = None,
-    #         top_k: Optional[int] = None,
-    #         top_p: Optional[float] = None, 
-
-    #         **kwargs
-    #         ) -> tuple[Message, Any]:
-        
-    #     model = self.format_model_name(model or self.default_model)
-    #     gen_config = GenerationConfig(
-    #         # candidate_count=1,
-    #         stop_sequences=stop_sequences,
-    #         max_output_tokens=max_tokens,
-    #         temperature=temperature,
-    #         top_k=top_k,
-    #         top_p=top_p,
-    #         response_mime_type=response_format, #text/plain or application/json
-    #     )
-
-    #     gen_model = self.client.GenerativeModel(
-    #         model_name=model,
-    #         safety_settings=kwargs.pop("safety_settings", None),
-    #         generation_config=gen_config,
-    #         tools=tools,
-    #         tool_config=tool_choice,
-    #         system_instruction=system_prompt,            
-    #     )
-
-    #     response = self.run_func_convert_exceptions(
-    #         gen_model.generate_content,
-    #         messages
-    #     )
-    #     return self.extract_assistant_message_both_formats(response, model=model)
 
     # Chat
     def get_chat_response(
@@ -558,25 +478,4 @@ class GoogleAIWrapper(BaseAIClientWrapper):
         )
         embeddings = [Embedding(vector=vector, index=i) for i, vector in enumerate(response["embedding"])]
         response_info = ResponseInfo(model=model, usage=Usage())
-        return EmbedResult(embeddings=embeddings, response_info=response_info)
-            
-    
-    
-
-
-    def create_assistant(self, **kwargs):
-        raise NotImplementedError("This method must be implemented by the subclass")
-        
-    def update_assistant(self, ass_id, **kwargs):
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-
-    def create_thread(self):
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-    def create_run(self):
-        raise NotImplementedError("This method must be implemented by the subclass")    
-    
-
-
-   
+        return EmbedResult(embeddings=embeddings, response_info=response_info)            

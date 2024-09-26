@@ -231,10 +231,11 @@ class Chat:
                         
     def extend_messages_with_tool_outputs(self, 
                                         tool_calls: Sequence[ToolCall],
-                                        content: Optional[str] = None
+                                        # content: Optional[str] = None
                                         ) -> None:
 
-        tool_message = Message(role="tool", tool_calls=tool_calls, content=content)
+        # tool_message = Message(role="tool", tool_calls=tool_calls, content=content)
+        tool_message = Message(role="tool", tool_calls=tool_calls)
         self.std_messages.append(tool_message)
         self.client_messages.extend(map(self.client.prep_input_message, self.client.split_tool_message(tool_message)))
         # self.extend_messages(self.client.split_tool_outputs_into_messages(tool_calls, content))
@@ -317,7 +318,7 @@ class Chat:
                 **self.client_kwargs(stream=True, **kwargs)
             )
             # TODO handle error messages
-            # print("\nstd_message:", std_message)
+            print("\nstd_message:", std_message)
 
             # Update usage for entire chat
             self.usage += std_message.response_info.usage
@@ -416,7 +417,9 @@ class Chat:
         if (last_message := self.last_message) and last_message.role == "assistant" and last_message.tool_calls:
             # Submit tool outputs before sending new messages. 
             # Use first new message content as content of tool message or send after as user message based on provider
-            self.extend_messages_with_tool_outputs(last_message.tool_calls, content=messages.pop(0).content)
+            # self.extend_messages_with_tool_outputs(last_message.tool_calls, content=messages.pop(0).content)
+            self.extend_messages_with_tool_outputs(last_message.tool_calls)
+
         
         self.extend_messages(messages)
         

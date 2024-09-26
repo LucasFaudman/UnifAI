@@ -164,7 +164,7 @@ def test_image_and_tools_input_animals(
     ):
 
     if provider == "openai":
-        func_kwargs["model"] = "gpt-4-turbo"
+        func_kwargs["model"] = "chatgpt-4o-latest"
     if provider == "ollama":
         func_kwargs["model"] = "llava-llama3:latest"        
 

@@ -14,6 +14,8 @@ from unifai.types import (
     NullToolParameter,
     ObjectToolParameter,
     ArrayToolParameter,
+    RefToolParameter,
+    AnyOfToolParameter,
     Tool,
     PROVIDER_TOOLS
 )
@@ -371,6 +373,7 @@ TOOL_DICTS = {
             "strict": True
         }
     }, # get_object_with_all_types
+    
 }    
 
 TOOL_OBJECTS = {
@@ -666,4 +669,138 @@ def test_standardize_tools(input_tools, expected_std_tools):
     assert std_tools == expected_std_tools
     assert dict_tools == input_tools
 
+
+
+
+TOOL_DICTS_WITH_DEFS = {
+    "return_linked_list": {
+        "type": "function",
+        "function": {
+            "name": "return_linked_list",
+            "description": "Return a linked list",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                        "linked_list": {
+                            "type": "object",
+                            "properties": {
+                                "linked_list": {
+                                    "$ref": "#/$defs/linked_list_node"
+                                }
+                            },
+                            "$defs": {
+                                "linked_list_node": {
+                                    "type": "object",
+                                    "properties": {
+                                        "value": {
+                                            "type": "number"
+                                        },
+                                        "next": {
+                                            "anyOf": [
+                                                {
+                                                    "$ref": "#/$defs/linked_list_node"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "additionalProperties": False,
+                                    "required": [
+                                        "value",
+                                        "next"
+                                    ]
+                                }
+                            },
+                            "additionalProperties": False,
+                            "required": [
+                                "linked_list"
+                            ]
+                        }, # linked_list
+                },
+                "required": ["linked_list"],
+                "additionalProperties": False
+            },
+            "strict": True
+        },
+    }, # return_linked_list
     
+}
+
+TOOL_OBJECTS_WITH_DEFS = {
+    "return_linked_list": Tool(
+        name="return_linked_list",
+        description="Return a linked list",
+        parameters=ObjectToolParameter(
+            properties=[
+                ObjectToolParameter(
+                    name="linked_list",
+                    properties=[
+                        RefToolParameter(
+                            name="linked_list",
+                            ref="#/$defs/linked_list_node",
+                        )
+                    ],
+                    defs={
+                        "linked_list_node": ObjectToolParameter(
+                            properties=[
+                                NumberToolParameter(
+                                    name="value",
+                                ),
+                                AnyOfToolParameter(
+                                    name="next",
+                                    anyOf=[
+                                        RefToolParameter(
+                                            ref="#/$defs/linked_list_node"
+                                        ),
+                                        NullToolParameter()
+                                    ],
+                                )
+                            ],
+                            additionalProperties=False
+                        )
+                    },                    
+                )
+            ],
+            # defs={
+            #     "linked_list_node": ObjectToolParameter(
+            #         properties=[
+            #             NumberToolParameter(
+            #                 name="value",
+            #             ),
+            #             AnyOfToolParameter(
+            #                 name="next",
+            #                 anyOf=[
+            #                     RefToolParameter(
+            #                         ref="#/$defs/linked_list_node"
+            #                     ),
+            #                     NullToolParameter()
+            #                 ],
+            #             )
+            #         ],
+            #         additionalProperties=False
+            #     )
+            # },
+            additionalProperties=False
+        )
+    ), # return_linked_list
+}
+
+@pytest.mark.parametrize("input_tools, expected_std_tools", [
+    (
+        [TOOL_DICTS_WITH_DEFS["return_linked_list"]],
+        [TOOL_OBJECTS_WITH_DEFS["return_linked_list"]]
+    ), 
+    # (
+    #     # test all tools
+    #     list(TOOL_DICTS_WITH_DEFS.values()),
+    #     list(TOOL_OBJECTS_WITH_DEFS.values())
+    # )
+    
+])
+def test_tool_def_ref(input_tools, expected_std_tools):
+    std_tools = list(standardize_tools(input_tools).values())
+    dict_tools = [tool.to_dict() for tool in std_tools]
+    assert std_tools == expected_std_tools
+    assert dict_tools == input_tools    

@@ -128,12 +128,14 @@ class OllamaWrapper(BaseAIClientWrapper):
         
         raise ValueError("Tool message must have tool_calls") 
 
+
     def split_tool_message(self, message: Message) -> Iterator[Message]:        
         if tool_calls := message.tool_calls:
             for tool_call in tool_calls:
                 yield Message(role="tool", tool_calls=[tool_call])
         if message.content is not None:
             yield Message(role="user", content=message.content)     
+
 
     def prep_input_system_message(self, message: Message) -> OllamaMessage:
         return OllamaMessage(role='system', content=message.content or '')
@@ -205,6 +207,7 @@ class OllamaWrapper(BaseAIClientWrapper):
     def extract_image(self, response_image: Any, **kwargs) -> Image:
         raise NotImplementedError("This method must be implemented by the subclass")
 
+
         # Tool Calls
     def extract_tool_call(self, response_tool_call: OllamaToolCall, **kwargs) -> ToolCall:
         return ToolCall(
@@ -213,6 +216,7 @@ class OllamaWrapper(BaseAIClientWrapper):
             arguments=response_tool_call['function'].get('arguments')
         )
     
+
         # Response Info (Model, Usage, Done Reason, etc.)
     def extract_done_reason(self, response_obj: OllamaChatResponse, **kwargs) -> str|None:        
         if not (done_reason := response_obj.get("done_reason")):
@@ -236,20 +240,8 @@ class OllamaWrapper(BaseAIClientWrapper):
         model = response["model"]
         done_reason = self.extract_done_reason(response)
         usage = self.extract_usage(response)
-        # done_reason = response.get("done_reason")
-        # if done_reason == "stop" and response["message"].get("tool_calls"):
-        #     done_reason = "tool_calls"
-        # elif done_reason != "stop" and done_reason is not None:
-        #     # TODO handle other done_reasons 
-        #     done_reason = "max_tokens"
-
-
-        # usage = Usage(
-        #     input_tokens=response.get("prompt_eval_count", 0), 
-        #     output_tokens=response.get("eval_count", 0)
-        # )
-        
         return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
+    
     
         # Assistant Messages (Content, Images, Tool Calls, Response Info)
     def extract_assistant_message_both_formats(self, response: OllamaChatResponse, **kwargs) -> tuple[Message, OllamaMessage]:
@@ -275,13 +267,6 @@ class OllamaWrapper(BaseAIClientWrapper):
         )
         return std_message, client_message
     
-
-    # def split_tool_outputs_into_messages(self, tool_calls: list[ToolCall], content: Optional[str] = None) -> Iterator[Message]:        
-    #     for tool_call in tool_calls:
-    #         yield Message(role="tool", content=stringify_content(tool_call.output), tool_calls=[tool_call])        
-    #     if content is not None:
-    #         yield Message(role="user", content=content)
-
 
     def extract_stream_chunks(self, response: Iterator[OllamaChatResponse], **kwargs) -> Generator[MessageChunk, None, tuple[Message, OllamaMessage]]:
         content = ""
@@ -366,19 +351,6 @@ class OllamaWrapper(BaseAIClientWrapper):
             **kwargs
             ) -> OllamaChatResponse|Iterator[OllamaChatResponse]:
         
-            # if (tool_choice and tool_choice != "auto" and system_prompt
-            #     and messages and messages[0]["role"] == "system"
-            #     ):                
-            #     if tool_choice == "required":
-            #         messages[0]["content"] = f"{system_prompt}\nYou MUST call one or more tools."
-            #     elif tool_choice == "none":
-            #         messages[0]["content"] = f"{system_prompt}\nYou CANNOT call any tools."
-            #     else:
-            #         messages[0]["content"] = f"{system_prompt}\nYou MUST call the tool '{tool_choice}' with ALL of its required arguments."
-            #     system_prompt_modified = True
-            # else:
-            #     system_prompt_modified = False
-
             user_messages = [message for message in messages if message["role"] == 'user']
             last_user_content = user_messages[-1].get("content", "") if user_messages else ""            
             if (tool_choice and tool_choice != "auto" and last_user_content is not None
@@ -426,98 +398,8 @@ class OllamaWrapper(BaseAIClientWrapper):
             if last_user_content_modified:
                 user_messages[-1]["content"] = last_user_content
 
-            # if system_prompt_modified:
-            #     response['message']['content'] = system_prompt
-
             # ollama-python is incorrectly typed as Mapping[str, Any] instead of OllamaChatResponse
             return response
-
-    # def chat(
-    #         self,
-    #         messages: list[OllamaMessage],     
-    #         model: Optional[str] = None, 
-    #         system_prompt: Optional[str] = None,                   
-    #         tools: Optional[list[OllamaTool]] = None,
-    #         tool_choice: Optional[str] = None,
-    #         response_format: Optional[str] = '',
-
-    #         max_tokens: Optional[int] = None,
-    #         frequency_penalty: Optional[float] = None,
-    #         presence_penalty: Optional[float] = None,
-    #         seed: Optional[int] = None,
-    #         stop_sequences: Optional[list[str]] = None, 
-    #         temperature: Optional[float] = None,
-    #         top_k: Optional[int] = None,
-    #         top_p: Optional[float] = None,             
-    #         **kwargs
-    #         ) -> tuple[Message, OllamaMessage]:
-        
-    #         # if (tool_choice and tool_choice != "auto" and system_prompt
-    #         #     and messages and messages[0]["role"] == "system"
-    #         #     ):                
-    #         #     if tool_choice == "required":
-    #         #         messages[0]["content"] = f"{system_prompt}\nYou MUST call one or more tools."
-    #         #     elif tool_choice == "none":
-    #         #         messages[0]["content"] = f"{system_prompt}\nYou CANNOT call any tools."
-    #         #     else:
-    #         #         messages[0]["content"] = f"{system_prompt}\nYou MUST call the tool '{tool_choice}' with ALL of its required arguments."
-    #         #     system_prompt_modified = True
-    #         # else:
-    #         #     system_prompt_modified = False
-
-    #         user_messages = [message for message in messages if message["role"] == 'user']
-    #         last_user_content = user_messages[-1].get("content", "") if user_messages else ""            
-    #         if (tool_choice and tool_choice != "auto" and last_user_content is not None
-    #             ):                
-    #             if tool_choice == "required":
-    #                 user_messages[-1]["content"] = f"{last_user_content}\nYou MUST call one or more tools."
-    #             elif tool_choice == "none":
-    #                 user_messages[-1]["content"] = f"{last_user_content}\nYou CANNOT call any tools."
-    #             else:
-    #                 user_messages[-1]["content"] = f"{last_user_content}\nYou MUST call the tool '{tool_choice}' with ALL of its required arguments."
-    #             last_user_content_modified = True
-    #         else:
-    #             last_user_content_modified = False
-
-    #         keep_alive = kwargs.pop('keep_alive', None)
-    #         stream = kwargs.pop('stream', False)
-            
-    #         if frequency_penalty is not None:
-    #             kwargs["frequency_penalty"] = frequency_penalty
-    #         if presence_penalty is not None:
-    #             kwargs["presence_penalty"] = presence_penalty
-    #         if seed is not None:
-    #             kwargs["seed"] = seed
-    #         if stop_sequences is not None:
-    #             kwargs["stop"] = stop_sequences
-    #         if temperature is not None:
-    #             kwargs["temperature"] = temperature
-    #         if top_k is not None:
-    #             kwargs["top_k"] = top_k
-    #         if top_p is not None:
-    #             kwargs["top_p"] = top_p
-
-    #         options = OllamaOptions(**kwargs) if kwargs else None
-
-    #         response = self.run_func_convert_exceptions(
-    #             func=self.client.chat,
-    #             messages=messages,                 
-    #             model=model, 
-    #             tools=tools, 
-    #             format=response_format, 
-    #             keep_alive=keep_alive,
-    #             stream=stream,
-    #             options=options
-    #         )
-
-    #         if last_user_content_modified:
-    #             user_messages[-1]["content"] = last_user_content
-
-    #         # if system_prompt_modified:
-    #         #     response['message']['content'] = system_prompt
-
-    #         # ollama-python is incorrectly typed as Mapping[str, Any] instead of OllamaChatResponse
-    #         return self.extract_assistant_message_both_formats(response)
 
 
     # Embeddings
@@ -541,24 +423,9 @@ class OllamaWrapper(BaseAIClientWrapper):
             keep_alive=keep_alive,
             options=options
         )
-        # if isinstance(input, str):
-        #     embeddings = [Embedding(vector=response['embeddings'], index=0)]
-        # else:
-        #     embeddings = [Embedding(vector=vector, index=i) for i, vector in enumerate(response['embeddings'])]
+        
         embeddings = [Embedding(vector=vector[:max_dimensions], index=i) for i, vector in enumerate(response['embeddings'])]
         usage = Usage(input_tokens=response['prompt_eval_count'])
         response_info = ResponseInfo(model=model, usage=usage)
         return EmbedResult(embeddings=embeddings, response_info=response_info)
 
-    # Ollama Specific Methods
-    def get_custom_model(self, base_model: str, system_prompt: str) -> str:
-        model_name = f"{base_model}_{sha256_hash(system_prompt)}"
-        if model_name not in self.list_models():
-            modelfile = f'FROM {base_model}\nSYSTEM """{system_prompt}"""'
-            prog_response = self.client.create(model=model_name, modelfile=modelfile)
-            print(prog_response)
-        return model_name
-    
-    def get_system_prompt_from_messages(self, messages: list[Message]) -> Optional[str]:
-        if messages and messages[0].role == 'system':
-            return messages[0].content    

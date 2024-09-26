@@ -154,28 +154,6 @@ class BaseAIClientWrapper:
             ) -> Any:
         raise ProviderUnsupportedFeatureError(f"{self.provider} does not support chat")
             
-    # def chat(
-    #         self,
-    #         messages: list[T],     
-    #         model: Optional[str] = None,
-    #         system_prompt: Optional[str] = None,                   
-    #         tools: Optional[list[Any]] = None,
-    #         tool_choice: Optional[Union[Tool, str, dict, Literal["auto", "required", "none"]]] = None,            
-    #         response_format: Optional[Union[str, dict[str, str]]] = None,
-
-    #         max_tokens: Optional[int] = None,
-    #         frequency_penalty: Optional[float] = None,
-    #         presence_penalty: Optional[float] = None,
-    #         seed: Optional[int] = None,
-    #         stop_sequences: Optional[list[str]] = None, 
-    #         temperature: Optional[float] = None,
-    #         top_k: Optional[int] = None,
-    #         top_p: Optional[float] = None, 
-
-    #         **kwargs
-    #         ) -> tuple[Message, T]:
-    #     raise ProviderUnsupportedFeatureError(f"{self.provider} does not support chat")
-
     def chat(
             self,
             messages: list[T],     
@@ -184,7 +162,6 @@ class BaseAIClientWrapper:
             # tools: Optional[list[dict]] = None,
             # tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
             # response_format: Optional[str] = None,
-            # stream: bool = False,
             # max_tokens: Optional[int] = None,
             # frequency_penalty: Optional[float] = None,
             # presence_penalty: Optional[float] = None,
@@ -209,7 +186,6 @@ class BaseAIClientWrapper:
             # tools: Optional[list[dict]] = None,
             # tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
             # response_format: Optional[str] = None,
-            # stream: bool = False,
             # max_tokens: Optional[int] = None,
             # frequency_penalty: Optional[float] = None,
             # presence_penalty: Optional[float] = None,
@@ -222,8 +198,21 @@ class BaseAIClientWrapper:
             **kwargs
             ) -> Generator[MessageChunk, None, tuple[Message, T]]:
         
-        response = self.get_chat_response(messages=messages, **kwargs)
-        std_message, client_message = yield from self.extract_stream_chunks(response, **kwargs)
+        # response = self.get_chat_response(messages=messages, **kwargs)
+        # std_message, client_message = yield from self.extract_stream_chunks(response, **kwargs)
+        # return std_message, client_message
+
+        response = self.run_func_convert_exceptions(
+            func=self.get_chat_response,
+            messages=messages, 
+            **kwargs
+        )
+
+        try:
+            std_message, client_message = yield from self.extract_stream_chunks(response, **kwargs)
+        except Exception as e:
+            raise self.convert_exception(e) from e
+        
         return std_message, client_message
 
     # Embeddings

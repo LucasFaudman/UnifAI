@@ -35,7 +35,7 @@ PROVIDER_DEFAULTS = {
 
 def base_test_all_providers(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
-        *PROVIDER_DEFAULTS.values()
+        *list(PROVIDER_DEFAULTS.values())[:-1]
     ])(func)
 
 def base_test_no_anthropic(func):

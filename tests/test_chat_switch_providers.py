@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAIClient, AIProvider, tool
+from unifai import UnifAIClient, AIProvider, tool, MessageChunk
 from unifai.types import Message, Tool
 from basetest import base_test_all_providers, PROVIDER_DEFAULTS
 
@@ -97,27 +97,38 @@ def test_switch_providers_tool_calls(
 ):
     ai = UnifAIClient({provider1: client_kwargs1, provider2: client_kwargs2}, tools=[get_current_weather])
     chat = ai.chat(
-        [Message(role="user", content="What's the weather in San Francisco, Tokyo, and Paris?")], 
+        # [Message(role="user", content="What's the weather in San Francisco, Tokyo, and Paris?")], 
         provider=provider1, 
         tools=["get_current_weather"],
         tool_choice=["get_current_weather", "none", "none"],
         enforce_tool_choice=True,        
         **func_kwargs1)
+    message = Message(role="user", content="What's the weather today in San Francisco, Tokyo, and Paris?")
+    for message_chunk in chat.send_message_stream(message):
+        assert isinstance(message_chunk, MessageChunk)
+        if message_chunk.content:
+            print(message_chunk.content, flush=True, end="")
+        if message_chunk.tool_calls:
+            for tool_call in message_chunk.tool_calls:
+                print(f"\nCalled Tool: {tool_call.tool_name} with args: {tool_call.arguments}")
+
     assert isinstance(chat.messages, list)
     assert isinstance(chat.last_content, str)
-    print(chat.last_content)
+    # print(chat.last_content)
+    print(f"Switch Providers: {provider1} -> {provider2}")
     chat.set_provider(provider2)
     assert chat.provider == provider2
-    ass_message = chat.send_message(Message(role="user", content="Is it sunny in San Francisco today?. Use previous tool calls to answer this, DO NOT call any more tools."))
+    # ass_message = chat.send_message(Message(role="user", content="Is it sunny in San Francisco today?. Use previous tool calls to answer this, DO NOT call any more tools."))
+    ass_message = chat.send_message(Message(role="user", content="Is it sunny in San Francisco today?. Use previous tool calls to answer this."))
     assert ass_message.role == "assistant"
     assert ass_message.content
     assert "sunny" in ass_message.content.lower()
-    print(ass_message)
+    # print(ass_message)
 
 
-    for message in chat.messages:
-        print(f"{message.role}: {message.tool_calls or message.content}")
-        print()
+    # for message in chat.messages:
+    #     print(f"{message.role}: {message.tool_calls or message.content}")
+    #     print()
     
     num_user_messages = sum(1 for message in chat.messages if message.role == "user")
     num_ass_messages = sum(1 for message in chat.messages if message.role == "assistant")
