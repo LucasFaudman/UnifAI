@@ -34,7 +34,9 @@ PROVIDER_DEFAULTS = {
 
     "chroma": (
         "chroma",
-        {"persist_directory": "/Users/lucasfaudman/Documents/UnifAI/scratch/gita_embeddings"},
+        {"persist_directory": "/Users/lucasfaudman/Documents/UnifAI/scratch/gita_embeddings",
+         "is_persistent": False
+         },
         {}
     ),
 

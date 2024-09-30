@@ -28,4 +28,17 @@ PROVIDER_DEFAULTS = {
         {"host": "http://librem-2.local:11434"},
         {"keep_alive": "10m", 'model': 'llama3.1-8b-num_ctx-8192:latest'}
     ),
+    "chroma": (
+        "chroma",
+        {"persist_directory": "/Users/lucasfaudman/Documents/UnifAI/scratch/gita_embeddings",
+         "is_persistent": False
+         },
+        {}
+    ),
+
+    "pinecone": (
+        "pinecone",
+        {"persist_directory": "/Users/lucasfaudman/Documents/UnifAI/scratch/gita_embeddings"},
+        {}
+    ),      
 }

@@ -8,19 +8,7 @@ from pydantic import BaseModel
 
 T = TypeVar("T")
 
-# class VectorDBGetResult(BaseModel):
-#     ids: list[str]
-#     embeddings: Optional[list[Embedding]]
-#     documents: Optional[list[str]]
-#     metadatas: Optional[list[dict]]    
-#     included: list[Literal["embeddings", "metadatas", "documents"]]
-
-# class VectorDBQueryResult(VectorDBGetResult):
-#     distances: Optional[list[float]]
-#     included: list[Literal["embeddings", "metadatas", "documents", "distances"]]
-
-
-class BaseVectorDBIndex(UnifAIExceptionConverter):
+class VectorDBIndex(UnifAIExceptionConverter):
 
     def __init__(self,
                  wrapped: Any,
@@ -75,7 +63,7 @@ class BaseVectorDBIndex(UnifAIExceptionConverter):
     def convert_get_result(self, client_get_result: Any) -> VectorDBGetResult:
         raise NotImplementedError("This method must be implemented by the subclass")    
     
-    def convert_query_result(self, client_query_result: Any) -> VectorDBQueryResult:
+    def convert_query_result(self, client_query_result: Any) -> list[VectorDBQueryResult]:
         raise NotImplementedError("This method must be implemented by the subclass")  
         
 
@@ -153,14 +141,14 @@ class BaseVectorDBIndex(UnifAIExceptionConverter):
         return self.convert_get_result(client_get_result)
 
 
-    def query(self,
-              query_embeddings: Optional[list[Embedding]] = None,
+    def query(self,              
               query_texts: Optional[list[str]] = None,
+              query_embeddings: Optional[list[Embedding]] = None,
               n_results: int = 10,
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["metadatas", "documents", "distances"]] = ("metadatas", "documents", "distances"),
-              ) -> VectorDBQueryResult:
+              ) -> list[VectorDBQueryResult]:
         
         client_query_result = self.wrapped.query(
             query_embeddings=self.prep_embeddings(query_embeddings) if query_embeddings else None, 
@@ -173,7 +161,14 @@ class BaseVectorDBIndex(UnifAIExceptionConverter):
         return self.convert_query_result(client_query_result) 
     
 
-class BaseVectorDBClient(BaseClientWrapper):
+    def get_all_ids(self) -> list[str]:
+        return self.get(include=[]).ids
+    
+    def delete_all(self) -> None:
+        self.delete(ids=self.get_all_ids())
+    
+
+class VectorDBClient(BaseClientWrapper):
     provider = "base_vector_db"
 
     def __init__(self, 
@@ -205,11 +200,11 @@ class BaseVectorDBClient(BaseClientWrapper):
                      dimensions: Optional[int] = None,
                      distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
                      **kwargs
-                     ) -> BaseVectorDBIndex:
+                     ) -> VectorDBIndex:
         raise NotImplementedError("This method must be implemented by the subclass")
     
 
-    def get_index(self, name: str) -> BaseVectorDBIndex:
+    def get_index(self, name: str) -> VectorDBIndex:
         if index := self.indexes.get(name):
             return index
         raise UnifAIError(f"Index {name} not found")
@@ -223,7 +218,7 @@ class BaseVectorDBClient(BaseClientWrapper):
                             dimensions: Optional[int] = None,
                             distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
                             **kwargs
-                            ) -> BaseVectorDBIndex:
+                            ) -> VectorDBIndex:
         raise NotImplementedError("This method must be implemented by the subclass")
     
 
@@ -238,6 +233,11 @@ class BaseVectorDBClient(BaseClientWrapper):
         raise NotImplementedError("This method must be implemented by the subclass")
     
 
+    def delete_all_indexes(self) -> None:
+        for name in self.list_indexes():
+            self.delete_index(name)
+
+
     def count_indexes(self) -> int:
         return self.client.count_collections()
 
@@ -250,7 +250,7 @@ class BaseVectorDBClient(BaseClientWrapper):
                      name: str, 
                      new_name: Optional[str]=None,
                      new_metadata: Optional[dict]=None,
-                     ) -> BaseVectorDBIndex:
+                     ) -> VectorDBIndex:
         return self.get_index(name).modify(new_name, new_metadata)   
 
 
@@ -260,7 +260,7 @@ class BaseVectorDBClient(BaseClientWrapper):
             metadatas: Optional[list[dict]] = None,
             documents: Optional[list[str]] = None,
             embeddings: Optional[list[Embedding]] = None,
-            ) -> BaseVectorDBIndex:
+            ) -> VectorDBIndex:
         return self.get_index(name).add(ids, metadatas, documents, embeddings)
     
 
@@ -270,7 +270,7 @@ class BaseVectorDBClient(BaseClientWrapper):
                metadatas: Optional[list[dict]] = None,
                documents: Optional[list[str]] = None,
                embeddings: Optional[list[Embedding]] = None,
-               ) -> BaseVectorDBIndex:
+               ) -> VectorDBIndex:
         return self.get_index(name).update(ids, metadatas, documents, embeddings)
     
 
@@ -280,7 +280,7 @@ class BaseVectorDBClient(BaseClientWrapper):
                metadatas: Optional[list[dict]] = None,
                documents: Optional[list[str]] = None,
                embeddings: Optional[list[Embedding]] = None,
-               ) -> BaseVectorDBIndex:
+               ) -> VectorDBIndex:
           return self.get_index(name).upsert(ids, metadatas, documents, embeddings)
     
 
@@ -306,11 +306,11 @@ class BaseVectorDBClient(BaseClientWrapper):
 
     def query(self,
               name: str,
-              query_embeddings: Optional[list[Embedding]] = None,
-              query_documents: Optional[list[str]] = None,
+              query_texts: Optional[list[str]] = None,
+              query_embeddings: Optional[list[Embedding]] = None,              
               n_results: int = 10,
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["embeddings", "metadatas", "documents", "distances"]] = ("metadatas", "documents", "distances"),
               ) -> VectorDBQueryResult:
-        return self.get_index(name).query(query_embeddings, query_documents, n_results, where, where_document, include)    
+        return self.get_index(name).query(query_texts, query_embeddings, n_results, where, where_document, include)    

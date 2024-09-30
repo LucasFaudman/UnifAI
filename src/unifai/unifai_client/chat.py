@@ -318,7 +318,7 @@ class Chat:
                 **self.client_kwargs(stream=True, **kwargs)
             )
             # TODO handle error messages
-            print("\nstd_message:", std_message)
+            # print("\nstd_message:", std_message)
 
             # Update usage for entire chat
             self.usage += std_message.response_info.usage

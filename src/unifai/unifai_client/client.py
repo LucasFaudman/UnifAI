@@ -5,8 +5,8 @@ from unifai.wrappers.ai_clients._base_ai_client import BaseAIClient
 from unifai.wrappers._base_client_wrapper import BaseClientWrapper
 
 from unifai.wrappers.vector_db_clients._base_vector_db_client import (
-    BaseVectorDBClient, 
-    BaseVectorDBIndex,
+    VectorDBClient, 
+    VectorDBIndex,
     VectorDBGetResult,
     VectorDBQueryResult
 )
@@ -63,7 +63,7 @@ class UnifAIClient:
         self.set_default_ai_provider(default_ai_provider)
         self.set_default_vector_db_provider(default_vector_db_provider)
         
-        self._clients: dict[Provider, BaseAIClientWrapper|BaseVectorDBClient] = {}
+        self._clients: dict[Provider, BaseAIClientWrapper|VectorDBClient] = {}
         self.tools: dict[str, Tool] = {}
         self.tool_callables: dict[str, Callable] = {}
         self.eval_prameters: dict[str, EvaluateParameters] = {}
@@ -118,7 +118,7 @@ class UnifAIClient:
         self.eval_prameters.update(standardize_eval_prameters(eval_prameters))
 
 
-    def import_client_wrapper(self, provider: Provider) -> Type[BaseAIClientWrapper|BaseVectorDBClient]:
+    def import_client_wrapper(self, provider: Provider) -> Type[BaseAIClientWrapper|VectorDBClient]:
         match provider:
             # AI Client Wrappers
             case "anthropic":
@@ -141,7 +141,7 @@ class UnifAIClient:
                 raise ValueError(f"Invalid provider: {provider}")
             
 
-    def init_client(self, provider: Provider, **client_kwargs) -> BaseAIClientWrapper|BaseVectorDBClient:
+    def init_client(self, provider: Provider, **client_kwargs) -> BaseAIClientWrapper|VectorDBClient:
         client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
         if provider in REQUIRES_PARENT and "parent" not in client_kwargs:
             client_kwargs["parent"] = self
@@ -154,10 +154,10 @@ class UnifAIClient:
         ...
 
     @overload
-    def get_client(self, provider: VectorDBProvider, **client_kwargs) -> BaseVectorDBClient:
+    def get_client(self, provider: VectorDBProvider, **client_kwargs) -> VectorDBClient:
         ...        
 
-    def get_client(self, provider: Provider, **client_kwargs) -> BaseAIClientWrapper|BaseVectorDBClient:
+    def get_client(self, provider: Provider, **client_kwargs) -> BaseAIClientWrapper|VectorDBClient:
         provider = provider or self.default_ai_provider
         if provider not in self._clients or (client_kwargs and self._clients[provider].client_kwargs != client_kwargs):
             return self.init_client(provider, **client_kwargs)
@@ -167,7 +167,7 @@ class UnifAIClient:
         provider = provider or self.default_ai_provider
         return self.get_client(provider, **client_kwargs)
 
-    def get_vector_db_client(self, provider: Optional[VectorDBProvider] = None, **client_kwargs) -> BaseVectorDBClient:
+    def get_vector_db_client(self, provider: Optional[VectorDBProvider] = None, **client_kwargs) -> VectorDBClient:
         provider = provider or self.default_vector_db_provider
         return self.get_client(provider, **client_kwargs)
 
@@ -445,14 +445,14 @@ class UnifAIClient:
                             distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 
                             index_metadata: Optional[dict] = None,
                             **kwargs
-                            ) -> BaseVectorDBIndex:
+                            ) -> VectorDBIndex:
         return self.get_vector_db_client(vector_db_provider).get_or_create_index(
             name=name,
             embedding_provider=embedding_provider,
             embedding_model=embedding_model,
             dimensions=dimensions,
             distance_metric=distance_metric,
-            index_metadata=index_metadata,
+            metadata=index_metadata,
             **kwargs
         )
     
@@ -468,7 +468,7 @@ class UnifAIClient:
                      dimensions: Optional[int] = None,
                      distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 
                      index_metadata: Optional[dict] = None
-                     ) -> BaseVectorDBIndex:
+                     ) -> VectorDBIndex:
         return self.get_or_create_index(
               name=name,
               vector_db_provider=vector_db_provider,

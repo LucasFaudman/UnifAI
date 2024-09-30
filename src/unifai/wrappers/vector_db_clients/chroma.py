@@ -1,6 +1,6 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_vector_db_client import BaseVectorDBIndex, BaseVectorDBClient
+from ._base_vector_db_client import VectorDBIndex, VectorDBClient
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, AIProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, BadRequestError
@@ -8,7 +8,7 @@ from unifai.wrappers._base_client_wrapper import UnifAIExceptionConverter, conve
 from pydantic import BaseModel
 
 # import chromadb
-from chromadb import Client as ChromaDefaultClient
+from chromadb import Client as ChromaDefaultClient, PersistentClient as ChromaPersistentClient
 from chromadb.api import ClientAPI as ChromaClientAPI
 from chromadb.api.models.Collection import Collection as ChromaCollection
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings as ChromaSettings
@@ -21,6 +21,8 @@ from chromadb.api.types import (
 )
 from chromadb.errors import ChromaError
 
+from itertools import zip_longest
+
 class ChromaExceptionConverter(UnifAIExceptionConverter):
     def convert_exception(self, exception: ChromaError) -> UnifAIError:
         status_code=exception.code()
@@ -31,7 +33,7 @@ class ChromaExceptionConverter(UnifAIExceptionConverter):
             original_exception=exception
         )    
 
-class ChromaIndex(BaseVectorDBIndex, ChromaExceptionConverter):
+class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
 
     def __init__(self,
                  wrapped: ChromaCollection,
@@ -100,8 +102,26 @@ class ChromaIndex(BaseVectorDBIndex, ChromaExceptionConverter):
             included=client_get_result["included"] 
         )
     
-    def convert_query_result(self, client_query_result: Any) -> VectorDBQueryResult:
-        raise NotImplementedError("This method must be implemented by the subclass")  
+    def convert_query_result(self, client_query_result: ChromaQueryResult) -> list[VectorDBQueryResult]:
+        included = client_query_result["included"]
+        empty_tuple = ()
+        return [
+            VectorDBQueryResult(
+                ids=ids,
+                metadatas=metadatas,
+                documents=documents,
+                embeddings=embeddings,
+                distances=distances,
+                included=included
+            ) for ids, metadatas, documents, embeddings, distances in zip_longest(
+                client_query_result["ids"],
+                client_query_result["metadatas"] or empty_tuple,
+                client_query_result["documents"] or empty_tuple,
+                client_query_result["embeddings"] or empty_tuple,
+                client_query_result["distances"] or empty_tuple,
+                fillvalue=None
+            )
+        ]
         
     @convert_exceptions
     def add(self,
@@ -156,7 +176,7 @@ class ChromaIndex(BaseVectorDBIndex, ChromaExceptionConverter):
                ) -> None:
         return self.wrapped.delete(ids=ids, where=where, where_document=where_document)
 
-    
+
     @convert_exceptions
     def get(self,
             ids: Optional[list[str]] = None,
@@ -179,8 +199,8 @@ class ChromaIndex(BaseVectorDBIndex, ChromaExceptionConverter):
 
     @convert_exceptions
     def query(self,
-              query_embeddings: Optional[list[Embedding]] = None,
               query_texts: Optional[list[str]] = None,
+              query_embeddings: Optional[list[Embedding]] = None,              
               n_results: int = 10,
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
@@ -216,41 +236,52 @@ class UnifAIChromaEmbeddingFunction(EmbeddingFunction[list[str]]):
     def __call__(self, input: Documents) -> Embeddings:
         """Embed the input documents."""
         print(f"Embedding {len(input)} documents")
-        embded_result = self.parent.embed(
+        embed_result = self.parent.embed(
             input=input,
             model=self.model,
             provider=self.embedding_provider,
             max_dimensions=self.max_dimensions
         )
-        self.response_infos.append(embded_result.response_info)
-        return embded_result.list()
+        self.response_infos.append(embed_result.response_info)
+        return embed_result.list()
         
 
-class ChromaClient(BaseVectorDBClient, ChromaExceptionConverter):
+class ChromaClient(VectorDBClient, ChromaExceptionConverter):
     client: ChromaClientAPI
 
     def import_client(self) -> Callable:
         from chromadb import Client
         return Client
+
         
     def init_client(self, **client_kwargs) -> ChromaClientAPI:
         self.client_kwargs.update(client_kwargs)
-        tentant = self.client_kwargs.pop("tenant", DEFAULT_TENANT)
-        database = self.client_kwargs.pop("database", DEFAULT_DATABASE)
-        
-        # extra kwargs will be passed to the Settings constructor
-        extra_kwargs = {k: v for k, v in self.client_kwargs.items() if k not in ["settings", "tenant", "database"]}
-        self.client_kwargs.clear()
+        # tentant = self.client_kwargs.get("tenant", DEFAULT_TENANT)
+        # database = self.client_kwargs.get("database", DEFAULT_DATABASE)
+        path = self.client_kwargs.pop("path", None)
+        settings = self.client_kwargs.get("settings", None)
 
-        if self.client_kwargs.get("settings") is None:
-            self.client_kwargs["settings"] = ChromaSettings(**extra_kwargs)
-        if not isinstance((settings := self.client_kwargs["settings"]), ChromaSettings):
-            self.client_kwargs["settings"] = ChromaSettings(**settings, **extra_kwargs)            
-        if self.client_kwargs["settings"].persist_directory and self.client_kwargs["settings"].is_persistent is None:
-            self.client_kwargs["settings"].is_persistent = True
+        extra_kwargs = {k: v for k, v in self.client_kwargs.items() if k not in ["tenant", "database", "settings"]}
 
-        self.client_kwargs["tenant"] = tentant
-        self.client_kwargs["database"] = database
+        if settings is None:
+            settings = ChromaSettings(**extra_kwargs)
+        elif isinstance(settings, dict):
+            settings = ChromaSettings(**settings, **extra_kwargs)
+        elif not isinstance(settings, ChromaSettings):
+            raise ValueError("Settings must be a dictionary or a chromadb.config.Settings object")
+
+        for k in extra_kwargs:
+            setattr(settings, k, self.client_kwargs.pop(k))
+
+        if path is not None:
+            if settings.persist_directory:
+                raise ValueError("Path and persist_directory cannot both be set. path is shorthand for persist_directory={path} and is_persistent=True")
+            settings.persist_directory = path if isinstance(path, str) else str(path)
+            settings.is_persistent = True
+        elif settings.persist_directory and not settings.is_persistent:
+            settings.is_persistent = True           
+
+        self.client_kwargs["settings"] = settings
         self._client = self.import_client()(**self.client_kwargs)
         return self._client
     
@@ -420,5 +451,5 @@ class ChromaClient(BaseVectorDBClient, ChromaExceptionConverter):
     
     @convert_exceptions
     def delete_index(self, name: str):
-        del self.indexes[name]
+        self.indexes.pop(name, None)
         return self.client.delete_collection(name=name)

@@ -1,11 +1,11 @@
-from unifai import UnifAIClient, tool
-
+from unifai import UnifAIClient
+from unifai.wrappers.vector_db_clients._base_vector_db_client import VectorDBClient, VectorDBIndex
 from _provider_defaults import PROVIDER_DEFAULTS
 
 from pathlib import Path
 from json import load
-from chromadb.api.models.Collection import Collection
 
+# https://prabhupadabooks.com/books
 GITA_PATH = Path("/Users/lucasfaudman/Documents/UnifAI/scratch/geeda.json")
 GITA_EMBEDDINGS_DB_PATH = Path("/Users/lucasfaudman/Documents/UnifAI/scratch/gita_embeddings")
 
@@ -32,38 +32,35 @@ def chunk_gita(path: Path) -> list[dict]:
     return gita_chunks
 
 
-def embed_gita(collection: Collection, gita_chunks: list[dict]):
-    ids, metadatas, documents = [], [], []
-    for chunk in gita_chunks:
-        ids.append(chunk["id"])
-        metadatas.append(chunk["metadata"])
-        documents.append(chunk["document"])
-
-    collection.add(
-        ids=ids,
-        metadatas=metadatas,
-        documents=documents
-    )
-
-
 def main():
     
     ai = UnifAIClient(
             provider_client_kwargs={
                 "google": PROVIDER_DEFAULTS["google"][1],
                 "openai": PROVIDER_DEFAULTS["openai"][1],
-                "ollama": PROVIDER_DEFAULTS["ollama"][1]
+                "ollama": PROVIDER_DEFAULTS["ollama"][1],
+                "chroma": PROVIDER_DEFAULTS["chroma"][1]
             }
         )
-    ai.init_chroma_client(GITA_EMBEDDINGS_DB_PATH)
-    gita_collection = ai.get_chroma_collection(
-        name="gita", 
-        provider="openai",
-        model="text-embedding-3-large")
     
-    gita_chunks = chunk_gita(GITA_PATH)
-    embed_gita(gita_collection, gita_chunks)
+    gita_index = ai.get_or_create_index(        
+        name="gita", 
+        vector_db_provider="chroma",
+        embedding_provider="openai",
+        embedding_model="text-embedding-3-large"
+    )
+            
+    ids, metadatas, documents = [], [], []
+    for chunk in chunk_gita(GITA_PATH):
+        ids.append(chunk["id"])
+        metadatas.append(chunk["metadata"])
+        documents.append(chunk["document"])
 
+    gita_index.upsert(
+        ids=ids,
+        metadatas=metadatas,
+        documents=documents
+    )
 
 
 if __name__ == "__main__":

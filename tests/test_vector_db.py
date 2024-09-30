@@ -2,7 +2,7 @@ import pytest
 from typing import Optional, Literal
 
 from unifai import UnifAIClient, AIProvider, VectorDBProvider, Provider
-from unifai.wrappers.vector_db_clients import BaseVectorDBClient, BaseVectorDBIndex, ChromaClient, ChromaIndex
+from unifai.wrappers.vector_db_clients import VectorDBClient, VectorDBIndex, ChromaClient, ChromaIndex
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError
 from basetest import base_test_all_db_providers, base_test_db_no_pinecone, PROVIDER_DEFAULTS
@@ -63,7 +63,7 @@ def parameterize_dimensions(func):
         [
             None, 
             # 100, 
-            # 1000, 
+            1000, 
             1536, 
             # 3072
         ]
@@ -101,8 +101,13 @@ def test_vector_db_create_index(provider: Provider,
                                 embedding_provider: Optional[AIProvider],
                                 embedding_model: Optional[str],
                                 dimensions: Optional[int],
-                                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]]                                                                
+                                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]],                                                                                               
+                                tmp_path,
+                                serial
                                 ):
+    # if provider == "chroma":
+    #     client_kwargs["persist_directory"] = str(tmp_path)
+    # name = f"{name}_{provider}_{embedding_provider}_{embedding_model}_{dimensions}_{distance_metric}"
 
     ai = UnifAIClient({
         provider: client_kwargs,
@@ -113,9 +118,8 @@ def test_vector_db_create_index(provider: Provider,
 
     client = ai.get_client(provider)
     assert client
-    assert isinstance(client, BaseVectorDBClient)
-    # if provider == "chroma":
-    #     assert isinstance(client, ChromaClient)
+    assert isinstance(client, VectorDBClient)
+    client.delete_all_indexes() # Reset for each test
 
     index = client.create_index(
         name=name,
@@ -126,7 +130,7 @@ def test_vector_db_create_index(provider: Provider,
         distance_metric=distance_metric
     )
     assert index
-    assert isinstance(index, BaseVectorDBIndex)
+    assert isinstance(index, VectorDBIndex)
     assert index.name == name
     
     updated_metadata = {
@@ -164,7 +168,7 @@ def test_vector_db_create_index(provider: Provider,
     )
 
     assert index2
-    assert isinstance(index2, BaseVectorDBIndex)
+    assert isinstance(index2, VectorDBIndex)
     assert index2.name == index2_name
     assert index2.metadata == updated_metadata
     assert index2.embedding_provider == embedding_provider
@@ -181,7 +185,7 @@ def test_vector_db_create_index(provider: Provider,
     client.indexes.pop(index2_name)
     metaloaded_index2 = client.get_index(name=index2_name)
     assert metaloaded_index2
-    assert isinstance(metaloaded_index2, BaseVectorDBIndex)
+    assert isinstance(metaloaded_index2, VectorDBIndex)
     assert metaloaded_index2.name == index2.name
     assert metaloaded_index2.metadata == index2.metadata
     assert metaloaded_index2.embedding_provider == index2.embedding_provider
@@ -198,6 +202,8 @@ def test_vector_db_create_index(provider: Provider,
     client.delete_index(name)
     assert client.list_indexes() == []
     assert client.count_indexes() == 0
+    
+    del ai
     
 
 def approx_embeddings(embeddings, expected_embeddings):
@@ -219,7 +225,8 @@ def test_vector_db_add(provider: Provider,
                                 embedding_provider: Optional[AIProvider],
                                 embedding_model: Optional[str],
                                 dimensions: Optional[int],
-                                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]]                                                                
+                                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]],                                                                
+                                # serial
                                 ):
 
     ai = UnifAIClient({
@@ -231,9 +238,8 @@ def test_vector_db_add(provider: Provider,
 
     client = ai.get_client(provider)
     assert client
-    assert isinstance(client, BaseVectorDBClient)
-    # if provider == "chroma":
-    #     assert isinstance(client, ChromaClient)
+    assert isinstance(client, VectorDBClient)
+    client.delete_all_indexes() # Reset for each test
 
     index = client.create_index(
         name=name,
@@ -244,7 +250,7 @@ def test_vector_db_add(provider: Provider,
         distance_metric=distance_metric
     )
     assert index
-    assert isinstance(index, BaseVectorDBIndex)
+    assert isinstance(index, VectorDBIndex)
 
     index.add(
         ids=["test_id"],
@@ -339,4 +345,170 @@ def test_vector_db_add(provider: Provider,
     assert get_result
     assert get_result.ids == ["test_id_2"]
     assert get_result.metadatas == [{"test": "metadata2-UPDATED"}]
+    assert get_result.documents == ["test document2-UPDATED"]
+    approx_embeddings(get_result.embeddings, manual_embeddings2)
+
+    # Test get/delete all ids
+    all_ids = index.get_all_ids()
+    assert all_ids == ["test_id", "test_id_2"]
+    index.delete_all()
+    assert index.count() == 0
+
+    # test upsert with multiple
+    num_docs = 69
+    many_ids, many_metadatas, many_documents, many_embeddings = [], [], [], []
+    for i in sorted(map(str, range(num_docs))):
+        many_ids.append(f"test_id_{i}")
+        many_metadatas.append({"test": f"metadata_{i}"})
+        many_documents.append(f"test document_{i}")
+        many_embeddings.append([.1] * dimensions)
+    
+    
+    
+    index.add(
+        ids=many_ids,
+        metadatas=many_metadatas,
+        documents=many_documents,
+        embeddings=many_embeddings
+    )
+    assert index.count() == num_docs
+    get_result = index.get(many_ids, include=["metadatas", "documents", "embeddings"])
+    assert get_result
+    assert get_result.ids == many_ids
+    assert get_result.metadatas == many_metadatas
+    assert get_result.documents == many_documents
+    approx_embeddings(get_result.embeddings, many_embeddings)
+
+    # test deleting all
+    index.delete_all()
+    assert index.count() == 0
+
+    # test upsert with multiple after deleting all
+    index.upsert(
+        ids=many_ids,
+        metadatas=many_metadatas,
+        documents=many_documents,
+        embeddings=many_embeddings
+    )
+    assert index.count() == num_docs
+    get_result = index.get(many_ids, include=["metadatas", "documents", "embeddings"])
+    assert get_result
+    assert get_result.ids == many_ids
+    assert get_result.metadatas == many_metadatas
+    assert get_result.documents == many_documents
+    approx_embeddings(get_result.embeddings, many_embeddings)    
+
+    del ai
+
+
+@base_test_db_no_pinecone
+@parameterize_name_and_metadata
+@parameterize_embedding_provider_embedding_model
+@parameterize_dimensions
+@parameterize_distance_metric
+def test_vector_db_query_simple(provider: Provider, 
+                                client_kwargs: dict, 
+                                func_kwargs: dict,
+                                name: str, 
+                                metadata: dict,
+                                embedding_provider: Optional[AIProvider],
+                                embedding_model: Optional[str],
+                                dimensions: Optional[int],
+                                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]],                                                                
+                                # serial
+                                ):
+
+    ai = UnifAIClient({
+        provider: client_kwargs,
+        "openai": PROVIDER_DEFAULTS["openai"][1],
+        "google": PROVIDER_DEFAULTS["google"][1],
+        "ollama": PROVIDER_DEFAULTS["ollama"][1],        
+    })
+
+    client = ai.get_client(provider)
+    assert client
+    assert isinstance(client, VectorDBClient)
+    client.delete_all_indexes() # Reset for each test
+
+    index = client.create_index(
+        name=name,
+        metadata=metadata,
+        embedding_provider=embedding_provider,
+        embedding_model=embedding_model,
+        dimensions=dimensions,
+        distance_metric=distance_metric
+    )
+    assert index
+    assert isinstance(index, VectorDBIndex)
+
+    groups = {
+        "animals": {
+            "all": ["dog", "fish", "cat", "bird", "elephant", "giraffe", "lion", "tiger", "bear", "wolf"],
+            "dog": ["poodle", "labrador", "bulldog", "beagle", "dalmatian", "german shepherd", "golden retriever", "husky", "rottweiler", "doberman"],
+            "fish": ["goldfish", "bass", "salmon", "trout", "catfish", "perch", "pike", "mackerel", "cod", "haddock"],
+        },
+        "vehicles": {
+            "all": ["car", "truck", "bus", "bike", "motorcycle", "scooter", "skateboard", "rollerblade", "train", "plane"],
+            "car": ["toyota", "honda", "ford", "chevrolet", "dodge", "bmw", "audi", "mercedes", "volkswagen", "porsche"],
+            "truck": ["semi", "pickup", "dump", "garbage", "tow", "box", "flatbed", "tanker", "fire", "ice cream"],
+        },
+        "domains": {
+            "all": ["city", "ocean", "country", "continent", "sea", "river", "lake", "mountain", "valley", "desert"],
+            "city": ["new york", "los angeles", "chicago", "houston", "phoenix", "philadelphia", "san antonio", "san diego", "dallas", "san jose"],
+            "ocean": ["pacific", "atlantic", "indian", "arctic", "antarctic", "caribbean", "mediterranean", "south china", "baltic", "gulf of mexico"],
+        }
+    }
+
+    num_groups = len(groups)
+    sub_group_size = 10
+
+    ids, metadatas, documents = [], [], []
+    for group_name, group in groups.items():
+        for sub_group_name, sub_group in group.items():
+            assert len(sub_group) == sub_group_size
+            for doc in sub_group:
+                ids.append(f"{group_name}_{sub_group_name}_{doc}")
+                metadatas.append({"group": group_name, "sub_group": sub_group_name})
+                documents.append(doc)
+
+    assert len(ids) == len(metadatas) == len(documents)
+
+    index.add(
+        ids=ids,
+        metadatas=metadatas,
+        documents=documents,
+    )
+
+    assert index.count() == len(ids)
+    for group_name in groups:
+        group_ids = index.get(where={"group": group_name}).ids
+        assert group_ids
+        assert len(group_ids) == sub_group_size * len(groups[group_name])
+    
+    query = index.query(["dog", "fish"], include=["metadatas", "documents"], n_results=30)
+    assert query
+    dog_result, fish_result = query
+    assert dog_result.ids
+    assert dog_result.metadatas
+    assert dog_result.documents
+    assert "dog" == dog_result.documents[0]
+    for doc_species in groups["animals"]["dog"]:
+        assert doc_species in dog_result.documents
+
+    assert fish_result.ids
+    assert fish_result.metadatas
+    assert fish_result.documents
+    assert "fish" == fish_result.documents[0]
+    for doc_species in groups["animals"]["fish"]:
+        assert doc_species in fish_result.documents
+
+
+
+
+
+    
+
+
+
+
 
