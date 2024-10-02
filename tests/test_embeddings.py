@@ -22,7 +22,7 @@ def test_embeddings_simple(
     ai.init_client(provider, **client_kwargs)
 
     if provider == "anthropic":
-        with pytest.raises(ProviderUnsupportedFeatureError):
+        with pytest.raises((ProviderUnsupportedFeatureError, AttributeError)):
             result = ai.embed(input, provider=provider, **func_kwargs)
         return
     

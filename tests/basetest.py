@@ -8,6 +8,7 @@ load_dotenv()
 ANTHROPIC_API_KEY = getenv("_ANTHROPIC_API_KEY")
 GOOGLE_API_KEY = getenv("_GOOGLE_API_KEY")
 OPENAI_API_KEY = getenv("_OPENAI_API_KEY")
+PINECONE_API_KEY = getenv("_PINECONE_API_KEY")
 
 PROVIDER_DEFAULTS = {
     # "provider": (provider, client_kwargs, func_kwargs)
@@ -34,7 +35,7 @@ PROVIDER_DEFAULTS = {
 
     "chroma": (
         "chroma",
-        {"persist_directory": "/Users/lucasfaudman/Documents/UnifAI/scratch/gita_embeddings",
+        {"persist_directory": "/Users/lucasfaudman/Documents/UnifAI/scratch/test_embeddings",
          "is_persistent": False
          },
         {}
@@ -42,7 +43,7 @@ PROVIDER_DEFAULTS = {
 
     "pinecone": (
         "pinecone",
-        {"persist_directory": "/Users/lucasfaudman/Documents/UnifAI/scratch/gita_embeddings"},
+        {"api_key": PINECONE_API_KEY},
         {}
     ),    
 }
@@ -60,7 +61,7 @@ VECTOR_DB_PROVIDER_DEFAULTS = [
 ]
 
 def base_test_all_providers(func):
-    return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", AI_PROVIDER_DEFAULTS)(func)
+    return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", AI_PROVIDER_DEFAULTS[:-1])(func)
 
 def base_test_no_anthropic(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [

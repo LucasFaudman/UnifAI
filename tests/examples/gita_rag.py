@@ -1,5 +1,5 @@
 from unifai import UnifAIClient, tool
-from unifai.wrappers.vector_db_clients._base_vector_db_client import VectorDBClient, VectorDBIndex
+from unifai.wrappers._base_vector_db_client import VectorDBClient, VectorDBIndex
 from _provider_defaults import PROVIDER_DEFAULTS
 
 from pathlib import Path
@@ -27,12 +27,11 @@ def gita_chat():
                 "chroma": PROVIDER_DEFAULTS["chroma"][1]
             }
         )
-    
     gita_index = ai.get_or_create_index(        
         name="gita", 
         vector_db_provider="chroma",
         embedding_provider="openai",
-        embedding_model="text-embedding-3-large"
+        embedding_model="text-embedding-3-large",
     )
 
     system_prompt = """Your role is to answer questions as if you are Krishna using the Bhagavad Gita as a guide. You will be given a question and relevant context from the Gita. You must provide an answer based on the context."""

@@ -1,6 +1,5 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
-from unifai.ai_client_wrappers import BaseAIClientWrapper
 from unifai.types import (
     AIProvider, 
     Message,
@@ -241,7 +240,7 @@ class Chat:
         # self.extend_messages(self.client.split_tool_outputs_into_messages(tool_calls, content))
              
 
-    def client_kwargs(self, stream: bool = False, **kwargs) -> dict[str, Any]:             
+    def client_kwargs(self, override_kwargs: dict) -> dict[str, Any]:             
         return dict(
                     messages=self.client_messages,                 
                     model=self.model, 
@@ -249,9 +248,6 @@ class Chat:
                     tools=self.client_tools, 
                     tool_choice=self.client_tool_choice,
                     response_format=self.client_response_format,
-
-                    stream=stream,
-
                     max_tokens=self.max_tokens,
                     frequency_penalty=self.frequency_penalty,
                     presence_penalty=self.presence_penalty,
@@ -260,13 +256,13 @@ class Chat:
                     temperature=self.temperature,
                     top_k=self.top_k,
                     top_p=self.top_p,                    
-                    **kwargs
+                    **override_kwargs
             )
     
     def run(self, **kwargs) -> Self:
         while True:
             std_message, client_message = self.client.chat(
-                **self.client_kwargs(stream=False, **kwargs)
+                **self.client_kwargs(override_kwargs=kwargs)
             )
             # TODO handle error messages
             print("\nstd_message:", std_message)
@@ -313,9 +309,9 @@ class Chat:
     def run_stream(self, **kwargs) -> Generator[MessageChunk, None, Self]:
         while True:
             # print(f"{self.client_kwargs(stream=True, **kwargs)=}")
-            print(f"{self.client_kwargs(stream=True, **kwargs)['tool_choice']=}")
+            print(f"{self.client_kwargs(kwargs)['tool_choice']=}")
             std_message, client_message = yield from self.client.chat_stream(
-                **self.client_kwargs(stream=True, **kwargs)
+               **self.client_kwargs(override_kwargs=kwargs)
             )
             # TODO handle error messages
             # print("\nstd_message:", std_message)

@@ -14,7 +14,7 @@ class UnifAIExceptionConverter:
 
     def run_func_convert_exceptions(self, func: Callable[..., returnT], *args, **kwargs) -> returnT:
         try:
-            return func(self, *args, **kwargs)
+            return func(*args, **kwargs)
         except Exception as e:
             if isinstance(e, UnifAIError):
                 raise e
@@ -23,7 +23,7 @@ class UnifAIExceptionConverter:
 
     def run_func_convert_exceptions_generator(self, func: Callable[..., Generator[yieldT, None, returnT]], *args, **kwargs) ->  Generator[yieldT, None, returnT]:
         try:
-            rval = yield from func(self, *args, **kwargs)
+            rval = yield from func(*args, **kwargs)
             return rval
         except Exception as e:
             if isinstance(e, UnifAIError):
@@ -33,13 +33,13 @@ class UnifAIExceptionConverter:
 
 def convert_exceptions(func: Callable[..., returnT]) -> Callable[..., returnT]:
     def wrapper(instance: UnifAIExceptionConverter, *args, **kwargs) -> returnT:
-        return instance.run_func_convert_exceptions(func, *args, **kwargs)
+        return instance.run_func_convert_exceptions(func, instance, *args, **kwargs)
     return wrapper
 
 
 def convert_exceptions_generator(func: Callable[..., Generator[yieldT, None, returnT]]) -> Callable[..., Generator[yieldT, None, returnT]]:
     def wrapper(instance: UnifAIExceptionConverter, *args, **kwargs) -> Generator[yieldT, None, returnT]:
-        return instance.run_func_convert_exceptions_generator(func, *args, **kwargs)
+        return instance.run_func_convert_exceptions_generator(func, instance, *args, **kwargs)
     return wrapper     
        
                 
@@ -52,6 +52,8 @@ class BaseClientWrapper(UnifAIExceptionConverter):
     def init_client(self, **client_kwargs) -> Any:
         if client_kwargs:
             self.client_kwargs.update(client_kwargs)
+        
+        # TODO: ClientInitError            
         self._client = self.import_client()(**self.client_kwargs)
         return self._client
 
@@ -60,11 +62,8 @@ class BaseClientWrapper(UnifAIExceptionConverter):
         self.client_kwargs = client_kwargs
 
     @property
-    @convert_exceptions
     def client(self) -> Type:
         if self._client is None:
             return self.init_client(**self.client_kwargs)
-            # TODO: ClientInitError
-            # return self.run_func_convert_exceptions(self.init_client, **self.client_kwargs)
         return self._client      
 

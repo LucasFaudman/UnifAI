@@ -8,7 +8,7 @@ class EvaluateParameters(BaseModel):
     eval_type: str
     system_prompt: str = "Your role is to evaluate the content using the provided tool(s)." 
     examples: Optional[list[Union[Message, dict[Literal["input", "response"], Any]]]] = None   
-    tools: Optional[list[Union[Tool, str]]] = None
+    tools: Optional[list[Union[Tool, str, Callable]]] = None
     tool_choice: Optional[Union[str, list[str]]] = None
     return_on: Optional[Union[Literal["content", "tool_call", "message"], str, list[str]]] = None
     return_as: Literal["chat", 

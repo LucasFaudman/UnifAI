@@ -5,7 +5,6 @@ from ._base_vector_db_client import VectorDBIndex, VectorDBClient
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, AIProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, BadRequestError
 from unifai.wrappers._base_client_wrapper import UnifAIExceptionConverter, convert_exceptions
-from pydantic import BaseModel
 
 # import chromadb
 from chromadb import Client as ChromaDefaultClient, PersistentClient as ChromaPersistentClient
@@ -23,6 +22,7 @@ from chromadb.errors import ChromaError
 
 from itertools import zip_longest
 
+ 
 class ChromaExceptionConverter(UnifAIExceptionConverter):
     def convert_exception(self, exception: ChromaError) -> UnifAIError:
         status_code=exception.code()
@@ -31,7 +31,8 @@ class ChromaExceptionConverter(UnifAIExceptionConverter):
             message=exception.message(), 
             status_code=status_code,
             original_exception=exception
-        )    
+        )   
+
 
 class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
 
@@ -56,15 +57,6 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
         self.kwargs = kwargs
 
     
-    def convert_exception(self, exception: ChromaError) -> UnifAIError:
-        status_code=exception.code()
-        unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
-        return unifai_exception_type(
-            message=exception.message(), 
-            status_code=status_code,
-            original_exception=exception
-        )
-
     @convert_exceptions
     def count(self) -> int:
         return self.wrapped.count()
@@ -93,36 +85,7 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
         self.wrapped.modify(name=self.name, metadata=self.metadata)
         return self
 
-    def convert_get_result(self, client_get_result: ChromaGetResult) -> VectorDBGetResult:
-        return VectorDBGetResult(
-            ids=client_get_result["ids"],
-            metadatas=client_get_result["metadatas"],
-            documents=client_get_result["documents"],
-            embeddings=client_get_result["embeddings"],
-            included=client_get_result["included"] 
-        )
-    
-    def convert_query_result(self, client_query_result: ChromaQueryResult) -> list[VectorDBQueryResult]:
-        included = client_query_result["included"]
-        empty_tuple = ()
-        return [
-            VectorDBQueryResult(
-                ids=ids,
-                metadatas=metadatas,
-                documents=documents,
-                embeddings=embeddings,
-                distances=distances,
-                included=included
-            ) for ids, metadatas, documents, embeddings, distances in zip_longest(
-                client_query_result["ids"],
-                client_query_result["metadatas"] or empty_tuple,
-                client_query_result["documents"] or empty_tuple,
-                client_query_result["embeddings"] or empty_tuple,
-                client_query_result["distances"] or empty_tuple,
-                fillvalue=None
-            )
-        ]
-        
+            
     @convert_exceptions
     def add(self,
             ids: list[str],
@@ -132,9 +95,10 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
             ) -> Self:
         
         self.wrapped.add(
-            ids=ids, metadatas=metadatas, 
+            ids=ids, 
+            metadatas=metadatas, 
             documents=documents, 
-            embeddings=self.prep_embeddings(embeddings)
+            embeddings=embeddings
         )
         return self
 
@@ -149,7 +113,7 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
         self.wrapped.update(
             ids=ids, metadatas=metadatas, 
             documents=documents, 
-            embeddings=self.prep_embeddings(embeddings)
+            embeddings=embeddings
         )
         return self
     
@@ -164,7 +128,7 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
         self.wrapped.upsert(
             ids=ids, metadatas=metadatas, 
             documents=documents, 
-            embeddings=self.prep_embeddings(embeddings)
+            embeddings=embeddings
         )
         return self
     
@@ -187,7 +151,7 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
             include: list[Literal["embeddings", "metadatas", "documents"]] = ["metadatas", "documents"]
             ) -> VectorDBGetResult:
         
-        client_get_result = self.wrapped.get(
+        get_result = self.wrapped.get(
             ids=ids, 
             where=where, 
             limit=limit, 
@@ -195,8 +159,14 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
             where_document=where_document, 
             include=include
         )
-        return self.convert_get_result(client_get_result)
-
+        return VectorDBGetResult(
+            ids=get_result["ids"],
+            metadatas=get_result["metadatas"],
+            documents=get_result["documents"],
+            embeddings=get_result["embeddings"],
+            included=get_result["included"] 
+        )
+    
     @convert_exceptions
     def query(self,
               query_texts: Optional[list[str]] = None,
@@ -205,17 +175,36 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["metadatas", "documents", "distances"]] = ["metadatas", "documents", "distances"],
-              ) -> VectorDBQueryResult:
+              ) -> list[VectorDBQueryResult]:
         
-        client_query_result = self.wrapped.query(
-            query_embeddings=self.prep_embeddings(query_embeddings) if query_embeddings else None, 
+        query_result = self.wrapped.query(
+            query_embeddings=query_embeddings, 
             query_texts=query_texts, 
             n_results=n_results, 
             where=where, 
             where_document=where_document, 
             include=include
         )
-        return self.convert_query_result(client_query_result)   
+
+        included = query_result["included"]
+        empty_tuple = ()
+        return [
+            VectorDBQueryResult(
+                ids=ids,
+                metadatas=metadatas,
+                documents=documents,
+                embeddings=embeddings,
+                distances=distances,
+                included=included
+            ) for ids, metadatas, documents, embeddings, distances in zip_longest(
+                query_result["ids"],
+                query_result["metadatas"] or empty_tuple,
+                query_result["documents"] or empty_tuple,
+                query_result["embeddings"] or empty_tuple,
+                query_result["distances"] or empty_tuple,
+                fillvalue=None
+            )
+        ]    
 
 
 class UnifAIChromaEmbeddingFunction(EmbeddingFunction[list[str]]):
@@ -248,6 +237,7 @@ class UnifAIChromaEmbeddingFunction(EmbeddingFunction[list[str]]):
 
 class ChromaClient(VectorDBClient, ChromaExceptionConverter):
     client: ChromaClientAPI
+    default_embedding_provider = "ollama"
 
     def import_client(self) -> Callable:
         from chromadb import Client
@@ -407,36 +397,6 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
         self.indexes[name] = index
         return index        
 
-    @convert_exceptions
-    def get_or_create_index(self, 
-                            name: str,
-                            metadata: Optional[dict] = None,
-                            embedding_provider: Optional[AIProvider] = None,
-                            embedding_model: Optional[str] = None,
-                            dimensions: Optional[int] = None,
-                            distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
-                            **kwargs
-                            ) -> ChromaIndex:
-        try:
-            return self.get_index(
-                name=name,
-                embedding_provider=embedding_provider,
-                embedding_model=embedding_model,
-                dimensions=dimensions,
-                distance_metric=distance_metric,
-                **kwargs
-            )
-        except BadRequestError:
-            return self.create_index(
-                name=name,
-                metadata=metadata,
-                embedding_provider=embedding_provider,
-                embedding_model=embedding_model,
-                dimensions=dimensions,
-                distance_metric=distance_metric,
-                **kwargs
-            )
-    
     @convert_exceptions
     def count_indexes(self) -> int:
         return self.client.count_collections()

@@ -2,13 +2,14 @@ import pytest
 from typing import Optional, Literal
 
 from unifai import UnifAIClient, AIProvider, VectorDBProvider, Provider
-from unifai.wrappers.vector_db_clients import VectorDBClient, VectorDBIndex, ChromaClient, ChromaIndex
+from unifai.wrappers._base_vector_db_client import VectorDBClient, VectorDBIndex
+
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError
-from basetest import base_test_all_db_providers, base_test_db_no_pinecone, PROVIDER_DEFAULTS
+from basetest import base_test_all_db_providers, base_test_db_no_pinecone, base_test_db_no_chroma, PROVIDER_DEFAULTS
 from chromadb.errors import InvalidCollectionException
 
-@base_test_db_no_pinecone
+@base_test_all_db_providers
 def test_init_vector_db_init_clients(provider, client_kwargs, func_kwargs):
     ai = UnifAIClient({
         provider: client_kwargs

@@ -70,9 +70,10 @@ from unifai.exceptions import (
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
 from unifai.type_conversions import stringify_content
-from ._base import BaseAIClientWrapper
+from ._base_llm_client import LLMClient
+from ._base_embedding_client import EmbeddingClient
 
-class OpenAIWrapper(BaseAIClientWrapper):
+class OpenAIWrapper(EmbeddingClient, LLMClient):
     provider = "openai"
     client: OpenAI
     default_model = "gpt-4o"
@@ -113,6 +114,93 @@ class OpenAIWrapper(BaseAIClientWrapper):
             original_exception=exception
         )
         
+
+
+    # List Models
+    def list_models(self) -> list[str]:
+        return [model.id for model in self.client.models.list()]
+
+
+    # Embeddings
+    def _get_embed_response(
+            self,            
+            input: str | Sequence[str],
+            model: Optional[str] = None,
+            max_dimensions: Optional[int] = None,
+            **kwargs
+            ) -> CreateEmbeddingResponse:
+        if max_dimensions is not None:
+            kwargs["dimensions"] = max_dimensions
+        
+        return self.client.embeddings.create(
+            input=input,
+            model=model or self.default_embedding_model,            
+            **kwargs
+        )
+
+
+    def _extract_embeddings(
+            self,            
+            response: CreateEmbeddingResponse,
+            **kwargs
+            ) -> Embeddings:
+        return Embeddings(
+            root=[embedding.embedding for embedding in response.data],
+            response_info=ResponseInfo(
+                model=response.model, 
+                usage=Usage(
+                    input_tokens=response.usage.prompt_tokens, 
+                    output_tokens=0
+                )
+            )
+        )
+
+   
+    # Chat 
+    def _get_chat_response(
+            self,
+            stream: bool,            
+            messages: list[dict],     
+            model: str = default_model,
+            system_prompt: Optional[str] = None,                    
+            tools: Optional[list[dict]] = None,
+            tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
+            response_format: Optional[str] = None,
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None, 
+
+            **kwargs
+            ) -> ChatCompletion|Stream[ChatCompletionChunk]:
+
+            if tool_choice and not tools:
+                tool_choice = None
+
+            if stream:
+                kwargs["stream_options"] = kwargs.get("stream_options", {})
+                kwargs["stream_options"]["include_usage"] = True
+
+            return self.client.chat.completions.create(
+                messages=messages,
+                model=model,
+                frequency_penalty=frequency_penalty,
+                max_tokens=max_tokens,  
+                presence_penalty=presence_penalty,
+                response_format=response_format,
+                seed=seed,
+                stop=stop_sequences,                
+                stream=stream,
+                temperature=temperature,
+                tool_choice=tool_choice,
+                tools=tools,
+                top_p=top_p,
+                **kwargs
+            )         
     
     # Convert from UnifAI to AI Provider format        
         # Messages        
@@ -370,90 +458,7 @@ class OpenAIWrapper(BaseAIClientWrapper):
         return std_message, self.prep_input_message(std_message)
 
 
-    # List Models
-    def list_models(self) -> list[str]:
-        return [model.id for model in self.client.models.list()]
 
-   
-    # Chat 
-    def get_chat_response(
-            self,
-            messages: list[dict],     
-            model: str = default_model,
-            system_prompt: Optional[str] = None,                    
-            tools: Optional[list[dict]] = None,
-            tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
-            response_format: Optional[str] = None,
-            
-            stream: bool = False,
-            
-            max_tokens: Optional[int] = None,
-            frequency_penalty: Optional[float] = None,
-            presence_penalty: Optional[float] = None,
-            seed: Optional[int] = None,
-            stop_sequences: Optional[list[str]] = None, 
-            temperature: Optional[float] = None,
-            top_k: Optional[int] = None,
-            top_p: Optional[float] = None, 
 
-            **kwargs
-            ) -> ChatCompletion|Stream[ChatCompletionChunk]:
 
-            if tool_choice and not tools:
-                tool_choice = None
 
-            if stream:
-                kwargs["stream_options"] = kwargs.get("stream_options", {})
-                kwargs["stream_options"]["include_usage"] = True
-
-            return self.run_func_convert_exceptions(
-                func=self.client.chat.completions.create,
-                messages=messages,
-                model=model,
-                tools=tools,
-                tool_choice=tool_choice,
-                response_format=response_format,
-
-                stream=stream,
-
-                max_tokens=max_tokens,
-                frequency_penalty=frequency_penalty, 
-                presence_penalty=presence_penalty,
-                seed=seed,
-                stop=stop_sequences,
-                temperature=temperature,
-                # top_k=top_k,
-                top_p=top_p,
-                **kwargs
-            ) 
-    
- 
-    # Embeddings
-    def embed(
-            self,            
-            input: str | Sequence[str],
-            model: Optional[str] = None,
-            max_dimensions: Optional[int] = None,
-            **kwargs
-            ) -> Embeddings:
-        
-        if max_dimensions is not None:
-            kwargs["dimensions"] = max_dimensions
-        
-        response = self.run_func_convert_exceptions(
-            func=self.client.embeddings.create,
-            input=input,
-            model=model or self.default_embedding_model,            
-            **kwargs
-        )
-
-        return Embeddings(
-            root=[embedding.embedding for embedding in response.data],
-            response_info=ResponseInfo(
-                model=response.model, 
-                usage=Usage(
-                    input_tokens=response.usage.prompt_tokens, 
-                    output_tokens=0
-                )
-            )
-        )

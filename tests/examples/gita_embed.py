@@ -1,5 +1,5 @@
 from unifai import UnifAIClient
-from unifai.wrappers.vector_db_clients._base_vector_db_client import VectorDBClient, VectorDBIndex
+from unifai.wrappers._base_vector_db_client import VectorDBClient, VectorDBIndex
 from _provider_defaults import PROVIDER_DEFAULTS
 
 from pathlib import Path

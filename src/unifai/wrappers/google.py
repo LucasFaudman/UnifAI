@@ -94,17 +94,19 @@ from unifai.types import (
     Embeddings,
 )
 from unifai.type_conversions import stringify_content
-from ._base import BaseAIClientWrapper
+from ._base_llm_client import LLMClient
+from ._base_embedding_client import EmbeddingClient
 
 from random import choices as random_choices
 from string import ascii_letters, digits
 def generate_random_id(length=8):
     return ''.join(random_choices(ascii_letters + digits, k=length))
 
-class GoogleAIWrapper(BaseAIClientWrapper):
+class GoogleAIWrapper(EmbeddingClient, LLMClient):
     provider = "google"
     default_model = "gemini-1.5-flash-latest"
     default_embedding_model = "text-embedding-004"
+    
 
 
     def import_client(self):
@@ -149,7 +151,102 @@ class GoogleAIWrapper(BaseAIClientWrapper):
 
         return unifai_exception_type(message=message, status_code=status_code, original_exception=exception)
 
+
+    def format_model_name(self, model: str) -> str:
+        if model.startswith("models/"):
+            return model
+        return f"models/{model}"
+
+
+    # List Models
+    def list_models(self) -> list[str]:
+        return [model.name[7:] for model in self.client.list_models()]
+
+
+    # Embeddings
+    def _get_embed_response(
+            self,            
+            input: str | Sequence[str],
+            model: Optional[str] = None,
+            max_dimensions: Optional[int] = None,
+            **kwargs
+            ) -> Any:
         
+        if isinstance(input, str):
+            input = [input]
+        
+        model=self.format_model_name(model) if model else self.default_embedding_model
+        return self.client.embed_content(
+            content=input,
+            model=model,
+            output_dimensionality=max_dimensions,
+            **kwargs
+        )
+
+    def _extract_embeddings(
+            self,            
+            response: Mapping,
+            model: str,
+            **kwargs
+            ) -> Embeddings:
+        
+        return Embeddings(
+            root=response["embedding"],
+            response_info=ResponseInfo(
+                model=model, 
+                usage=Usage()
+            )
+        ) 
+
+
+    # Chat
+    def _get_chat_response(
+            self,
+            stream: bool,
+            messages: list[Content],     
+            model: Optional[str] = None,
+            system_prompt: Optional[str] = None,                   
+            tools: Optional[list[Any]] = None,
+            tool_choice: Optional[Union[Tool, str, dict, Literal["auto", "required", "none"]]] = None,            
+            response_format: Optional[Union[str, dict[str, str]]] = None,
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None, 
+            **kwargs
+            ) -> tuple[Message, Any]:
+        
+        model = self.format_model_name(model) if model else self.default_model
+        gen_config = GenerationConfig(
+            # candidate_count=1,
+            stop_sequences=stop_sequences,
+            max_output_tokens=max_tokens,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+            response_mime_type=response_format, #text/plain or application/json
+        )
+
+        gen_model = self.client.GenerativeModel(
+            model_name=model,
+            safety_settings=kwargs.pop("safety_settings", None),
+            generation_config=gen_config,
+            tools=tools,
+            tool_config=tool_choice,
+            system_instruction=system_prompt,            
+        )
+        # genai.GenerativeModel.generate_content
+        return gen_model.generate_content(
+            messages,
+            stream=stream,
+            **kwargs
+        )
+
+
     # Convert Objects from UnifAI to AI Provider format        
         # Messages    
     def prep_input_user_message(self, message: Message) -> Any:
@@ -393,93 +490,3 @@ class GoogleAIWrapper(BaseAIClientWrapper):
         return self.extract_assistant_message_both_formats(response, **kwargs)
 
 
-    # List Models
-    def list_models(self) -> list[str]:
-        return [model.name[7:] for model in self.client.list_models()]
-
-
-    def format_model_name(self, model: str) -> str:
-        if model.startswith("models/"):
-            return model
-        return f"models/{model}"
-
-    # Chat
-    def get_chat_response(
-            self,
-            messages: list[Content],     
-            model: Optional[str] = None,
-            system_prompt: Optional[str] = None,                   
-            tools: Optional[list[Any]] = None,
-            tool_choice: Optional[Union[Tool, str, dict, Literal["auto", "required", "none"]]] = None,            
-            response_format: Optional[Union[str, dict[str, str]]] = None,
-
-            stream: bool = False,
-
-            max_tokens: Optional[int] = None,
-            frequency_penalty: Optional[float] = None,
-            presence_penalty: Optional[float] = None,
-            seed: Optional[int] = None,
-            stop_sequences: Optional[list[str]] = None, 
-            temperature: Optional[float] = None,
-            top_k: Optional[int] = None,
-            top_p: Optional[float] = None, 
-
-            **kwargs
-            ) -> tuple[Message, Any]:
-        
-        model = self.format_model_name(model or self.default_model)
-        gen_config = GenerationConfig(
-            # candidate_count=1,
-            stop_sequences=stop_sequences,
-            max_output_tokens=max_tokens,
-            temperature=temperature,
-            top_k=top_k,
-            top_p=top_p,
-            response_mime_type=response_format, #text/plain or application/json
-        )
-
-        gen_model = self.client.GenerativeModel(
-            model_name=model,
-            safety_settings=kwargs.pop("safety_settings", None),
-            generation_config=gen_config,
-            tools=tools,
-            tool_config=tool_choice,
-            system_instruction=system_prompt,            
-        )
-        # genai.GenerativeModel.generate_content
-        return self.run_func_convert_exceptions(
-            gen_model.generate_content,
-            messages,
-            stream=stream,
-            **kwargs
-        )
-        
-
-    # Embeddings
-    def embed(
-            self,            
-            input: str | Sequence[str],
-            model: Optional[str] = None,
-            max_dimensions: Optional[int] = None,
-            **kwargs
-            ) -> Embeddings:
-        
-        if isinstance(input, str):
-            input = [input]
-        
-        model=self.format_model_name(model or self.default_embedding_model)
-        response = self.run_func_convert_exceptions(
-            self.client.embed_content,
-            content=input,
-            model=model,
-            output_dimensionality=max_dimensions,
-            **kwargs
-        )
-
-        return Embeddings(
-            root=response["embedding"],
-            response_info=ResponseInfo(
-                model=model, 
-                usage=Usage()
-            )
-        )    

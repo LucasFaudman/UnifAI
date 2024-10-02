@@ -1,10 +1,12 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator
 from typing import overload
-from unifai.ai_client_wrappers import BaseAIClientWrapper
-from unifai.wrappers.ai_clients._base_ai_client import BaseAIClient
-from unifai.wrappers._base_client_wrapper import BaseClientWrapper
 
-from unifai.wrappers.vector_db_clients._base_vector_db_client import (
+from unifai.wrappers._base_client_wrapper import BaseClientWrapper
+from unifai.wrappers._base_llm_client import LLMClient
+from unifai.wrappers._base_embedding_client import EmbeddingClient
+
+
+from unifai.wrappers._base_vector_db_client import (
     VectorDBClient, 
     VectorDBIndex,
     VectorDBGetResult,
@@ -63,7 +65,7 @@ class UnifAIClient:
         self.set_default_ai_provider(default_ai_provider)
         self.set_default_vector_db_provider(default_vector_db_provider)
         
-        self._clients: dict[Provider, BaseAIClientWrapper|VectorDBClient] = {}
+        self._clients: dict[Provider, LLMClient|VectorDBClient] = {}
         self.tools: dict[str, Tool] = {}
         self.tool_callables: dict[str, Callable] = {}
         self.eval_prameters: dict[str, EvaluateParameters] = {}
@@ -118,30 +120,33 @@ class UnifAIClient:
         self.eval_prameters.update(standardize_eval_prameters(eval_prameters))
 
 
-    def import_client_wrapper(self, provider: Provider) -> Type[BaseAIClientWrapper|VectorDBClient]:
+    def import_client_wrapper(self, provider: Provider) -> Type[LLMClient|VectorDBClient]:
         match provider:
             # AI Client Wrappers
             case "anthropic":
-                from unifai.ai_client_wrappers import AnthropicWrapper
+                from unifai.wrappers.anthropic import AnthropicWrapper
                 return AnthropicWrapper
             case "google":
-                from unifai.ai_client_wrappers import GoogleAIWrapper
+                from unifai.wrappers.google import GoogleAIWrapper
                 return GoogleAIWrapper
             case "openai":
-                from unifai.ai_client_wrappers import OpenAIWrapper
+                from unifai.wrappers.openai import OpenAIWrapper
                 return OpenAIWrapper
             case "ollama":
-                from unifai.ai_client_wrappers import OllamaWrapper
+                from unifai.wrappers.ollama import OllamaWrapper
                 return OllamaWrapper
             # Embedding Vector DB Client Wrappers
             case "chroma":
-                from unifai.wrappers.vector_db_clients.chroma import ChromaClient
+                from unifai.wrappers.chroma import ChromaClient
                 return ChromaClient
+            case "pinecone":
+                from unifai.wrappers.pinecone import PineconeClient
+                return PineconeClient
             case _:
                 raise ValueError(f"Invalid provider: {provider}")
             
 
-    def init_client(self, provider: Provider, **client_kwargs) -> BaseAIClientWrapper|VectorDBClient:
+    def init_client(self, provider: Provider, **client_kwargs) -> LLMClient|VectorDBClient:
         client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
         if provider in REQUIRES_PARENT and "parent" not in client_kwargs:
             client_kwargs["parent"] = self
@@ -150,20 +155,20 @@ class UnifAIClient:
     
 
     @overload
-    def get_client(self, provider: AIProvider, **client_kwargs) -> BaseAIClientWrapper:
+    def get_client(self, provider: AIProvider, **client_kwargs) -> LLMClient:
         ...
 
     @overload
     def get_client(self, provider: VectorDBProvider, **client_kwargs) -> VectorDBClient:
         ...        
 
-    def get_client(self, provider: Provider, **client_kwargs) -> BaseAIClientWrapper|VectorDBClient:
+    def get_client(self, provider: Provider, **client_kwargs) -> LLMClient|VectorDBClient:
         provider = provider or self.default_ai_provider
         if provider not in self._clients or (client_kwargs and self._clients[provider].client_kwargs != client_kwargs):
             return self.init_client(provider, **client_kwargs)
         return self._clients[provider]
 
-    def get_ai_client(self, provider: Optional[AIProvider] = None, **client_kwargs) -> BaseAIClientWrapper:
+    def get_ai_client(self, provider: Optional[AIProvider] = None, **client_kwargs) -> LLMClient:
         provider = provider or self.default_ai_provider
         return self.get_client(provider, **client_kwargs)
 
@@ -175,13 +180,6 @@ class UnifAIClient:
     def list_models(self, provider: Optional[AIProvider] = None) -> list[str]:
         return self.get_ai_client(provider).list_models()
 
-
-    # def filter_tools_by_tool_choice(self, tools: list[Tool], tool_choice: str) -> list[Tool]:
-    #     if tool_choice == "auto" or tool_choice == "required":
-    #         return tools
-    #     if tool_choice == "none":
-    #         return []
-    #     return [tool for tool in tools if tool.name == tool_choice]
 
     def start_chat(
             self,
@@ -413,28 +411,6 @@ class UnifAIClient:
             raise ValueError(f"Embedding max_dimensions must be greater than 0. Got: {max_dimensions}")
         return self.get_ai_client(provider).embed(input, model, max_dimensions, **kwargs)
 
-    # def init_chroma_client(self, path: str|Path):
-    #     self._chroma_client = get_chroma_client(path)
-    #     return self._chroma_client
-    
-    # def get_chroma_collection(self, 
-    #                           name: str,
-    #                           model: Optional[str] = None,
-    #                           provider: Optional[AIProvider] = None,
-    #                           max_dimensions: Optional[int] = None,                                                            
-    #                           ):
-
-    #     if self._chroma_client is None:
-    #         raise ValueError("Chroma client not initialized. Run init_chroma_client() first.")
-    #     return self._chroma_client.get_or_create_collection(
-    #         name=name,
-    #         embedding_function=UnifAIChromaEmbeddingFunction(
-    #             parent=self,
-    #             provider=provider,
-    #             model=model,
-    #             max_dimensions=max_dimensions
-    #         )
-    #     )    
 
     def get_or_create_index(self, 
                             name: str,

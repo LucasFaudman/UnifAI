@@ -60,9 +60,9 @@ from unifai.exceptions import (
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
 from unifai.type_conversions import stringify_content
-from ._base import BaseAIClientWrapper
+from ._base_llm_client import LLMClient, convert_exceptions
 
-class AnthropicWrapper(BaseAIClientWrapper):
+class AnthropicWrapper(LLMClient):
     provider = "anthropic"
     client: Anthropic
     default_model = "claude-3-5-sonnet-20240620"
@@ -100,6 +100,68 @@ class AnthropicWrapper(BaseAIClientWrapper):
             original_exception=exception
         )
     
+
+    # List Models
+    def list_models(self) -> list[str]:
+        claude_models = [
+            "claude-3-5-sonnet-20240620",
+            "claude-3-opus-20240229",
+            "claude-3-sonnet-20240229",
+            "claude-3-haiku-20240307",
+            "claude-2.1",
+            "claude-2.0",
+            "claude-instant-1.2",
+        ]
+        return claude_models
+        
+    
+    def _get_chat_response(
+            self,
+            stream: bool,
+            messages: list[AnthropicMessageParam], 
+            model: str = default_model, 
+            system_prompt: Optional[str] = None,                 
+            tools: Optional[list[AnthropicToolParam]] = None,
+            tool_choice: Optional[dict] = None,
+            response_format: Optional[Union[str, dict[str, str]]] = None,
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None,             
+            **kwargs
+            ) -> AnthropicMessage|Stream[AnthropicRawMessageStreamEvent]:
+        
+        if stream:
+            kwargs["stream"] = True
+        if system_prompt:
+            kwargs["system"] = system_prompt
+        if tools:
+            kwargs["tools"] = tools
+            if tool_choice and tool_choice.get("type") != "none":
+                # TODO Fix tool_choice == "none" bug (Should not call tools, currently equivalent to None not "none")
+                kwargs["tool_choice"] = tool_choice
+
+        max_tokens = max_tokens or 4096
+        if stop_sequences is not None:
+            kwargs["stop_sequences"] = stop_sequences
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        if top_k is not None:
+            kwargs["top_k"] = top_k
+        if top_p is not None:
+            kwargs["top_p"] = top_p
+
+        return self.client.messages.create(
+            max_tokens=max_tokens,
+            messages=messages,
+            model=model,
+            **kwargs
+        )
+
 
     # Convert Objects from UnifAI to AI Provider format            
         # Messages
@@ -195,10 +257,10 @@ class AnthropicWrapper(BaseAIClientWrapper):
 
 
     def prep_input_tool_choice(self, tool_choice: str) -> dict:
-        if tool_choice == "any":
-            tool_choice = "required"
+        if tool_choice == "required":
+            tool_choice = "any"
         # if tool_choice in ("auto", "required", "none"):
-        if tool_choice in ("auto", "required", "none"):
+        if tool_choice in ("auto", "any", "none"):
             return {"type": tool_choice}
         
         return {"type": "tool", "name": tool_choice}   
@@ -242,22 +304,7 @@ class AnthropicWrapper(BaseAIClientWrapper):
             )
 
     def extract_response_info(self, response: AnthropicMessage, **kwargs) -> ResponseInfo:
-        model = response.model
-        # if response.stop_reason == "end_turn" or response.stop_reason == "stop_sequence":
-        #     done_reason = "stop"
-        # elif response.stop_reason == "tool_use":
-        #     done_reason = "tool_calls"
-        # else:
-        #     # "max_tokens" or None
-        #     done_reason = response.stop_reason
-
-        # if response.usage:
-        #     usage = Usage(
-        #         input_tokens=response.usage.input_tokens, 
-        #         output_tokens=response.usage.output_tokens
-        #     )
-        # else:
-        #     usage = None                      
+        model = response.model                     
         done_reason = self.extract_done_reason(response)
         usage = self.extract_usage(response)
         return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
@@ -349,152 +396,3 @@ class AnthropicWrapper(BaseAIClientWrapper):
                     
         return self.extract_assistant_message_both_formats(message, **kwargs)
 
-
-
-    # def split_tool_outputs_into_messages(self, 
-    #                                           tool_calls: list[ToolCall],
-    #                                           content: Optional[str],
-    #                                           ) -> Iterator[Message]:        
-    #     yield Message(
-    #         role="tool",
-    #         content=content,
-    #         tool_calls=tool_calls            
-    #     )
-        
-
-
-    # List Models
-    def list_models(self) -> list[str]:
-        claude_models = [
-            "claude-3-5-sonnet-20240620",
-            "claude-3-opus-20240229",
-            "claude-3-sonnet-20240229",
-            "claude-3-haiku-20240307",
-            "claude-2.1",
-            "claude-2.0",
-            "claude-instant-1.2",
-        ]
-        return claude_models
-        
-
-
-    # Chat 
-    # def chat(
-    #         self,
-    #         messages: list[AnthropicMessageParam],     
-    #         model: str = default_model, 
-    #         system_prompt: Optional[str] = None,                 
-    #         tools: Optional[list[AnthropicToolParam]] = None,
-    #         tool_choice: Optional[dict] = None,
-    #         response_format: Optional[Union[str, dict[str, str]]] = None,
-
-    #         max_tokens: Optional[int] = None,
-    #         frequency_penalty: Optional[float] = None,
-    #         presence_penalty: Optional[float] = None,
-    #         seed: Optional[int] = None,
-    #         stop_sequences: Optional[list[str]] = None, 
-    #         temperature: Optional[float] = None,
-    #         top_k: Optional[int] = None,
-    #         top_p: Optional[float] = None,             
-    #         **kwargs
-    #         ) -> tuple[Message, AnthropicMessageParam]:
-        
-    #     if system_prompt:
-    #         kwargs["system"] = system_prompt
-    #     if tools:
-    #         kwargs["tools"] = tools
-    #         if tool_choice and tool_choice.get("type") != "none":
-    #             kwargs["tool_choice"] = tool_choice
-    #     max_tokens = max_tokens or 4096
-    #     if stop_sequences is not None:
-    #         kwargs["stop_sequences"] = stop_sequences
-    #     if temperature is not None:
-    #         kwargs["temperature"] = temperature
-    #     if top_k is not None:
-    #         kwargs["top_k"] = top_k
-    #     if top_p is not None:
-    #         kwargs["top_p"] = top_p
-
-    #     response = self.run_func_convert_exceptions(
-    #         func=self.client.messages.create,
-    #         max_tokens=max_tokens,
-    #         messages=messages,
-    #         model=model,
-
-    #         **kwargs
-    #     )
-    #     return self.extract_assistant_message_both_formats(response)
-
-    def get_chat_response(
-            self,
-            messages: list[AnthropicMessageParam],     
-            model: str = default_model, 
-            system_prompt: Optional[str] = None,                 
-            tools: Optional[list[AnthropicToolParam]] = None,
-            tool_choice: Optional[dict] = None,
-            response_format: Optional[Union[str, dict[str, str]]] = None,
-
-            stream: bool = False,
-
-            max_tokens: Optional[int] = None,
-            frequency_penalty: Optional[float] = None,
-            presence_penalty: Optional[float] = None,
-            seed: Optional[int] = None,
-            stop_sequences: Optional[list[str]] = None, 
-            temperature: Optional[float] = None,
-            top_k: Optional[int] = None,
-            top_p: Optional[float] = None,             
-            **kwargs
-            ) -> AnthropicMessage|Stream[AnthropicRawMessageStreamEvent]:
-        
-        if system_prompt:
-            kwargs["system"] = system_prompt
-        if tools:
-            kwargs["tools"] = tools
-            if tool_choice and tool_choice.get("type") != "none":
-                # TODO Fix tool_choice == "none" bug (Should not call tools, currently equivalent to None not "none")
-                kwargs["tool_choice"] = tool_choice
-
-        if stream:
-            kwargs["stream"] = True
-
-        max_tokens = max_tokens or 4096
-        if stop_sequences is not None:
-            kwargs["stop_sequences"] = stop_sequences
-        if temperature is not None:
-            kwargs["temperature"] = temperature
-        if top_k is not None:
-            kwargs["top_k"] = top_k
-        if top_p is not None:
-            kwargs["top_p"] = top_p
-
-        return self.run_func_convert_exceptions(
-            func=self.client.messages.create,
-            max_tokens=max_tokens,
-            messages=messages,
-            model=model,
-
-            **kwargs
-        )
-
-    def generate(
-            self,
-            model: Optional[str] = None,
-            prompt: Optional[str] = None,
-            **kwargs
-            ):
-        raise NotImplementedError("This method must be implemented by the subclass")
-
-
-    def create_assistant(self, **kwargs):
-        raise NotImplementedError("This method must be implemented by the subclass")
-        
-    def update_assistant(self, ass_id, **kwargs):
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-
-    def create_thread(self):
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-    def create_run(self):
-        raise NotImplementedError("This method must be implemented by the subclass")    

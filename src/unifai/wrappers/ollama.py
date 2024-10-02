@@ -1,4 +1,4 @@
-from typing import Optional, Union, Sequence, Any, Literal, Mapping,  Iterator, Iterable, Generator
+from typing import Optional, Union, Sequence, Any, Literal, Mapping,  Iterator, Iterable, Generator, Collection
 from datetime import datetime
 from json import loads as json_loads, JSONDecodeError
 
@@ -40,19 +40,18 @@ from unifai.exceptions import (
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
 from unifai.type_conversions import stringify_content
-from ._base import BaseAIClientWrapper
+from ._base_llm_client import LLMClient
+from ._base_embedding_client import EmbeddingClient
 
 from random import choices as random_choices
 from string import ascii_letters, digits
-from hashlib import sha256
+ASCII_LETTERS_AND_DIGITS = ascii_letters + digits
 
-def generate_random_id(length=8):
-    return ''.join(random_choices(ascii_letters + digits, k=length))
+def generate_random_id(length: int = 8, chars: str = ASCII_LETTERS_AND_DIGITS):
+    return ''.join(random_choices(chars, k=length))
 
-def sha256_hash(string: str) -> str:
-    return sha256(string.encode()).hexdigest()
 
-class OllamaWrapper(BaseAIClientWrapper):
+class OllamaWrapper(EmbeddingClient, LLMClient):
     provider = "ollama"
     client: OllamaClient
     default_model = "mistral:7b-instruct"
@@ -89,6 +88,123 @@ class OllamaWrapper(BaseAIClientWrapper):
             status_code=status_code,
             original_exception=exception
         )
+
+
+
+    # List Models
+    def list_models(self) -> Sequence[str]:
+        return [model_name for model_dict in self.client.list()["models"] if (model_name := model_dict.get("name"))]
+    
+
+    # Embeddings
+    def _get_embed_response(
+            self,            
+            input: str | Sequence[str],
+            model: Optional[str] = None,
+            max_dimensions: Optional[int] = None,
+            **kwargs
+            ) -> Mapping:
+        
+        model = model or self.default_embedding_model
+        truncate = kwargs.pop('truncate', True)
+        keep_alive = kwargs.pop('keep_alive', None)
+        options = OllamaOptions(**kwargs) if kwargs else None
+        return self.client.embed(
+            input=input,
+            model=model,
+            truncate=truncate,
+            keep_alive=keep_alive,
+            options=options
+        )
+
+
+    def _extract_embeddings(
+            self,            
+            response: Any,
+            model: str,
+            max_dimensions: Optional[int] = None,
+            **kwargs
+            ) -> Embeddings:
+        return Embeddings(
+            root=[embedding[:max_dimensions] for embedding in response["embeddings"]],
+            response_info=ResponseInfo(
+                model=model, 
+                usage=Usage(
+                    input_tokens=response['prompt_eval_count'], 
+                )
+            )
+        )     
+    
+        
+    # Chat
+    def _get_chat_response(
+            self,
+            stream: bool,            
+            messages: list[OllamaMessage],     
+            model: Optional[str] = None, 
+            system_prompt: Optional[str] = None,                   
+            tools: Optional[list[OllamaTool]] = None,
+            tool_choice: Optional[str] = None,
+            response_format: Optional[str] = '',
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None,             
+            **kwargs
+            ) -> OllamaChatResponse|Iterator[OllamaChatResponse]:
+        
+            user_messages = [message for message in messages if message["role"] == 'user']
+            last_user_content = user_messages[-1].get("content", "") if user_messages else ""            
+            if (tool_choice and tool_choice != "auto" and last_user_content is not None
+                ):                
+                if tool_choice == "required":
+                    user_messages[-1]["content"] = f"{last_user_content}\nYou MUST call one or more tools."
+                elif tool_choice == "none":
+                    user_messages[-1]["content"] = f"{last_user_content}\nYou CANNOT call any tools."
+                else:
+                    user_messages[-1]["content"] = f"{last_user_content}\nYou MUST call the tool '{tool_choice}' with ALL of its required arguments."
+                last_user_content_modified = True
+            else:
+                last_user_content_modified = False
+
+            keep_alive = kwargs.pop('keep_alive', None)
+                        
+            if frequency_penalty is not None:
+                kwargs["frequency_penalty"] = frequency_penalty
+            if presence_penalty is not None:
+                kwargs["presence_penalty"] = presence_penalty
+            if seed is not None:
+                kwargs["seed"] = seed
+            if stop_sequences is not None:
+                kwargs["stop"] = stop_sequences
+            if temperature is not None:
+                kwargs["temperature"] = temperature
+            if top_k is not None:
+                kwargs["top_k"] = top_k
+            if top_p is not None:
+                kwargs["top_p"] = top_p
+
+            options = OllamaOptions(**kwargs) if kwargs else None
+
+            response = self.client.chat(
+                model=model or self.default_model, 
+                messages=messages,                 
+                tools=tools, 
+                stream=stream,
+                format=response_format, 
+                options=options,
+                keep_alive=keep_alive,
+            )
+
+            if last_user_content_modified:
+                user_messages[-1]["content"] = last_user_content
+
+            # ollama-python is incorrectly typed as Mapping[str, Any] instead of OllamaChatResponse
+            return response
 
 
     # Convert from UnifAI to AI Provider format        
@@ -324,113 +440,11 @@ class OllamaWrapper(BaseAIClientWrapper):
         )
         return std_message, self.prep_input_assistant_message(std_message)
 
-    # List Models
-    def list_models(self) -> Sequence[str]:
-        return [model_name for model_dict in self.client.list()["models"] if (model_name := model_dict.get("name"))]
+
+
+
         
 
-    def get_chat_response(
-            self,
-            messages: list[OllamaMessage],     
-            model: Optional[str] = None, 
-            system_prompt: Optional[str] = None,                   
-            tools: Optional[list[OllamaTool]] = None,
-            tool_choice: Optional[str] = None,
-            response_format: Optional[str] = '',
-
-            stream: bool = False,
-
-            max_tokens: Optional[int] = None,
-            frequency_penalty: Optional[float] = None,
-            presence_penalty: Optional[float] = None,
-            seed: Optional[int] = None,
-            stop_sequences: Optional[list[str]] = None, 
-            temperature: Optional[float] = None,
-            top_k: Optional[int] = None,
-            top_p: Optional[float] = None,             
-            **kwargs
-            ) -> OllamaChatResponse|Iterator[OllamaChatResponse]:
         
-            user_messages = [message for message in messages if message["role"] == 'user']
-            last_user_content = user_messages[-1].get("content", "") if user_messages else ""            
-            if (tool_choice and tool_choice != "auto" and last_user_content is not None
-                ):                
-                if tool_choice == "required":
-                    user_messages[-1]["content"] = f"{last_user_content}\nYou MUST call one or more tools."
-                elif tool_choice == "none":
-                    user_messages[-1]["content"] = f"{last_user_content}\nYou CANNOT call any tools."
-                else:
-                    user_messages[-1]["content"] = f"{last_user_content}\nYou MUST call the tool '{tool_choice}' with ALL of its required arguments."
-                last_user_content_modified = True
-            else:
-                last_user_content_modified = False
-
-            keep_alive = kwargs.pop('keep_alive', None)
-                        
-            if frequency_penalty is not None:
-                kwargs["frequency_penalty"] = frequency_penalty
-            if presence_penalty is not None:
-                kwargs["presence_penalty"] = presence_penalty
-            if seed is not None:
-                kwargs["seed"] = seed
-            if stop_sequences is not None:
-                kwargs["stop"] = stop_sequences
-            if temperature is not None:
-                kwargs["temperature"] = temperature
-            if top_k is not None:
-                kwargs["top_k"] = top_k
-            if top_p is not None:
-                kwargs["top_p"] = top_p
-
-            options = OllamaOptions(**kwargs) if kwargs else None
-
-            response = self.run_func_convert_exceptions(
-                func=self.client.chat,
-                messages=messages,                 
-                model=model, 
-                tools=tools, 
-                format=response_format, 
-                keep_alive=keep_alive,
-                stream=stream,
-                options=options
-            )
-
-            if last_user_content_modified:
-                user_messages[-1]["content"] = last_user_content
-
-            # ollama-python is incorrectly typed as Mapping[str, Any] instead of OllamaChatResponse
-            return response
-
-
-    # Embeddings
-    def embed(
-            self,            
-            input: str | Sequence[str],
-            model: Optional[str] = None,
-            max_dimensions: Optional[int] = None,
-            **kwargs
-            ) -> Embeddings:
-        
-        model = model or self.default_embedding_model
-        truncate = kwargs.pop('truncate', True)
-        keep_alive = kwargs.pop('keep_alive', None)
-        options = OllamaOptions(**kwargs) if kwargs else None
-        response = self.run_func_convert_exceptions(
-            func=self.client.embed,
-            input=input,
-            model=model,
-            truncate=truncate,
-            keep_alive=keep_alive,
-            options=options
-        )
-        
-        return Embeddings(
-            root=[embedding[:max_dimensions] for embedding in response["embeddings"]],
-            response_info=ResponseInfo(
-                model=model, 
-                usage=Usage(
-                    input_tokens=response['prompt_eval_count'], 
-                )
-            )
-        )    
+   
 
