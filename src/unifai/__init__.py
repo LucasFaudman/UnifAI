@@ -5,7 +5,7 @@
 
 from .types import *
 from .type_conversions import tool
-from .unifai_client import UnifAIClient, Chat
+from .unifai_client import UnifAIClient, Chat, PromptTemplate
 
 # __all__ = [
 #     "BaseAIClientWrapper",
