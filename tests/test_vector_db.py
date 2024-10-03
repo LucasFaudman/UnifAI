@@ -1,15 +1,15 @@
 import pytest
 from typing import Optional, Literal
 
-from unifai import UnifAIClient, AIProvider, VectorDBProvider, Provider
+from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider
 from unifai.wrappers._base_vector_db_client import VectorDBClient, VectorDBIndex
 
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError
-from basetest import base_test_all_db_providers, base_test_db_no_pinecone, base_test_db_no_chroma, PROVIDER_DEFAULTS
+from basetest import base_test_vector_dbs, base_test_db_no_pinecone, base_test_db_no_chroma, PROVIDER_DEFAULTS
 from chromadb.errors import InvalidCollectionException
 
-@base_test_all_db_providers
+@base_test_vector_dbs
 def test_init_vector_db_init_clients(provider, client_kwargs, func_kwargs):
     ai = UnifAIClient({
         provider: client_kwargs
@@ -99,7 +99,7 @@ def test_vector_db_create_index(provider: Provider,
                                 func_kwargs: dict,
                                 name: str, 
                                 metadata: dict,
-                                embedding_provider: Optional[AIProvider],
+                                embedding_provider: Optional[LLMProvider],
                                 embedding_model: Optional[str],
                                 dimensions: Optional[int],
                                 distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]],                                                                                               
@@ -223,7 +223,7 @@ def test_vector_db_add(provider: Provider,
                                 func_kwargs: dict,
                                 name: str, 
                                 metadata: dict,
-                                embedding_provider: Optional[AIProvider],
+                                embedding_provider: Optional[LLMProvider],
                                 embedding_model: Optional[str],
                                 dimensions: Optional[int],
                                 distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]],                                                                
@@ -412,7 +412,7 @@ def test_vector_db_query_simple(provider: Provider,
                                 func_kwargs: dict,
                                 name: str, 
                                 metadata: dict,
-                                embedding_provider: Optional[AIProvider],
+                                embedding_provider: Optional[LLMProvider],
                                 embedding_model: Optional[str],
                                 dimensions: Optional[int],
                                 distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]],                                                                

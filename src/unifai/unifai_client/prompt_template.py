@@ -1,7 +1,7 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
 from unifai.types import (
-    AIProvider, 
+    LLMProvider, 
     Message,
     MessageChunk,
     MessageInput, 
@@ -60,8 +60,8 @@ class PromptTemplate:
                       ):
         value_formatters = {**self.value_formatters, **(value_formatters or {})}
         for key, value in resolved_kwargs.items():       
-            if self.value_formatters and (formatter := value_formatters.get(key) or value_formatters.get(type(value))):
-                resolved_kwargs[key] = formatter(value)        
+            if formatter := value_formatters.get(key) or value_formatters.get(type(value)):
+                resolved_kwargs[key] = formatter(value)
         return resolved_kwargs
     
 

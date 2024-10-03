@@ -1,8 +1,8 @@
 import pytest
-from unifai import UnifAIClient, AIProvider
+from unifai import UnifAIClient, LLMProvider
 from unifai.types import Message, Tool, Embeddings, Embedding, ResponseInfo, Usage
 from unifai.exceptions import ProviderUnsupportedFeatureError, BadRequestError
-from basetest import base_test_all_providers, base_test_no_anthropic
+from basetest import base_test_all_llms, base_test_no_anthropic
 
 @pytest.mark.parametrize("input", [
     "Embed this",
@@ -10,9 +10,9 @@ from basetest import base_test_all_providers, base_test_no_anthropic
     ["Embed this", "And this"],
     ("Embed this", "And this"),
 ])
-@base_test_all_providers
+@base_test_all_llms
 def test_embeddings_simple(
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict, 
     func_kwargs: dict,
     input: str|list[str]
@@ -82,7 +82,7 @@ def test_embeddings_simple(
 ])
 @base_test_no_anthropic
 def test_embeddings_max_dimensions(
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict, 
     func_kwargs: dict,
     input: str|list[str],
@@ -110,7 +110,7 @@ def test_embeddings_max_dimensions(
 ])
 @base_test_no_anthropic
 def test_embeddings_max_dimensions_errors(
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict, 
     func_kwargs: dict,
     input: str|list[str],

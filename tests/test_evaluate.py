@@ -1,7 +1,7 @@
 import pytest
-from unifai import UnifAIClient, AIProvider
+from unifai import UnifAIClient, LLMProvider
 from unifai.types import Message, Tool, EvaluateParameters
-from basetest import base_test_all_providers
+from basetest import base_test_all_llms
 
 TOOLS = {
     "return_flagged_and_reason": {
@@ -41,13 +41,13 @@ EVAL_TYPES = [
     )
 ]
 
-@base_test_all_providers
+@base_test_all_llms
 @pytest.mark.parametrize("tools, tool_callables, eval_parameters, eval_type, content", [
     ([TOOLS["return_flagged_and_reason"]], None, EVAL_TYPES, "urlEval", {"url": "https://google.com", "link_text": "Google"}),
     ([TOOLS["return_flagged_and_reason"]], None, EVAL_TYPES, "urlEval", {"url": "https://g00gle.com", "link_text": "Google"}),
 ])
 def test_evaluate_simple(
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict, 
     func_kwargs: dict,
     tools: list,

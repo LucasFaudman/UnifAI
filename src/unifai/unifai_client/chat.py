@@ -1,7 +1,7 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
 from unifai.types import (
-    AIProvider, 
+    LLMProvider, 
     Message,
     MessageChunk,
     MessageInput, 
@@ -16,7 +16,7 @@ class Chat:
 
     def __init__(self, 
                  parent,
-                 provider: AIProvider,    
+                 provider: LLMProvider,    
                  messages: Sequence[MessageInput],                         
                  model: Optional[str] = None,
                  system_prompt: Optional[str] = None,
@@ -67,7 +67,7 @@ class Chat:
         self.usage = Usage(input_tokens=0, output_tokens=0)
 
 
-    def set_provider(self, provider: AIProvider, model: Optional[str]=None) -> Self:        
+    def set_provider(self, provider: LLMProvider, model: Optional[str]=None) -> Self:        
         self.client = self.parent.get_client(provider)
         if provider != self.provider:
             self.reformat_client_args()

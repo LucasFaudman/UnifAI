@@ -2,19 +2,20 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Colle
 
 from ._base_client_wrapper import BaseClientWrapper, UnifAIExceptionConverter
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, AIProvider, VectorDBGetResult, VectorDBQueryResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
 from pydantic import BaseModel
 
 T = TypeVar("T")
 
 class VectorDBIndex(UnifAIExceptionConverter):
+    provider = "base_vector_db"
 
     def __init__(self,
                  wrapped: Any,
                  name: str,
                  metadata: Optional[dict] = None,
-                 embedding_provider: Optional[AIProvider] = None,
+                 embedding_provider: Optional[LLMProvider] = None,
                  embedding_model: Optional[str] = None,
                  dimensions: Optional[int] = None,
                  distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -38,7 +39,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
     def modify(self, 
                new_name: Optional[str]=None, 
                new_metadata: Optional[dict]=None,
-               embedding_provider: Optional[AIProvider] = None,
+               embedding_provider: Optional[LLMProvider] = None,
                embedding_model: Optional[str] = None,
                dimensions: Optional[int] = None,
                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -100,6 +101,17 @@ class VectorDBIndex(UnifAIExceptionConverter):
 
 
     def query(self,              
+              query_text: Optional[str] = None,
+              query_embedding: Optional[Embedding] = None,
+              n_results: int = 10,
+              where: Optional[dict] = None,
+              where_document: Optional[dict] = None,
+              include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
+              ) -> VectorDBQueryResult:
+        
+        raise NotImplementedError("This method must be implemented by the subclass")
+
+    def query_many(self,              
               query_texts: Optional[list[str]] = None,
               query_embeddings: Optional[list[Embedding]] = None,
               n_results: int = 10,
@@ -108,8 +120,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
               include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
               ) -> list[VectorDBQueryResult]:
         
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
+        raise NotImplementedError("This method must be implemented by the subclass")    
 
     def get_all_ids(self) -> list[str]:
         return self.get(include=[]).ids

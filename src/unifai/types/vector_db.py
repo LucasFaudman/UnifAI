@@ -22,16 +22,16 @@ class VectorDBQueryResult(VectorDBGetResult):
         old_documents = self.documents.copy() if self.documents else None
         old_metadatas = self.metadatas.copy() if self.metadatas else None
         old_distances = self.distances.copy() if self.distances else None
-        for i in reranked_order:
-            self.ids[i] = old_ids[i]
+        for old_index, new_index in enumerate(reranked_order):
+            self.ids[new_index] = old_ids[old_index]
             if self.embeddings and old_embeddings:
-                self.embeddings[i] = old_embeddings[i]
+                self.embeddings[new_index] = old_embeddings[old_index]
             if self.documents and old_documents:
-                self.documents[i] = old_documents[i]
+                self.documents[new_index] = old_documents[old_index]
             if self.metadatas and old_metadatas:
-                self.metadatas[i] = old_metadatas[i]
+                self.metadatas[new_index] = old_metadatas[old_index]
             if self.distances and old_distances:
-                self.distances[i] = old_distances[i]
+                self.distances[new_index] = old_distances[old_index]
         return self
     
 

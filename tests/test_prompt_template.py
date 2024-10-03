@@ -2,9 +2,9 @@ import pytest
 
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
-from unifai import UnifAIClient, AIProvider, PromptTemplate
+from unifai import UnifAIClient, LLMProvider, PromptTemplate
 from unifai.types import Message, Tool
-from basetest import base_test_all_providers
+from basetest import base_test_all_llms
 
 from datetime import datetime
 
@@ -578,3 +578,106 @@ def test_prompt_template_value_formatters(template: str|Callable[..., str],
                          call_value_formatters=call_value_formatters,
                          expected=expected
                          )  
+
+class DayOfWeekGetter:
+    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    
+    def __init__(self):
+        self.day = 0
+
+    def get_current_day(self):
+        today = self.days[self.day]
+        self.day = (self.day + 1) % len(self.days)
+        return today
+    
+
+def day_formatter(day: str):
+    return f"<TODAY>{day}</TODAY>"
+
+
+@pytest.mark.parametrize("template, init_kwargs, init_nested_kwargs, init_template_getter_kwargs, init_value_formatters, call_kwargs, call_nested_kwargs, call_template_getter_kwargs, call_value_formatters, expected_list", [
+    (
+        """Today is {current_day}""", # template
+        {"current_day": DayOfWeekGetter().get_current_day}, # init_kwargs
+        {}, # init_nested_kwargs
+        {}, # init_template_getter_kwargs
+        {}, # init_value_formatters
+        {}, # call_kwargs
+        {}, # call_nested_kwargs
+        {}, # call_template_getter_kwargs
+        {}, # call_value_formatters
+        [
+            "Today is Monday",
+            "Today is Tuesday",
+            "Today is Wednesday",
+            "Today is Thursday",
+            "Today is Friday",
+            "Today is Saturday",
+            "Today is Sunday",
+        ] # expected_list
+    ),
+    (
+        """Today is {current_day}""", # template
+        {"current_day": DayOfWeekGetter().get_current_day}, # init_kwargs
+        {}, # init_nested_kwargs
+        {}, # init_template_getter_kwargs
+        {"current_day": day_formatter}, # init_value_formatters
+        {}, # call_kwargs
+        {}, # call_nested_kwargs
+        {}, # call_template_getter_kwargs
+        {}, # call_value_formatters
+        [
+            "Today is <TODAY>Monday</TODAY>",
+            "Today is <TODAY>Tuesday</TODAY>",
+            "Today is <TODAY>Wednesday</TODAY>",
+            "Today is <TODAY>Thursday</TODAY>",
+            "Today is <TODAY>Friday</TODAY>",
+            "Today is <TODAY>Saturday</TODAY>",
+            "Today is <TODAY>Sunday</TODAY>",
+        ] # expected_list
+    ),    
+    (
+        """Today is {current_day}""", # template
+        {"current_day": DayOfWeekGetter().get_current_day}, # init_kwargs
+        {}, # init_nested_kwargs
+        {}, # init_template_getter_kwargs
+        {}, # init_value_formatters
+        {}, # call_kwargs
+        {}, # call_nested_kwargs
+        {}, # call_template_getter_kwargs
+        { "current_day": day_formatter}, # call_value_formatters
+        [
+            "Today is <TODAY>Monday</TODAY>",
+            "Today is <TODAY>Tuesday</TODAY>",
+            "Today is <TODAY>Wednesday</TODAY>",
+            "Today is <TODAY>Thursday</TODAY>",
+            "Today is <TODAY>Friday</TODAY>",
+            "Today is <TODAY>Saturday</TODAY>",
+            "Today is <TODAY>Sunday</TODAY>",
+        ] # expected_list
+    ),
+])
+def test_prompt_template_stateful_callable(template: str|Callable[..., str],
+                         init_kwargs: dict, 
+                         init_nested_kwargs: Optional[dict], 
+                         init_template_getter_kwargs: Optional[dict], 
+                         init_value_formatters: Optional[dict],
+                         call_kwargs: dict, 
+                         call_nested_kwargs: Optional[dict], 
+                         call_template_getter_kwargs: Optional[dict], 
+                         call_value_formatters: Optional[dict],
+                         expected_list: list[str]
+                         ):
+    
+    for expected in expected_list:
+        _test_prompt_template(template=template, 
+                            init_kwargs=init_kwargs,
+                            init_nested_kwargs=init_nested_kwargs, 
+                            init_template_getter_kwargs=init_template_getter_kwargs, 
+                            init_value_formatters=init_value_formatters,
+                            call_kwargs=call_kwargs, 
+                            call_nested_kwargs=call_nested_kwargs, 
+                            call_template_getter_kwargs=call_template_getter_kwargs, 
+                            call_value_formatters=call_value_formatters,
+                            expected=expected
+                            )      

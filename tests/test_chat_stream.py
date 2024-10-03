@@ -1,12 +1,12 @@
 import pytest
-from unifai import UnifAIClient, AIProvider, tool
+from unifai import UnifAIClient, LLMProvider, tool
 from unifai.types import Message, Tool, MessageChunk
-from basetest import base_test_all_providers, PROVIDER_DEFAULTS
+from basetest import base_test_all_llms, PROVIDER_DEFAULTS
 
 
 
-@base_test_all_providers
-def test_chat_stream_simple(provider: AIProvider, client_kwargs: dict, func_kwargs: dict):
+@base_test_all_llms
+def test_chat_stream_simple(provider: LLMProvider, client_kwargs: dict, func_kwargs: dict):
 
     ai = UnifAIClient({provider: client_kwargs})
     ai.init_client(provider, **client_kwargs)
@@ -60,8 +60,8 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
     return {'condition': condition, 'degrees': degrees, 'unit': unit}    
 
 
-@base_test_all_providers
-def test_chat_stream_tools(provider: AIProvider, client_kwargs: dict, func_kwargs: dict):
+@base_test_all_llms
+def test_chat_stream_tools(provider: LLMProvider, client_kwargs: dict, func_kwargs: dict):
 
     ai = UnifAIClient({provider: client_kwargs})
     ai.init_client(provider, **client_kwargs)

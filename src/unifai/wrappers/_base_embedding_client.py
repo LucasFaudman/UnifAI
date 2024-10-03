@@ -12,6 +12,11 @@ class EmbeddingClient(BaseClientWrapper):
     default_embedding_model = "llama3.1:8b-instruct-q2_K"
 
 
+    # List Models
+    def list_models(self) -> list[str]:
+        raise NotImplementedError("This method must be implemented by the subclass")    
+
+
     # Embeddings
     def embed(
             self,            

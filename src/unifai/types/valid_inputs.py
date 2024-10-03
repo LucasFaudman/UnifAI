@@ -4,12 +4,19 @@ from .message import Message
 from .tool import Tool
 
 # Supported AI providers
-AIProvider = Literal["anthropic", "google", "openai", "ollama"]
+LLMProvider = Literal["anthropic", "google", "openai", "ollama"]
+
+# Supported Embedding providers
+EmbeddingProvider = Literal["google", "openai", "ollama", "cohere"]
 
 # Supported Vector DB providers
 VectorDBProvider = Literal["chroma", "pinecone"]
 
-Provider = Union[AIProvider, VectorDBProvider]  # Supported providers
+# Supported Rerank providers
+RerankProvider = Literal["cohere", "rank_bm25"]
+
+# Supported providers
+Provider = Union[LLMProvider, EmbeddingProvider, VectorDBProvider, RerankProvider] 
 
 # Valid input types that can be converted to a Message object
 MessageInput = Union[Message,  dict[str, Any], str]

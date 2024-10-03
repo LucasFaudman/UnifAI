@@ -2,7 +2,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Colle
 
 from ._base_vector_db_client import VectorDBIndex, VectorDBClient
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, AIProvider, VectorDBGetResult, VectorDBQueryResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, BadRequestError
 from unifai.wrappers._base_client_wrapper import UnifAIExceptionConverter, convert_exceptions
 
@@ -35,12 +35,13 @@ class ChromaExceptionConverter(UnifAIExceptionConverter):
 
 
 class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
+    provider = "chroma"
 
     def __init__(self,
                  wrapped: ChromaCollection,
                  name: str,
                  metadata: Optional[dict] = None,
-                 embedding_provider: Optional[AIProvider] = None,
+                 embedding_provider: Optional[LLMProvider] = None,
                  embedding_model: Optional[str] = None,
                  dimensions: Optional[int] = None,
                  distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -65,7 +66,7 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
     def modify(self, 
                new_name: Optional[str]=None, 
                new_metadata: Optional[dict]=None,
-               embedding_provider: Optional[AIProvider] = None,
+               embedding_provider: Optional[LLMProvider] = None,
                embedding_model: Optional[str] = None,
                dimensions: Optional[int] = None,
                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -167,16 +168,39 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
             included=get_result["included"] 
         )
     
+
+    def query(self,              
+              query_text: Optional[str] = None,
+              query_embedding: Optional[Embedding] = None,
+              n_results: int = 10,
+              where: Optional[dict] = None,
+              where_document: Optional[dict] = None,
+              include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
+              ) -> VectorDBQueryResult:
+        if query_text is not None:
+            query_texts = [query_text]
+            query_embeddings = None
+        elif query_embedding is not None:
+            query_texts = None
+            query_embeddings = [query_embedding]
+        else:
+            raise ValueError("Either query_text or query_embedding must be provided")
+        return self.query_many(query_texts, query_embeddings, n_results, where, where_document, include)[0]
+
+    
     @convert_exceptions
-    def query(self,
+    def query_many(self,
               query_texts: Optional[list[str]] = None,
               query_embeddings: Optional[list[Embedding]] = None,              
               n_results: int = 10,
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
-              include: list[Literal["metadatas", "documents", "distances"]] = ["metadatas", "documents", "distances"],
+              include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
               ) -> list[VectorDBQueryResult]:
         
+        if query_texts is None and query_embeddings is None:
+            raise ValueError("Either query_texts or query_embeddings must be provided")
+
         query_result = self.wrapped.query(
             query_embeddings=query_embeddings, 
             query_texts=query_texts, 
@@ -294,7 +318,7 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
     def create_index(self, 
                      name: str,
                      metadata: Optional[dict] = None,
-                     embedding_provider: Optional[AIProvider] = None,
+                     embedding_provider: Optional[LLMProvider] = None,
                      embedding_model: Optional[str] = None,
                      dimensions: Optional[int] = None,
                      distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -345,7 +369,7 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
     @convert_exceptions
     def get_index(self, 
                   name: str,
-                  embedding_provider: Optional[AIProvider] = None,
+                  embedding_provider: Optional[LLMProvider] = None,
                   embedding_model: Optional[str] = None,
                   dimensions: Optional[int] = None,
                   distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -410,6 +434,6 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
         return [collection.name for collection in self.client.list_collections(limit=limit, offset=offset)]
     
     @convert_exceptions
-    def delete_index(self, name: str):
+    def delete_index(self, name: str) -> None:
         self.indexes.pop(name, None)
         return self.client.delete_collection(name=name)

@@ -3,7 +3,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Colle
 from ._base_client_wrapper import BaseClientWrapper
 from ._base_vector_db_index import VectorDBIndex
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, AIProvider, VectorDBGetResult, VectorDBQueryResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, BadRequestError
 
 
@@ -14,7 +14,7 @@ class VectorDBClient(BaseClientWrapper):
 
     def __init__(self, 
                  parent,
-                 default_embedding_provider: Optional[AIProvider] = None,
+                 default_embedding_provider: Optional[LLMProvider] = None,
                  default_embedding_model: Optional[str] = None,
                  default_dimensions: Optional[int] = None,
                  default_distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -36,7 +36,7 @@ class VectorDBClient(BaseClientWrapper):
     def create_index(self, 
                      name: str,
                      metadata: Optional[dict] = None,
-                     embedding_provider: Optional[AIProvider] = None,
+                     embedding_provider: Optional[LLMProvider] = None,
                      embedding_model: Optional[str] = None,
                      dimensions: Optional[int] = None,
                      distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -47,7 +47,7 @@ class VectorDBClient(BaseClientWrapper):
 
     def get_index(self, 
                   name: str,
-                  embedding_provider: Optional[AIProvider] = None,
+                  embedding_provider: Optional[LLMProvider] = None,
                   embedding_model: Optional[str] = None,
                   dimensions: Optional[int] = None,
                   distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -59,7 +59,7 @@ class VectorDBClient(BaseClientWrapper):
     def get_or_create_index(self, 
                             name: str,
                             metadata: Optional[dict] = None,
-                            embedding_provider: Optional[AIProvider] = None,
+                            embedding_provider: Optional[LLMProvider] = None,
                             embedding_model: Optional[str] = None,
                             dimensions: Optional[int] = None,
                             distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -93,13 +93,17 @@ class VectorDBClient(BaseClientWrapper):
         raise NotImplementedError("This method must be implemented by the subclass")
     
 
-    def delete_index(self, name: str) -> dict:
+    def delete_index(self, name: str) -> None:
         raise NotImplementedError("This method must be implemented by the subclass")
     
 
-    def delete_all_indexes(self) -> None:
-        for name in self.list_indexes():
+    def delete_indexes(self, names: Collection[str]) -> None:
+        for name in names:
             self.delete_index(name)
+
+
+    def delete_all_indexes(self) -> None:
+        self.delete_indexes(self.list_indexes())
 
 
     def count_indexes(self) -> int:
@@ -171,6 +175,18 @@ class VectorDBClient(BaseClientWrapper):
 
     def query(self,
               name: str,
+              query_text: Optional[str] = None,
+              query_embedding: Optional[Embedding] = None,         
+              n_results: int = 10,
+              where: Optional[dict] = None,
+              where_document: Optional[dict] = None,
+              include: list[Literal["embeddings", "metadatas", "documents", "distances"]] = ["metadatas", "documents", "distances"],
+              ) -> VectorDBQueryResult:
+        return self.get_index(name).query(query_text, query_embedding, n_results, where, where_document, include)    
+    
+
+    def query_many(self,
+              name: str,
               query_texts: Optional[list[str]] = None,
               query_embeddings: Optional[list[Embedding]] = None,              
               n_results: int = 10,
@@ -178,4 +194,4 @@ class VectorDBClient(BaseClientWrapper):
               where_document: Optional[dict] = None,
               include: list[Literal["embeddings", "metadatas", "documents", "distances"]] = ["metadatas", "documents", "distances"],
               ) -> list[VectorDBQueryResult]:
-        return self.get_index(name).query(query_texts, query_embeddings, n_results, where, where_document, include)    
+        return self.get_index(name).query_many(query_texts, query_embeddings, n_results, where, where_document, include)        

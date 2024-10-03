@@ -1,7 +1,7 @@
 import pytest
-from basetest import base_test_all_providers
+from basetest import base_test_all_llms
 
-from unifai import UnifAIClient, AIProvider
+from unifai import UnifAIClient, LLMProvider
 from unifai.types import Message, Tool, StringToolParameter, ToolCall
 from unifai.exceptions import (
     UnifAIError,
@@ -43,7 +43,7 @@ bad_messages = [
     Message(role="assistant", tool_calls=[ToolCall(id="bad_id", tool_name="bad_tool", arguments={"bad_param": "bad_value"})])
 ]
 
-@base_test_all_providers
+@base_test_all_llms
 @pytest.mark.parametrize("expected_exception, bad_client_kwargs, bad_func_kwargs", [
     (APIConnectionError, {"base_url": "https://localhost:443/badapi"}, {}),
     (APITimeoutError, {"timeout": 0.0001}, {}),
@@ -63,7 +63,7 @@ bad_messages = [
     # (UnknownAPIError, {}, {}),
 ])
 def test_api_exceptions(
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict, 
     func_kwargs: dict,
     expected_exception: type[UnifAIError],

@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAIClient, AIProvider
+from unifai import UnifAIClient, LLMProvider
 from unifai.type_conversions import standardize_messages, standardize_tools
 from unifai.types import (
     Message, 
@@ -20,7 +20,7 @@ from unifai.types import (
     PROVIDER_TOOLS
 )
 
-from basetest import base_test_all_providers
+from basetest import base_test_all_llms
 
 ai = UnifAIClient()
 

@@ -1,7 +1,7 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
 from unifai.types import (
-    AIProvider, 
+    LLMProvider, 
     Message,
     MessageChunk,
     MessageInput, 
@@ -57,12 +57,12 @@ class RAGEngine:
             where_document: Optional[dict] = None,
             **retreiver_kwargs) -> VectorDBQueryResult:
         return self.index.query(
-            query_texts=[query],
+            query_text=query,
             n_results=top_k,
             where=where,
             where_document=where_document,
             **retreiver_kwargs
-        )[0]
+        )
 
 
     def rerank(

@@ -2,7 +2,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Colle
 
 from ._base_client_wrapper import BaseClientWrapper, UnifAIExceptionConverter
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, AIProvider, VectorDBGetResult, VectorDBQueryResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
 from pydantic import BaseModel
 
@@ -11,6 +11,10 @@ T = TypeVar("T")
 class RerankerClient(BaseClientWrapper):
     provider = "base_reranker"
     default_reranking_model = "rerank-english-v3.0"
+
+    # List Models
+    def list_models(self) -> list[str]:
+        raise NotImplementedError("This method must be implemented by the subclass")        
 
     def rerank(
         self, 
@@ -50,6 +54,7 @@ class RerankerClient(BaseClientWrapper):
     def _extract_reranked_order(
         self,
         response: Any,
+        top_n: Optional[int] = None,
         **kwargs
         ) -> list[int]:
         raise NotImplementedError("This method must be implemented by the subclass")    

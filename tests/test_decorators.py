@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAIClient, AIProvider
+from unifai import UnifAIClient, LLMProvider
 from unifai.types import (
     Message, 
     Image, 
@@ -16,7 +16,7 @@ from unifai.types import (
     Tool,
 )
 
-from basetest import base_test_all_providers
+from basetest import base_test_all_llms
 
 from unifai.type_conversions.tool_from_func import parse_docstring_and_annotations, tool
 

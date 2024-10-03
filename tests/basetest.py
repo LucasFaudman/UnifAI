@@ -36,12 +36,12 @@ PROVIDER_DEFAULTS = {
 
     "chroma": (
         "chroma",
-        {"persist_directory": "/Users/lucasfaudman/Documents/UnifAI/scratch/test_embeddings",
-         "is_persistent": False
-         },
+        {
+            "persist_directory": "/Users/lucasfaudman/Documents/UnifAI/scratch/test_embeddings",         
+            "is_persistent": False
+        },
         {}
     ),
-
     "pinecone": (
         "pinecone",
         {"api_key": PINECONE_API_KEY},
@@ -50,17 +50,31 @@ PROVIDER_DEFAULTS = {
 
     "cohere": (
         "cohere",
-        {"args": (COHERE_API_KEY,)},
+        {"api_key": COHERE_API_KEY},
         {}
-    ),       
+    ),  
 
+    "rank_bm25": (
+        "rank_bm25",
+        {},
+        {}
+    ),  
 }
 
-AI_PROVIDER_DEFAULTS = [
+LLM_PROVIDER_DEFAULTS = [
     PROVIDER_DEFAULTS["anthropic"],
     PROVIDER_DEFAULTS["google"],
     PROVIDER_DEFAULTS["openai"],
     PROVIDER_DEFAULTS["ollama"]
+]
+
+EMBEDDING_PROVIDER_DEFAULTS = [
+    PROVIDER_DEFAULTS["google"],
+    PROVIDER_DEFAULTS["openai"],
+    PROVIDER_DEFAULTS["ollama"],
+    # PROVIDER_DEFAULTS["chroma"],
+    # PROVIDER_DEFAULTS["pinecone"],
+    PROVIDER_DEFAULTS["cohere"]
 ]
 
 VECTOR_DB_PROVIDER_DEFAULTS = [
@@ -68,31 +82,39 @@ VECTOR_DB_PROVIDER_DEFAULTS = [
     PROVIDER_DEFAULTS["pinecone"]
 ]
 
-def base_test_all_providers(func):
-    return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", AI_PROVIDER_DEFAULTS[:])(func)
+RERANKER_PROVIDER_DEFAULTS = [
+    # PROVIDER_DEFAULTS["ollama"]
+    PROVIDER_DEFAULTS["cohere"],
+    PROVIDER_DEFAULTS["rank_bm25"]
+]
+
+# LLM test decorators
+def base_test_all_llms(func):
+    return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", LLM_PROVIDER_DEFAULTS[:])(func)
 
 def base_test_no_anthropic(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
-        defaults for defaults in AI_PROVIDER_DEFAULTS if defaults[0] != "anthropic"
+        defaults for defaults in LLM_PROVIDER_DEFAULTS if defaults[0] != "anthropic"
     ])(func)
 
 def base_test_no_google(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
-        defaults for defaults in AI_PROVIDER_DEFAULTS if defaults[0] != "google"
+        defaults for defaults in LLM_PROVIDER_DEFAULTS if defaults[0] != "google"
     ])(func)
 
 def base_test_no_openai(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
-        defaults for defaults in AI_PROVIDER_DEFAULTS if defaults[0] != "openai"
+        defaults for defaults in LLM_PROVIDER_DEFAULTS if defaults[0] != "openai"
     ])(func)
 
 def base_test_no_ollama(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
-        defaults for defaults in AI_PROVIDER_DEFAULTS if defaults[0] != "ollama"
+        defaults for defaults in LLM_PROVIDER_DEFAULTS if defaults[0] != "ollama"
     ])(func)
 
 
-def base_test_all_db_providers(func):
+# Vector DB test decorators
+def base_test_vector_dbs(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", VECTOR_DB_PROVIDER_DEFAULTS)(func)
 
 def base_test_db_no_chroma(func):
@@ -104,3 +126,8 @@ def base_test_db_no_pinecone(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
         defaults for defaults in VECTOR_DB_PROVIDER_DEFAULTS if defaults[0] != "pinecone"
     ])(func)
+
+
+# Reranker test decorators
+def base_test_rerankers(func):
+    return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", RERANKER_PROVIDER_DEFAULTS)(func)

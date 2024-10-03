@@ -21,8 +21,10 @@ from .tool_parameter import (
 )
 from .tool import Tool, ProviderTool, PROVIDER_TOOLS
 from .valid_inputs import (
-    AIProvider, 
+    LLMProvider, 
     VectorDBProvider, 
+    EmbeddingProvider,
+    RerankProvider,
     Provider,
     EvaluateParametersInput, 
     MessageInput, 
@@ -53,8 +55,10 @@ __all__ = [
     "Tool", 
     "ProviderTool",
     "PROVIDER_TOOLS",
-    "AIProvider",
+    "LLMProvider",
     "VectorDBProvider",
+    "EmbeddingProvider",
+    "RerankProvider",
     "Provider",
     "EvaluateParametersInput",
     "MessageInput",

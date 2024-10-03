@@ -1,7 +1,7 @@
 import pytest
-from unifai import UnifAIClient, AIProvider, tool, MessageChunk
+from unifai import UnifAIClient, LLMProvider, tool, MessageChunk
 from unifai.types import Message, Tool
-from basetest import base_test_all_providers, PROVIDER_DEFAULTS
+from basetest import base_test_all_llms, PROVIDER_DEFAULTS
 
 @pytest.mark.parametrize("provider1, client_kwargs1, func_kwargs1", [
     PROVIDER_DEFAULTS["anthropic"],
@@ -16,10 +16,10 @@ from basetest import base_test_all_providers, PROVIDER_DEFAULTS
     PROVIDER_DEFAULTS["ollama"]
 ])
 def test_switch_providers_simple(
-    provider1: AIProvider, 
+    provider1: LLMProvider, 
     client_kwargs1: dict, 
     func_kwargs1: dict,
-    provider2: AIProvider, 
+    provider2: LLMProvider, 
     client_kwargs2: dict, 
     func_kwargs2: dict
 ):
@@ -88,10 +88,10 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
     PROVIDER_DEFAULTS["ollama"]
 ])
 def test_switch_providers_tool_calls(
-    provider1: AIProvider, 
+    provider1: LLMProvider, 
     client_kwargs1: dict, 
     func_kwargs1: dict,
-    provider2: AIProvider, 
+    provider2: LLMProvider, 
     client_kwargs2: dict, 
     func_kwargs2: dict
 ):

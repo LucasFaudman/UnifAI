@@ -1,7 +1,7 @@
 import pytest
-from unifai import UnifAIClient, AIProvider
+from unifai import UnifAIClient, LLMProvider
 from unifai.types import Message, Tool
-from basetest import base_test_all_providers
+from basetest import base_test_all_llms
 
 # TOOLS AND TOOL CALLABLES
 TOOLS = {
@@ -110,8 +110,8 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
 
 
 
-@base_test_all_providers
-def test_chat_simple(provider: AIProvider, client_kwargs: dict, func_kwargs: dict):
+@base_test_all_llms
+def test_chat_simple(provider: LLMProvider, client_kwargs: dict, func_kwargs: dict):
 
     ai = UnifAIClient({provider: client_kwargs})
     ai.init_client(provider, **client_kwargs)
@@ -144,7 +144,7 @@ def test_chat_simple(provider: AIProvider, client_kwargs: dict, func_kwargs: dic
 
 
 
-@base_test_all_providers
+@base_test_all_llms
 @pytest.mark.parametrize("messages, tools, tool_callables", [
     (
         [
@@ -162,7 +162,7 @@ def test_chat_simple(provider: AIProvider, client_kwargs: dict, func_kwargs: dic
 ])
 def test_chat_tools_simple(
     # ai: UnifAIClient, 
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict,
     func_kwargs: dict,
     messages: list,
@@ -193,7 +193,7 @@ def test_chat_tools_simple(
     
 
 
-@base_test_all_providers
+@base_test_all_llms
 @pytest.mark.parametrize("messages, tools, tool_callables", [
     (
         [
@@ -210,7 +210,7 @@ def test_chat_tools_simple(
 ])
 def test_chat_return_on(
     # ai: UnifAIClient, 
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict,
     func_kwargs: dict,
     messages: list,
@@ -273,7 +273,7 @@ def test_chat_return_on(
 
 
 
-@base_test_all_providers
+@base_test_all_llms
 @pytest.mark.parametrize("messages, tools, tool_callables, tool_choice", [
     (
         [
@@ -291,7 +291,7 @@ def test_chat_return_on(
 ])
 def test_chat_enforce_tool_choice(
     # ai: UnifAIClient, 
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict,
     func_kwargs: dict,
     messages: list,
@@ -342,7 +342,7 @@ def test_chat_enforce_tool_choice(
     print()
 
 
-@base_test_all_providers
+@base_test_all_llms
 @pytest.mark.parametrize("messages, tools, tool_callables, tool_choice", [
     (
         [
@@ -360,7 +360,7 @@ def test_chat_enforce_tool_choice(
 ])
 def test_chat_enforce_tool_choice_sequence(
     # ai: UnifAIClient, 
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict,
     func_kwargs: dict,
     messages: list,
@@ -422,7 +422,7 @@ def test_chat_enforce_tool_choice_sequence(
     print()
 
 
-@base_test_all_providers
+@base_test_all_llms
 @pytest.mark.parametrize("system_prompt, message_lists, tools, tool_callables, tool_choice", [
     (
         "Your role is use the available tools to answer questions like a cartoon Pirate",
@@ -449,7 +449,7 @@ def test_chat_enforce_tool_choice_sequence(
 ])
 def test_chat_send_message(
     # ai: UnifAIClient, 
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict,
     func_kwargs: dict,
     system_prompt: str|None,
@@ -513,7 +513,7 @@ def test_chat_send_message(
     print()
 
 
-@base_test_all_providers
+@base_test_all_llms
 @pytest.mark.parametrize("extra_kwargs", [
     {
         "max_tokens": 100,
@@ -528,7 +528,7 @@ def test_chat_send_message(
     
     ])
 def test_chat_options(
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict, 
     func_kwargs: dict,
     extra_kwargs: dict

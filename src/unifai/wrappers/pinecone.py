@@ -2,7 +2,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Colle
 
 from ._base_vector_db_client import VectorDBIndex, VectorDBClient
 
-from unifai.types import ResponseInfo, Embedding, Embeddings, Usage, AIProvider, VectorDBGetResult, VectorDBQueryResult
+from unifai.types import ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, BadRequestError
 from unifai.wrappers._base_client_wrapper import UnifAIExceptionConverter, convert_exceptions
 
@@ -61,7 +61,7 @@ class PineconeIndex(VectorDBIndex, PineconeExceptionConverter):
                  wrapped: GRPCIndex,
                  name: str,
                  metadata: Optional[dict] = None,
-                 embedding_provider: Optional[AIProvider] = None,
+                 embedding_provider: Optional[LLMProvider] = None,
                  embedding_model: Optional[str] = None,
                  embedding_function: Optional[Callable] = None,
                  dimensions: Optional[int] = None,
@@ -90,7 +90,7 @@ class PineconeIndex(VectorDBIndex, PineconeExceptionConverter):
     def modify(self, 
                new_name: Optional[str]=None, 
                new_metadata: Optional[dict]=None,
-               embedding_provider: Optional[AIProvider] = None,
+               embedding_provider: Optional[LLMProvider] = None,
                embedding_model: Optional[str] = None,
                dimensions: Optional[int] = None,
                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -300,7 +300,7 @@ class PineconeClient(VectorDBClient, PineconeExceptionConverter):
     def create_index(self, 
                      name: str,
                      metadata: Optional[dict] = None,
-                     embedding_provider: Optional[AIProvider] = None,
+                     embedding_provider: Optional[LLMProvider] = None,
                      embedding_model: Optional[str] = None,
                      dimensions: Optional[int] = None,
                      distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -360,7 +360,7 @@ class PineconeClient(VectorDBClient, PineconeExceptionConverter):
     @convert_exceptions
     def get_index(self, 
                   name: str,
-                  embedding_provider: Optional[AIProvider] = None,
+                  embedding_provider: Optional[LLMProvider] = None,
                   embedding_model: Optional[str] = None,
                   dimensions: Optional[int] = None,
                   distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,

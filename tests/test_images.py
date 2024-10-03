@@ -1,7 +1,7 @@
 import pytest
-from unifai import UnifAIClient, AIProvider
+from unifai import UnifAIClient, LLMProvider
 from unifai.types import Message, Tool, Image, StringToolParameter
-from basetest import base_test_all_providers, base_test_no_ollama, base_test_no_openai
+from basetest import base_test_all_llms, base_test_no_ollama, base_test_no_openai
 
 from pathlib import Path
 resouces_path = Path(__file__).parent / "resources"
@@ -65,7 +65,7 @@ for image_name, image_formats in TEST_IMAGES.items():
     "dog"
 ])
 def test_image_input_animals(
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict, 
     func_kwargs: dict,
     image_source: str,
@@ -155,7 +155,7 @@ def test_image_input_animals(
     "dog"
 ])
 def test_image_and_tools_input_animals(
-    provider: AIProvider, 
+    provider: LLMProvider, 
     client_kwargs: dict, 
     func_kwargs: dict,
     image_source: str,

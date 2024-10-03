@@ -5,7 +5,7 @@ from ._base_embedding_client import EmbeddingClient
 from ._base_llm_client import LLMClient
 from ._base_reranker_client import RerankerClient
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, AIProvider, VectorDBGetResult, VectorDBQueryResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError
 
 from cohere import ClientV2
@@ -25,6 +25,13 @@ class CohereWrapper(EmbeddingClient, RerankerClient, LLMClient):
     def import_client(self):
         from cohere import ClientV2
         return ClientV2
+    
+    def init_client(self, **client_kwargs) -> ClientV2:
+        self.client_kwargs.update(client_kwargs)
+        if not (api_key := self.client_kwargs.get("api_key")):
+            raise ValueError("Cohere API key is required")
+        self._client = self.import_client()(api_key) # Cohere ClientV2 does require an API key as a positional argument
+        return self._client
 
 
     # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
@@ -86,7 +93,10 @@ class CohereWrapper(EmbeddingClient, RerankerClient, LLMClient):
     def _extract_reranked_order(
         self,
         response: Any,
+        top_n: Optional[int] = None,        
         **kwargs
         ) -> list[int]:
-        sorted_results = sorted(response.results, key=lambda result:result.relevance_score, reverse=True)
+        sorted_results = sorted(response.results, key=lambda result: result.relevance_score, reverse=True)
+        if top_n is not None and top_n < len(sorted_results):
+            sorted_results = sorted_results[:top_n]
         return [result.index for result in sorted_results]
