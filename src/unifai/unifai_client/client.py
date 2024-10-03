@@ -146,11 +146,12 @@ class UnifAIClient:
                 raise ValueError(f"Invalid provider: {provider}")
             
 
-    def init_client(self, provider: Provider, **client_kwargs) -> LLMClient|VectorDBClient:
+    def init_client(self, provider: Provider, *client_args, **client_kwargs) -> LLMClient|VectorDBClient:
         client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
         if provider in REQUIRES_PARENT and "parent" not in client_kwargs:
             client_kwargs["parent"] = self
-        self._clients[provider] = self.import_client_wrapper(provider)(**client_kwargs)
+        client_kwarg_args = client_kwargs.pop("args", ())
+        self._clients[provider] = self.import_client_wrapper(provider)(*client_args, *client_kwarg_args, **client_kwargs)
         return self._clients[provider]
     
 
@@ -412,6 +413,7 @@ class UnifAIClient:
         return self.get_ai_client(provider).embed(input, model, max_dimensions, **kwargs)
 
 
+
     def get_or_create_index(self, 
                             name: str,
                             vector_db_provider: Optional[VectorDBProvider] = None,                            
@@ -432,6 +434,7 @@ class UnifAIClient:
             **kwargs
         )
     
+
     def upsert_index(self,
                      name: str,
                      ids: list[str],
@@ -460,6 +463,7 @@ class UnifAIClient:
                 embeddings=embeddings
             )
     
+
     def query_index(self, 
                     name: str,
                     query: str | list[str] | Embedding | list[Embedding] | Embeddings,

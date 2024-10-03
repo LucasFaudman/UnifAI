@@ -9,6 +9,7 @@ ANTHROPIC_API_KEY = getenv("_ANTHROPIC_API_KEY")
 GOOGLE_API_KEY = getenv("_GOOGLE_API_KEY")
 OPENAI_API_KEY = getenv("_OPENAI_API_KEY")
 PINECONE_API_KEY = getenv("_PINECONE_API_KEY")
+COHERE_API_KEY = getenv("_COHERE_API_KEY")
 
 PROVIDER_DEFAULTS = {
     # "provider": (provider, client_kwargs, func_kwargs)
@@ -45,7 +46,14 @@ PROVIDER_DEFAULTS = {
         "pinecone",
         {"api_key": PINECONE_API_KEY},
         {}
-    ),    
+    ),   
+
+    "cohere": (
+        "cohere",
+        {"args": (COHERE_API_KEY,)},
+        {}
+    ),       
+
 }
 
 AI_PROVIDER_DEFAULTS = [
@@ -61,7 +69,7 @@ VECTOR_DB_PROVIDER_DEFAULTS = [
 ]
 
 def base_test_all_providers(func):
-    return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", AI_PROVIDER_DEFAULTS[:-1])(func)
+    return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", AI_PROVIDER_DEFAULTS[:])(func)
 
 def base_test_no_anthropic(func):
     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [

@@ -21,12 +21,11 @@ class EmbeddingClient(BaseClientWrapper):
             **kwargs
             ) -> Embeddings:
         
-        kwargs["input"] = input
-        kwargs["model"] = model or self.default_embedding_model
-        kwargs["max_dimensions"] = max_dimensions
-
         response = self.run_func_convert_exceptions(
             func=self._get_embed_response,
+            input=input,
+            model=model or self.default_embedding_model,
+            max_dimensions=max_dimensions,
             **kwargs
         )
         return self._extract_embeddings(response, **kwargs)
