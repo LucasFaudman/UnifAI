@@ -1,10 +1,22 @@
-from typing import Optional, Literal, Union, Sequence, Any
+from typing import Optional, Literal, Union, Self, Any
 
 from pydantic import BaseModel, RootModel, ConfigDict
 
 from .response_info import ResponseInfo
+from unifai.exceptions.embedding_errors import EmbeddingDimensionsError
 
 Embedding = list[float]
+
+# def normalize_l2(x):
+#     x = np.array(x)
+#     if x.ndim == 1:
+#         norm = np.linalg.norm(x)
+#         if norm == 0:
+#             return x
+#         return x / norm
+#     else:
+#         norm = np.linalg.norm(x, 2, axis=1, keepdims=True)
+#         return np.where(norm == 0, x, x / norm)
 
 class Embeddings(RootModel[list[Embedding]]):
 
@@ -12,18 +24,40 @@ class Embeddings(RootModel[list[Embedding]]):
         super().__init__(root=root)
         self.response_info = response_info
     
+
     def list(self) -> list[list[float]]:
         return self.root     
-        
+
+
     @property
     def response_info(self) -> Optional[ResponseInfo]:
         if not hasattr(self, "_response_info"):
             self._response_info = None
         return self._response_info
 
+
     @response_info.setter
     def response_info(self, response_info: Optional[ResponseInfo]):
         self._response_info = response_info
+
+
+    @property
+    def dimensions(self) -> int:
+        return len(self.root[0]) if self.root else 0
+    
+
+    @dimensions.setter
+    def dimensions(self, dimensions: int) -> None:
+        current_dimensions = self.dimensions
+        if dimensions < 1 or dimensions > current_dimensions:
+            raise EmbeddingDimensionsError(f"Cannot reduce dimensions from {current_dimensions} to {dimensions}. Dimensions cannot be greater than the current dimensions or less than 1.")
+        elif dimensions != current_dimensions:
+            self.root = [embedding[:dimensions] for embedding in self.root]
+        
+
+    def reduce_dimensions(self, dimensions: int) -> Self:
+        self.dimensions = dimensions
+        return self
 
            
     def __add__(self, other: "Embeddings") -> "Embeddings": 

@@ -65,10 +65,10 @@ from unifai.exceptions import (
     PermissionDeniedError,
     RateLimitError,
     UnprocessableEntityError,
-    STATUS_CODE_TO_EXCEPTION_MAP   
+    STATUS_CODE_TO_EXCEPTION_MAP,
 )
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings, EmbeddingTaskTypeInput
 from unifai.type_conversions import stringify_content
 from ._base_llm_client import LLMClient
 from ._base_embedding_client import EmbeddingClient
@@ -78,6 +78,12 @@ class OpenAIWrapper(EmbeddingClient, LLMClient):
     client: OpenAI
     default_model = "gpt-4o"
     default_embedding_model = "text-embedding-3-small"
+
+    model_embedding_dimensions = {
+        "text-embedding-3-large": 3072,
+        "text-embedding-3-small": 1536,
+        "text-embedding-ada-002": 1568,
+    }    
 
     def import_client(self):
         from openai import OpenAI
@@ -123,20 +129,21 @@ class OpenAIWrapper(EmbeddingClient, LLMClient):
 
     # Embeddings
     def _get_embed_response(
-            self,            
-            input: str | Sequence[str],
-            model: Optional[str] = None,
-            max_dimensions: Optional[int] = None,
+            self,
+            input: Sequence[str],
+            model: str,
+            dimensions: Optional[int] = None,
+            task_type: Literal["search_query", "search_document", "classification", "clustering", "image"] = "search_query",
+            input_too_large: Literal[
+                "truncate_end", 
+                "truncate_start", 
+                "raise_error"] = "truncate_end",
             **kwargs
             ) -> CreateEmbeddingResponse:
-        if max_dimensions is not None:
-            kwargs["dimensions"] = max_dimensions
         
-        return self.client.embeddings.create(
-            input=input,
-            model=model or self.default_embedding_model,            
-            **kwargs
-        )
+        if dimensions is not None:
+            kwargs["dimensions"] = dimensions
+        return self.client.embeddings.create(input=input, model=model, **kwargs)
 
 
     def _extract_embeddings(
@@ -178,29 +185,78 @@ class OpenAIWrapper(EmbeddingClient, LLMClient):
             **kwargs
             ) -> ChatCompletion|Stream[ChatCompletionChunk]:
 
-            if tool_choice and not tools:
-                tool_choice = None
-
             if stream:
+                kwargs["stream"] = stream
                 kwargs["stream_options"] = kwargs.get("stream_options", {})
                 kwargs["stream_options"]["include_usage"] = True
+            
+            kwargs["messages"] = messages
+            kwargs["model"] = model
+            if tools:
+                kwargs["tools"] = tools
+            if tool_choice and tools:
+                kwargs["tool_choice"] = tool_choice
+            if response_format:
+                kwargs["response_format"] = response_format
+            if max_tokens:
+                kwargs["max_tokens"] = max_tokens
+            if frequency_penalty:
+                kwargs["frequency_penalty"] = frequency_penalty
+            if presence_penalty:
+                kwargs["presence_penalty"] = presence_penalty
+            if seed:
+                kwargs["seed"] = seed
+            if stop_sequences:
+                kwargs["stop"] = stop_sequences
+            if temperature:
+                kwargs["temperature"] = temperature
+            # if top_k:
+            #     kwargs["top_k"] = top_k
+            if top_p:
+                kwargs["top_p"] = top_p
+            
+
 
             return self.client.chat.completions.create(
-                messages=messages,
-                model=model,
-                frequency_penalty=frequency_penalty,
-                max_tokens=max_tokens,  
-                presence_penalty=presence_penalty,
-                response_format=response_format,
-                seed=seed,
-                stop=stop_sequences,                
-                stream=stream,
-                temperature=temperature,
-                tool_choice=tool_choice,
-                tools=tools,
-                top_p=top_p,
+                # messages=messages,
+                # model=model,
+                # frequency_penalty=frequency_penalty,
+                # max_tokens=max_tokens,  
+                # presence_penalty=presence_penalty,
+                # response_format=response_format,
+                # seed=seed,
+                # stop=stop_sequences,                
+                # stream=stream,
+                # temperature=temperature,
+                # tool_choice=tool_choice,
+                # tools=tools,
+                # top_p=top_p,
                 **kwargs
-            )         
+            )   
+    
+            # if tool_choice and not tools:
+            #     tool_choice = None
+
+            # if stream:
+            #     kwargs["stream_options"] = kwargs.get("stream_options", {})
+            #     kwargs["stream_options"]["include_usage"] = True
+
+            # return self.client.chat.completions.create(
+            #     messages=messages,
+            #     model=model,
+            #     frequency_penalty=frequency_penalty,
+            #     max_tokens=max_tokens,  
+            #     presence_penalty=presence_penalty,
+            #     response_format=response_format,
+            #     seed=seed,
+            #     stop=stop_sequences,                
+            #     stream=stream,
+            #     temperature=temperature,
+            #     tool_choice=tool_choice,
+            #     tools=tools,
+            #     top_p=top_p,
+            #     **kwargs
+            # )         
     
     # Convert from UnifAI to AI Provider format        
         # Messages        

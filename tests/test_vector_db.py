@@ -6,10 +6,10 @@ from unifai.wrappers._base_vector_db_client import VectorDBClient, VectorDBIndex
 
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError
-from basetest import base_test_vector_dbs, base_test_db_no_pinecone, base_test_db_no_chroma, PROVIDER_DEFAULTS
+from basetest import base_test, base_test_vector_dbs_all, PROVIDER_DEFAULTS, VECTOR_DB_PROVIDERS
 from chromadb.errors import InvalidCollectionException
 
-@base_test_vector_dbs
+@base_test_vector_dbs_all
 def test_init_vector_db_init_clients(provider, client_kwargs, func_kwargs):
     ai = UnifAIClient({
         provider: client_kwargs
@@ -89,7 +89,7 @@ def parameterize_distance_metric(func):
 
 
 
-@base_test_db_no_pinecone
+@base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -213,7 +213,7 @@ def approx_embeddings(embeddings, expected_embeddings):
         for j, value in enumerate(embedding):
             assert pytest.approx(value) == pytest.approx(expected_embeddings[i][j])
 
-@base_test_db_no_pinecone
+@base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -402,7 +402,7 @@ def test_vector_db_add(provider: Provider,
     del ai
 
 
-@base_test_db_no_pinecone
+@base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions

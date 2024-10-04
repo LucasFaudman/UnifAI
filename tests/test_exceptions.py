@@ -1,5 +1,5 @@
 import pytest
-from basetest import base_test_all_llms
+from basetest import base_test_llms_all
 
 from unifai import UnifAIClient, LLMProvider
 from unifai.types import Message, Tool, StringToolParameter, ToolCall
@@ -43,7 +43,7 @@ bad_messages = [
     Message(role="assistant", tool_calls=[ToolCall(id="bad_id", tool_name="bad_tool", arguments={"bad_param": "bad_value"})])
 ]
 
-@base_test_all_llms
+@base_test_llms_all
 @pytest.mark.parametrize("expected_exception, bad_client_kwargs, bad_func_kwargs", [
     (APIConnectionError, {"base_url": "https://localhost:443/badapi"}, {}),
     (APITimeoutError, {"timeout": 0.0001}, {}),

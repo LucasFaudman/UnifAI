@@ -4,16 +4,16 @@ from .message import Message
 from .tool import Tool
 
 # Supported AI providers
-LLMProvider = Literal["anthropic", "google", "openai", "ollama"]
+LLMProvider = Literal["anthropic", "google", "openai", "ollama", "cohere", "nvidia"]
 
 # Supported Embedding providers
-EmbeddingProvider = Literal["google", "openai", "ollama", "cohere"]
+EmbeddingProvider = Literal["google", "openai", "ollama", "cohere", "sentence_transformers", "nvidia"]
 
 # Supported Vector DB providers
 VectorDBProvider = Literal["chroma", "pinecone"]
 
 # Supported Rerank providers
-RerankProvider = Literal["cohere", "rank_bm25"]
+RerankProvider = Literal["rank_bm25", "cohere", "sentence_transformers", "nvidia"]
 
 # Supported providers
 Provider = Union[LLMProvider, EmbeddingProvider, VectorDBProvider, RerankProvider] 
@@ -33,3 +33,16 @@ ResponseFormatInput = Union[Literal["text", "json", "json_schema"], dict[Literal
 
 # Valid input types that can be converted to a EvaluateParameters object
 EvaluateParametersInput = Union[EvaluateParameters, dict[str, Any]]
+
+# Valid task types for embeddings. Used to determine what the embeddings are used for to improve the quality of the embeddings
+EmbeddingTaskTypeInput = Literal[
+    "retreival_query", 
+    "retreival_document", 
+    "semantic_similarity",
+    "classification",
+    "clustering",
+    "question_answering",
+    "fact_verification",
+    "code_retreival_query",
+    "image"
+]

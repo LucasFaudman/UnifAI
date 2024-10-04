@@ -7,16 +7,34 @@ yieldT = TypeVar("yieldT")
 returnT = TypeVar("returnT")
 
 class UnifAIExceptionConverter:
+    do_not_convert = (
+        UnifAIError,
+        AttributeError,
+        TypeError,
+        ValueError,
+        IndexError,
+        KeyError,
+        ImportError,
+        ModuleNotFoundError,
+        NameError,
+        FileNotFoundError,
+        OSError,
+        ZeroDivisionError,
+        RuntimeError,
+        StopIteration,
+        AssertionError
+    )        
+
     # Convert Exceptions from Client Exception Types to UnifAI Exceptions for easier handling
     def convert_exception(self, exception: Exception) -> UnifAIError:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return UnifAIError(message=str(exception), original_exception=exception)
 
 
     def run_func_convert_exceptions(self, func: Callable[..., returnT], *args, **kwargs) -> returnT:
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            if isinstance(e, UnifAIError):
+            if isinstance(e, self.do_not_convert):
                 raise e
             raise self.convert_exception(e) from e
 
@@ -26,7 +44,7 @@ class UnifAIExceptionConverter:
             rval = yield from func(*args, **kwargs)
             return rval
         except Exception as e:
-            if isinstance(e, UnifAIError):
+            if isinstance(e, self.do_not_convert):
                 raise e
             raise self.convert_exception(e) from e 
 

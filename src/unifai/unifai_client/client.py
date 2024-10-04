@@ -28,14 +28,16 @@ from unifai.types import (
     Tool,
     ToolInput,
     Embeddings,
-    Embedding
+    Embedding,
 )
 from unifai.type_conversions import make_few_shot_prompt, standardize_eval_prameters, standardize_tools
+# from unifai.exceptions import EmbeddingDimensionsError
+
 from .chat import Chat
 # from .chroma_emebedding import UnifAIChromaEmbeddingFunction, get_chroma_client
 from pathlib import Path
 
-LLM_PROVIDERS: frozenset[LLMProvider] = frozenset(("anthropic", "google", "openai", "ollama"))
+LLM_PROVIDERS: frozenset[LLMProvider] = frozenset(("anthropic", "google", "openai", "ollama", "nvidia"))
 EMBEDDING_PROVIDERS: frozenset[EmbeddingProvider] = frozenset(("google", "openai", "ollama", "cohere"))
 VECTOR_DB_PROVIDERS: frozenset[VectorDBProvider] = frozenset(("chroma", "pinecone"))
 RERANK_PROVIDERS: frozenset[RerankProvider] = frozenset(("cohere", "rank_bm25"))
@@ -168,6 +170,9 @@ class UnifAIClient:
             case "ollama":
                 from unifai.wrappers.ollama import OllamaWrapper
                 return OllamaWrapper
+            case "nvidia":
+                from unifai.wrappers.nvidia import NvidiaWrapper
+                return NvidiaWrapper
                     
             # Embedding Vector DB Client Wrappers
             case "chroma":
@@ -182,8 +187,11 @@ class UnifAIClient:
                 from unifai.wrappers.cohere import CohereWrapper
                 return CohereWrapper  
             case "rank_bm25":
-                from unifai.wrappers.rank_bm25 import BM25Reranker
-                return BM25Reranker              
+                from unifai.wrappers.rank_bm25 import RankBM25Wrapper
+                return RankBM25Wrapper
+            case "sentence_transformers":
+                from unifai.wrappers.sentence_transformers import SentenceTransformersWrapper
+                return SentenceTransformersWrapper            
             case _:
                 raise ValueError(f"Invalid provider: {provider}")
             
@@ -353,31 +361,31 @@ class UnifAIClient:
         
 
     def chat_stream(
-            self,
-            messages: Optional[Sequence[MessageInput]] = None,
-            provider: Optional[LLMProvider] = None,            
-            model: Optional[str] = None,
-            system_prompt: Optional[str] = None,             
-            tools: Optional[Sequence[ToolInput]] = None,
-            tool_callables: Optional[dict[str, Callable]] = None,
-            tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
-            response_format: Optional[Union[str, dict[str, str]]] = None,
+        self,
+        messages: Optional[Sequence[MessageInput]] = None,
+        provider: Optional[LLMProvider] = None,            
+        model: Optional[str] = None,
+        system_prompt: Optional[str] = None,             
+        tools: Optional[Sequence[ToolInput]] = None,
+        tool_callables: Optional[dict[str, Callable]] = None,
+        tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
+        response_format: Optional[Union[str, dict[str, str]]] = None,
 
-            return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
-            enforce_tool_choice: bool = True,
-            tool_choice_error_retries: int = 3,
+        return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
+        enforce_tool_choice: bool = True,
+        tool_choice_error_retries: int = 3,
 
-            max_tokens: Optional[int] = None,
-            frequency_penalty: Optional[float] = None,
-            presence_penalty: Optional[float] = None,
-            seed: Optional[int] = None,
-            stop_sequences: Optional[list[str]] = None, 
-            temperature: Optional[float] = None,
-            top_k: Optional[int] = None,
-            top_p: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        frequency_penalty: Optional[float] = None,
+        presence_penalty: Optional[float] = None,
+        seed: Optional[int] = None,
+        stop_sequences: Optional[list[str]] = None, 
+        temperature: Optional[float] = None,
+        top_k: Optional[int] = None,
+        top_p: Optional[float] = None,
 
-            **kwargs
-            ) -> Generator[MessageChunk, None, Chat]:
+        **kwargs
+        ) -> Generator[MessageChunk, None, Chat]:
 
             chat = self.start_chat(
                 messages=messages,
@@ -464,17 +472,39 @@ class UnifAIClient:
     
 
 
-    def embed(self, 
-              input: str | Sequence[str],
-              model: Optional[str] = None,
-              provider: Optional[LLMProvider] = None,
-              max_dimensions: Optional[int] = None,
-              **kwargs
+    def embed(
+        self, 
+        input: str | Sequence[str],
+        model: Optional[str] = None,
+        provider: Optional[EmbeddingProvider] = None,
+        dimensions: Optional[int] = None,
+        task_type: Optional[Literal[
+        "retreival_query", 
+        "retreival_document", 
+        "semantic_similarity", 
+        "classification", 
+        "clustering", 
+        "question_answering", 
+        "fact_verification", 
+        "code_retreival_query", 
+        "image"]] = None,
+        input_too_large: Literal[
+        "truncate_end", 
+        "truncate_start", 
+        "raise_error"] = "truncate_end",
+        dimensions_too_large: Literal[
+        "reduce_dimensions", 
+        "raise_error"
+        ] = "reduce_dimensions",
+        task_type_not_supported: Literal[
+        "use_closest_supported",
+        "raise_error",
+        ] = "use_closest_supported",                 
+        **kwargs
               ) -> Embeddings:
         
-        if max_dimensions is not None and max_dimensions < 1:
-            raise ValueError(f"Embedding max_dimensions must be greater than 0. Got: {max_dimensions}")
-        return self.get_llm_client(provider).embed(input, model, max_dimensions, **kwargs)
+        return self.get_embedding_client(provider).embed(
+            input, model, dimensions, task_type, input_too_large, dimensions_too_large, task_type_not_supported, **kwargs)
 
 
 

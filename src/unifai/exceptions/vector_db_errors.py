@@ -1,127 +1,26 @@
-from abc import abstractmethod
-from typing import Dict, Optional, Type
-from overrides import overrides, EnforceOverrides
+from ._base import UnifAIError
+from .api_errors import APIError
+from .embedding_errors import EmbeddingDimensionsError
+
+class VectorDBError(UnifAIError):
+    """Base class for all VectorDB errors"""
 
 
-class ChromaError(Exception, EnforceOverrides):
-    trace_id: Optional[str] = None
-
-    def code(self) -> int:
-        """Return an appropriate HTTP response code for this error"""
-        return 400  # Bad Request
-
-    def message(self) -> str:
-        return ", ".join(self.args)
-
-    @classmethod
-    @abstractmethod
-    def name(cls) -> str:
-        """Return the error name"""
-        pass
+class VectorDBAPIError(APIError, VectorDBError):
+    """Base class for all VectorDB API errors"""
 
 
-class InvalidDimensionException(ChromaError):
-    @classmethod
-    @overrides
-    def name(cls) -> str:
-        return "InvalidDimension"
+class IndexNotFoundError(VectorDBAPIError):
+    """Raised when the specified index does not exist. Use get_or_create_index instead of get_index to avoid this error."""
 
 
-class InvalidCollectionException(ChromaError):
-    @classmethod
-    @overrides
-    def name(cls) -> str:
-        return "InvalidCollection"
+class IndexAlreadyExistsError(VectorDBAPIError):
+    """Raised when trying to create an index with the same name as an existing index."""
 
 
-class IDAlreadyExistsError(ChromaError):
-    @overrides
-    def code(self) -> int:
-        return 409  # Conflict
-
-    @classmethod
-    @overrides
-    def name(cls) -> str:
-        return "IDAlreadyExists"
+class InvalidQueryError(VectorDBAPIError):
+    """Raised when the query is invalid."""
 
 
-class ChromaAuthError(ChromaError):
-    @overrides
-    def code(self) -> int:
-        return 403
-
-    @classmethod
-    @overrides
-    def name(cls) -> str:
-        return "AuthError"
-
-    @overrides
-    def message(self) -> str:
-        return "Forbidden"
-
-
-class DuplicateIDError(ChromaError):
-    @classmethod
-    @overrides
-    def name(cls) -> str:
-        return "DuplicateID"
-
-
-class InvalidUUIDError(ChromaError):
-    @classmethod
-    @overrides
-    def name(cls) -> str:
-        return "InvalidUUID"
-
-
-class InvalidHTTPVersion(ChromaError):
-    @classmethod
-    @overrides
-    def name(cls) -> str:
-        return "InvalidHTTPVersion"
-
-
-class AuthorizationError(ChromaError):
-    @overrides
-    def code(self) -> int:
-        return 401
-
-    @classmethod
-    @overrides
-    def name(cls) -> str:
-        return "AuthorizationError"
-
-
-class NotFoundError(ChromaError):
-    @overrides
-    def code(self) -> int:
-        return 404
-
-    @classmethod
-    @overrides
-    def name(cls) -> str:
-        return "NotFoundError"
-
-
-class BatchSizeExceededError(ChromaError):
-    @overrides
-    def code(self) -> int:
-        return 413
-
-    @classmethod
-    @overrides
-    def name(cls) -> str:
-        return "BatchSizeExceededError"
-
-
-error_types: Dict[str, Type[ChromaError]] = {
-    "InvalidDimension": InvalidDimensionException,
-    "InvalidCollection": InvalidCollectionException,
-    "IDAlreadyExists": IDAlreadyExistsError,
-    "DuplicateID": DuplicateIDError,
-    "InvalidUUID": InvalidUUIDError,
-    "InvalidHTTPVersion": InvalidHTTPVersion,
-    "AuthorizationError": AuthorizationError,
-    "NotFoundError": NotFoundError,
-    "BatchSizeExceededError": BatchSizeExceededError,
-}
+class DimensionsMismatchError(EmbeddingDimensionsError, VectorDBAPIError):
+    """Raised when the dimensions of the input embeddings(s) do not match the dimensions of the index."""

@@ -1,7 +1,7 @@
 import pytest
 from unifai import UnifAIClient, LLMProvider
 from unifai.types import Message, Tool, Image, StringToolParameter
-from basetest import base_test_all_llms, base_test_no_ollama, base_test_no_openai
+from basetest import base_test_llms_all, LLM_PROVIDERS, base_test
 
 from pathlib import Path
 resouces_path = Path(__file__).parent / "resources"
@@ -47,7 +47,7 @@ for image_name, image_formats in TEST_IMAGES.items():
 
 
 
-@base_test_no_openai
+@base_test(*LLM_PROVIDERS, exclude=["openai"])
 @pytest.mark.parametrize("image_source" , [
     "base64_bytes",
     "base64_str",    
@@ -137,7 +137,7 @@ def test_image_input_animals(
 
 
 
-@base_test_no_ollama
+@base_test(*LLM_PROVIDERS, exclude=["ollama"])
 @pytest.mark.parametrize("image_source" , [
     "base64_bytes",
     "base64_str",    
@@ -164,7 +164,7 @@ def test_image_and_tools_input_animals(
     ):
 
     if provider == "openai":
-        func_kwargs["model"] = "chatgpt-4o-latest"
+        func_kwargs["model"] = "gpt-4o"
     if provider == "ollama":
         func_kwargs["model"] = "llava-llama3:latest"        
 

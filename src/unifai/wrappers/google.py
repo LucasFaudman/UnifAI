@@ -69,7 +69,9 @@ from unifai.exceptions import (
     PermissionDeniedError,
     RateLimitError,
     UnprocessableEntityError,
-    STATUS_CODE_TO_EXCEPTION_MAP   
+    STATUS_CODE_TO_EXCEPTION_MAP,   
+    ProviderUnsupportedFeatureError,
+    ModelUnsupportedFeatureError
 )
 from google.protobuf.struct_pb2 import Struct as GoogleProtobufStruct
 
@@ -95,19 +97,40 @@ from unifai.types import (
 )
 from unifai.type_conversions import stringify_content
 from ._base_llm_client import LLMClient
-from ._base_embedding_client import EmbeddingClient
+from ._base_embedding_client import EmbeddingClient, EmbeddingTaskTypeInput
 
 from random import choices as random_choices
 from string import ascii_letters, digits
 def generate_random_id(length=8):
     return ''.join(random_choices(ascii_letters + digits, k=length))
 
+GoogleEmbeddingTaskType = Literal[
+    "RETRIEVAL_QUERY",      # Specifies the given text is a query in a search or retrieval setting.
+    "RETRIEVAL_DOCUMENT",   # Specifies the given text is a document in a search or retrieval setting.
+    "SEMANTIC_SIMILARITY",  # Specifies the given text is used for Semantic Textual Similarity (STS).
+    "CLASSIFICATION",       # Specifies that the embedding is used for classification.
+    "CLUSTERING",	        # Specifies that the embedding is used for clustering.
+    "QUESTION_ANSWERING",	# Specifies that the query embedding is used for answering questions. Use RETRIEVAL_DOCUMENT for the document side.
+    "FACT_VERIFICATION",	# Specifies that the query embedding is used for fact verification.
+    "CODE_RETRIEVAL_QUERY"  # Specifies that the query embedding is used for code retrieval for Java and Python. 
+]
+
 class GoogleAIWrapper(EmbeddingClient, LLMClient):
     provider = "google"
     default_model = "gemini-1.5-flash-latest"
     default_embedding_model = "text-embedding-004"
     
-
+    model_embedding_dimensions = {
+        "textembedding-gecko@001": 1568,
+        "textembedding-gecko-multilingual@001": 1568,
+        "textembedding-gecko@003": 1568,
+        "text-multilingual-embedding-002": 1568,
+        "text-embedding-004	": 1568,
+        "text-embedding-preview-0815": 1568,
+    }
+    # models_with_embedding_task_type_support = {
+    #     "models/embedding-001",
+    # }
 
     def import_client(self):
         import google.generativeai as genai
@@ -164,24 +187,67 @@ class GoogleAIWrapper(EmbeddingClient, LLMClient):
 
 
     # Embeddings
+    def validate_task_type(self,
+                            model: str,
+                            task_type: Optional[EmbeddingTaskTypeInput] = None,
+                            task_type_not_supported: Literal["use_closest_supported", "raise_error"] = "use_closest_supported"
+                            ) -> Optional[GoogleEmbeddingTaskType]:
+        if task_type is None:
+            return None
+        if "textembedding-gecko@001" in model:
+            raise ModelUnsupportedFeatureError(
+                f"Model {model} does not support task_type specification for embeddings. "
+                "See: https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/task-types"
+            )
+
+        if (_task_type := task_type.upper()) != "IMAGE":
+            return _task_type # GoogleAI supports all input types except "image" # type: ignore
+        if task_type_not_supported == "use_closest_supported":
+            return "RETRIEVAL_DOCUMENT"
+        raise ProviderUnsupportedFeatureError(
+            f"Embedding task_type={task_type} is not supported by Google. "
+             "Supported input types are 'retreival_query', 'retreival_document', "
+             "'semantic_similarity', 'classification', 'clustering', 'question_answering', "
+             "'fact_verification', and 'code_retreival_query'. Use 'retreival_document' for images with Google. "
+             "Or use Cohere which supports embedding 'image' task_type."
+        )
+
+
     def _get_embed_response(
             self,            
-            input: str | Sequence[str],
-            model: Optional[str] = None,
-            max_dimensions: Optional[int] = None,
+            input: Sequence[str],
+            model: str,
+            dimensions: Optional[int] = None,
+            task_type: Optional[GoogleEmbeddingTaskType] = None,
+            input_too_large: Literal[
+                "truncate_end", 
+                "truncate_start", 
+                "raise_error"
+                ] = "truncate_end",
             **kwargs
             ) -> Any:
         
-        if isinstance(input, str):
-            input = [input]
+        # TODO - Preform this logic only when using Vertex AI models
+        # https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api#parameter-list
+        # if input_too_large == "truncate_start":
+        #     raise ProviderUnsupportedFeatureError(
+        #         "GoogleAI does not support truncating input at the start. "
+        #         "Use 'truncate_end' or 'raise_error' instead with GoogleAI. "
+        #         "If you require truncating at the start, use Nvidia or Cohere embedding models which support this directly. "
+        #         "Or use 'raise_error' to handle truncation manually when the input is too large for GoogleAI."
+        #         )
         
-        model=self.format_model_name(model) if model else self.default_embedding_model
         return self.client.embed_content(
             content=input,
-            model=model,
-            output_dimensionality=max_dimensions,
+            model=self.format_model_name(model),
+            output_dimensionality=dimensions,
+            task_type=task_type,
+            # TODO - Preform this logic only when using Vertex AI models
+            # https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api#parameter-list
+            # auto_truncate=(input_too_large != "raise_error"),
             **kwargs
         )
+    
 
     def _extract_embeddings(
             self,            

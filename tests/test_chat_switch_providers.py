@@ -1,7 +1,7 @@
 import pytest
 from unifai import UnifAIClient, LLMProvider, tool, MessageChunk
 from unifai.types import Message, Tool
-from basetest import base_test_all_llms, PROVIDER_DEFAULTS
+from basetest import base_test_llms_all, PROVIDER_DEFAULTS
 
 @pytest.mark.parametrize("provider1, client_kwargs1, func_kwargs1", [
     PROVIDER_DEFAULTS["anthropic"],

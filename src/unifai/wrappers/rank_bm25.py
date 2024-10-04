@@ -10,7 +10,7 @@ from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STAT
 
 T = TypeVar("T")
 
-class BM25Reranker(RerankerClient):
+class RankBM25Wrapper(RerankerClient):
     provider = "rank_bm25"
     default_reranking_model = "BM25Okapi"
     

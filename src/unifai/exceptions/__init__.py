@@ -19,6 +19,12 @@ from .api_errors import (
     TeapotError,
     STATUS_CODE_TO_EXCEPTION_MAP,
 )
+from .embedding_errors import (
+    EmbeddingError,
+    EmbeddingAPIError,
+    EmbeddingDimensionsError,
+    EmbeddingTokenLimitExceededError
+)
 from .feature_errors import (
     UnsupportedFeatureError,
     ProviderUnsupportedFeatureError,
@@ -34,6 +40,18 @@ from .tool_errors import (
     ToolCallFailed,
     ToolChoiceError,
     ToolChoiceErrorRetriesExceeded,
+)
+from .usage_errors import (
+    ContentFilterError,
+    TokenLimitExceededError,
+)
+from .vector_db_errors import (
+    VectorDBError,
+    VectorDBAPIError,
+    IndexNotFoundError,
+    IndexAlreadyExistsError,
+    InvalidQueryError,
+    DimensionsMismatchError,
 )
 
 __all__ = [
@@ -57,6 +75,11 @@ __all__ = [
     "TeapotError",
     "STATUS_CODE_TO_EXCEPTION_MAP",
 
+    "EmbeddingError",
+    "EmbeddingAPIError",
+    "EmbeddingDimensionsError",
+    "EmbeddingTokenLimitExceededError",
+
     "UnsupportedFeatureError",
     "ProviderUnsupportedFeatureError",
     "ModelUnsupportedFeatureError",
@@ -71,4 +94,13 @@ __all__ = [
     "ToolChoiceError",
     "ToolChoiceErrorRetriesExceeded",
 
+    "ContentFilterError",
+    "TokenLimitExceededError",
+
+    "VectorDBError",
+    "VectorDBAPIError",
+    "IndexNotFoundError",
+    "IndexAlreadyExistsError",
+    "InvalidQueryError",
+    "DimensionsMismatchError",
 ]

@@ -4,7 +4,7 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 
 from unifai import UnifAIClient, LLMProvider, PromptTemplate
 from unifai.types import Message, Tool
-from basetest import base_test_all_llms
+from basetest import base_test_llms_all
 
 from datetime import datetime
 

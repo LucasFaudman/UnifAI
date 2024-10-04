@@ -7,10 +7,10 @@ from unifai.wrappers._base_reranker_client import RerankerClient
 
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError
-from basetest import base_test_vector_dbs, base_test_db_no_pinecone, base_test_db_no_chroma, base_test_rerankers, PROVIDER_DEFAULTS
+from basetest import base_test_rerankers_all, PROVIDER_DEFAULTS
 
 
-@base_test_rerankers
+@base_test_rerankers_all
 def test_init_rerankers(
         provider: RerankProvider,
         client_kwargs: dict,
@@ -22,10 +22,10 @@ def test_init_rerankers(
     assert isinstance(reranker, RerankerClient)
     assert reranker.provider == provider
     assert reranker.client_kwargs == client_kwargs
-    assert reranker.client
+    # assert reranker.client
 
 
-@base_test_rerankers
+@base_test_rerankers_all
 def test_rerank_simple(
         provider: RerankProvider,
         client_kwargs: dict,

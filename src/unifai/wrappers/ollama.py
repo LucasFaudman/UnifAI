@@ -35,6 +35,7 @@ from unifai.exceptions import (
     RateLimitError,
     UnprocessableEntityError,
     STATUS_CODE_TO_EXCEPTION_MAP,   
+    ProviderUnsupportedFeatureError,
 )
 
 
@@ -99,22 +100,36 @@ class OllamaWrapper(EmbeddingClient, LLMClient):
     # Embeddings
     def _get_embed_response(
             self,            
-            input: str | Sequence[str],
-            model: Optional[str] = None,
-            max_dimensions: Optional[int] = None,
+            input: Sequence[str],
+            model: str,
+            dimensions: Optional[int] = None,
+            task_type: Optional[str] = None,
+            input_too_large: Literal[
+                "truncate_end", 
+                "truncate_start", 
+                "raise_error"
+                ] = "truncate_end",
             **kwargs
-            ) -> Mapping:
+            )-> Mapping:
         
-        model = model or self.default_embedding_model
-        truncate = kwargs.pop('truncate', True)
-        keep_alive = kwargs.pop('keep_alive', None)
-        options = OllamaOptions(**kwargs) if kwargs else None
+
+        # if input_too_large == "truncate_start":
+        #     raise ProviderUnsupportedFeatureError(
+        #         "Ollama does not support truncating input at the start. "
+        #         "Use 'truncate_end' or 'raise_error' instead with Ollama. "
+        #         "If you require truncating at the start, use Nvidia or Cohere embedding models which support this directly. "
+        #         "Or use 'raise_error' to handle truncation manually when the input is too large for Ollama."
+        #         )        
+
+        # truncate = (input_too_large != "raise_error")
+        # keep_alive = kwargs.pop('keep_alive', None)
+        # options = OllamaOptions(**kwargs) if kwargs else None
         return self.client.embed(
             input=input,
             model=model,
-            truncate=truncate,
-            keep_alive=keep_alive,
-            options=options
+            truncate=(input_too_large != "raise_error"),
+            keep_alive=kwargs.pop('keep_alive', None),
+            options=OllamaOptions(**kwargs) if kwargs else None
         )
 
 
@@ -122,11 +137,10 @@ class OllamaWrapper(EmbeddingClient, LLMClient):
             self,            
             response: Any,
             model: str,
-            max_dimensions: Optional[int] = None,
             **kwargs
             ) -> Embeddings:
         return Embeddings(
-            root=[embedding[:max_dimensions] for embedding in response["embeddings"]],
+            root=response["embeddings"],
             response_info=ResponseInfo(
                 model=model, 
                 usage=Usage(

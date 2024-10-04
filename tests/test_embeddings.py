@@ -1,8 +1,8 @@
 import pytest
 from unifai import UnifAIClient, LLMProvider
 from unifai.types import Message, Tool, Embeddings, Embedding, ResponseInfo, Usage
-from unifai.exceptions import ProviderUnsupportedFeatureError, BadRequestError
-from basetest import base_test_all_llms, base_test_no_anthropic
+from unifai.exceptions import ProviderUnsupportedFeatureError, BadRequestError, EmbeddingDimensionsError
+from basetest import base_test_llms_all, base_test_embeddings_all, base_test
 
 @pytest.mark.parametrize("input", [
     "Embed this",
@@ -10,7 +10,13 @@ from basetest import base_test_all_llms, base_test_no_anthropic
     ["Embed this", "And this"],
     ("Embed this", "And this"),
 ])
-@base_test_all_llms
+@base_test(
+    "google", 
+    "openai", 
+    "ollama", 
+    "cohere",
+    "nvidia",
+)
 def test_embeddings_simple(
     provider: LLMProvider, 
     client_kwargs: dict, 
@@ -72,7 +78,7 @@ def test_embeddings_simple(
     for text, embedding in zip(texts, result):
         print(f"Text: {text}\nEmbedding: {embedding[0]} and {len(embedding) -1 } more\n")
 
-@pytest.mark.parametrize("input, max_dimensions", [
+@pytest.mark.parametrize("input, dimensions", [
     ("Embed this", 100),
     (["Embed this longer text"], 100),
     ("Embed this", 1000),
@@ -80,13 +86,13 @@ def test_embeddings_simple(
     ("Embed this", 1),
     (["Embed this longer text"], 1),
 ])
-@base_test_no_anthropic
-def test_embeddings_max_dimensions(
+@base_test_embeddings_all
+def test_embeddings_dimensions(
     provider: LLMProvider, 
     client_kwargs: dict, 
     func_kwargs: dict,
     input: str|list[str],
-    max_dimensions: int
+    dimensions: int
     ):
 
     ai = UnifAIClient({provider: client_kwargs})
@@ -94,45 +100,57 @@ def test_embeddings_max_dimensions(
 
     result = ai.embed(input, 
                       provider=provider, 
-                      max_dimensions=max_dimensions,
+                      dimensions=dimensions,
                       **func_kwargs)     
     
     assert isinstance(result, Embeddings)
     for embedding in result:
-        assert len(embedding) <= max_dimensions
+        assert len(embedding) <= dimensions
         assert all(isinstance(value, float) for value in embedding)
 
 
-@pytest.mark.parametrize("input, max_dimensions", [
+
+@pytest.mark.parametrize("input, dimensions", [
     ("Embed this zero", 0),
     ("Embed this negative", -1),
     ("Embed this huge", 1000000),
 ])
-@base_test_no_anthropic
-def test_embeddings_max_dimensions_errors(
+@pytest.mark.parametrize("dimensions_too_large", [
+    "reduce_dimensions",
+    "raise_error"
+])
+@base_test_embeddings_all
+def test_embeddings_dimensions_errors(
     provider: LLMProvider, 
     client_kwargs: dict, 
     func_kwargs: dict,
     input: str|list[str],
-    max_dimensions: int
+    dimensions: int,
+    dimensions_too_large: str    
     ):
 
     ai = UnifAIClient({provider: client_kwargs})
-    if max_dimensions > 1 and (provider == "ollama" or provider == "google"):
-        result = ai.embed(input, 
-                      provider=provider, 
-                      max_dimensions=max_dimensions,
-                      **func_kwargs)            
+    if dimensions >= 1 and dimensions_too_large == "reduce_dimensions":
+        result = ai.embed(
+            input, 
+            provider=provider, 
+            dimensions=dimensions,
+            dimensions_too_large=dimensions_too_large,
+            **func_kwargs
+        )            
         assert isinstance(result, Embeddings)
         for embedding in result:
-            assert len(embedding) <= max_dimensions
+            assert len(embedding) <= dimensions
             assert all(isinstance(value, float) for value in embedding)
             print(f"Embedding: {embedding[0]} and {len(embedding) -1 } more\n")
 
     else:                
-        with pytest.raises((BadRequestError, ValueError)):
-            result = ai.embed(input, 
-                      provider=provider, 
-                      max_dimensions=max_dimensions,
-                      **func_kwargs)
+        with pytest.raises((EmbeddingDimensionsError, BadRequestError,)):
+            result = ai.embed(
+                input, 
+                provider=provider, 
+                dimensions=dimensions,
+                dimensions_too_large=dimensions_too_large,
+                **func_kwargs
+            )
     

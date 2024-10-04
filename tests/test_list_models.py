@@ -1,8 +1,8 @@
 import pytest
 from unifai import UnifAIClient
-from basetest import base_test_all_llms
+from basetest import base_test_llms_all
 
-@base_test_all_llms
+@base_test_llms_all
 def test_list_models(provider, client_kwargs, func_kwargs):
     ai = UnifAIClient({provider: client_kwargs})
     for provider_arg in [provider, None]:

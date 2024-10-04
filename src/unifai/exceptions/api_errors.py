@@ -17,17 +17,6 @@ class APIError(UnifAIError):
         self.error_code = error_code or self.default_error_code
         super().__init__(message, original_exception)
 
-    # def __init__(self, 
-    #              message: str, 
-    #              status_code: Optional[int] = None,
-    #              error_code: Optional[str] = None,
-    #              original_exception: Optional[Exception] = None
-    #              ):
-    #     self.message = message
-    #     self.status_code = status_code or self.default_status_code
-    #     self.error_code = error_code or self.default_error_code
-    #     super().__init__(original_exception)
-
 
 class UnknownAPIError(APIError):
     """

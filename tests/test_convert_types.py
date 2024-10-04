@@ -20,7 +20,7 @@ from unifai.types import (
     PROVIDER_TOOLS
 )
 
-from basetest import base_test_all_llms
+from basetest import base_test_llms_all
 
 ai = UnifAIClient()
 
