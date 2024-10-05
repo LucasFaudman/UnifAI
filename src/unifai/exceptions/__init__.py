@@ -35,9 +35,9 @@ from .tool_errors import (
     ToolValidationError,
     ToolNotFoundError,
     ToolCallError,
-    ToolCallArgumentsError,
+    ToolCallInvalidArgumentsError,
     ToolCallableNotFoundError,
-    ToolCallFailed,
+    ToolCallExecutionError,
     ToolChoiceError,
     ToolChoiceErrorRetriesExceeded,
 )
@@ -88,9 +88,9 @@ __all__ = [
     "ToolValidationError",
     "ToolNotFoundError",
     "ToolCallError",
-    "ToolCallArgumentsError",
+    "ToolCallInvalidArgumentsError",
     "ToolCallableNotFoundError",
-    "ToolCallFailed",
+    "ToolCallExecutionError",
     "ToolChoiceError",
     "ToolChoiceErrorRetriesExceeded",
 

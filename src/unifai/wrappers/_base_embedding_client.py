@@ -55,15 +55,17 @@ class EmbeddingClient(BaseClientWrapper):
                 f"{provider_title} does not support truncating input at the start. "
                 f"Use 'truncate_end' or 'raise_error' instead with {provider_title}. "
                 "If you require truncating at the start, use Nvidia or Cohere embedding models which support this directly. "
-                f"Or use 'raise_error' to handle truncation manually when the input is too large for {provider_title}."
+                f"Or use 'raise_error' to handle truncation manually when the input is too large for {provider_title} {model}."
                 )                
 
         # Add to kwargs for passing to both getter (all) and extractor (needed by some ie Google)
         kwargs["input"] = [input] if isinstance(input, str) else input
         kwargs["model"] = (model := model or self.default_embedding_model)
         if dimensions is not None:
+            # Validate and set dimensions. Raises error if dimensions are invalid or too large for the model
             dimensions = self.validate_dimensions(model, dimensions, dimensions_too_large)
         kwargs["dimensions"] = dimensions
+        # Validate and set task type. Raises error if task type is not supported by the provider
         kwargs["task_type"] = self.validate_task_type(model, task_type, task_type_not_supported)
         kwargs["input_too_large"] = input_too_large
         # kwargs["dimensions_too_large"] = dimensions_too_large
@@ -77,6 +79,7 @@ class EmbeddingClient(BaseClientWrapper):
         if dimensions and dimensions < embeddings.dimensions:
             embeddings = embeddings.reduce_dimensions(dimensions)
         return embeddings
+
 
     def validate_dimensions(
             self, 
@@ -120,7 +123,7 @@ class EmbeddingClient(BaseClientWrapper):
 
     def _get_embed_response(
             self,            
-            input: Sequence[str],
+            input: list[str],
             model: str,
             dimensions: Optional[int] = None,
             task_type: Optional[Literal[

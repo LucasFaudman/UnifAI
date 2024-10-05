@@ -8,7 +8,6 @@ from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseI
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError
 
 from sentence_transformers import SentenceTransformer, CrossEncoder
-import sentence_transformers
 
 T = TypeVar("T")
 
@@ -63,18 +62,14 @@ class SentenceTransformersWrapper(EmbeddingClient, RerankerClient):
     # Embeddings
     def _get_embed_response(
             self,            
-            input: str | list[str],
-            model: Optional[str] = None,
-            max_dimensions: Optional[int] = None,
+            input: list[str],
+            model: str,
+            dimensions: Optional[int] = None,
             **kwargs
             ) -> Any:
-        
-        if isinstance(input, str):
-            input = [input]
-        
-        model = model or self.default_embedding_model        
+                      
         model_init_kwargs = {**self.client_kwargs, **kwargs.pop("model_init_kwargs", {})}
-        truncate_dim = max_dimensions or model_init_kwargs.pop("truncate_dim", None)
+        truncate_dim = dimensions or model_init_kwargs.pop("truncate_dim", None)
         if not (st_model := self.st_model_cache.get(model)):
             # st_model = sentence_transformers.SentenceTransformer(
             st_model = self.lazy_import("sentence_transformers.SentenceTransformer")(
@@ -83,21 +78,21 @@ class SentenceTransformersWrapper(EmbeddingClient, RerankerClient):
                 **model_init_kwargs
             )
             self.st_model_cache[model] = st_model
-
         
         return st_model.encode(
             sentences=input, 
             precision="float32", 
             **kwargs
-        )[:max_dimensions]
+        )[:dimensions]
         
 
     def _extract_embeddings(
             self,            
             response: Any,
+            model: str,
             **kwargs
             ) -> Embeddings:
-        return Embeddings(root=response)
+        return Embeddings(root=response, response_info=ResponseInfo(model=model))
         
 
     # Reranking
@@ -128,6 +123,7 @@ class SentenceTransformersWrapper(EmbeddingClient, RerankerClient):
         relevance_scores = ce_model.predict(pairs, **kwargs)
         return relevance_scores
 
+    
     def _extract_reranked_order(
         self,
         response: Any,

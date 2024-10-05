@@ -41,7 +41,7 @@ class ToolCallError(ToolError):
         super().__init__(message, original_exception)
 
 
-class ToolCallArgumentsError(ToolCallError):
+class ToolCallInvalidArgumentsError(ToolCallError):
     """Raised when the arguments for a tool call are invalid"""
 
 
@@ -49,8 +49,8 @@ class ToolCallableNotFoundError(ToolCallError):
     """Raised when a callable is not found for a tool"""
 
 
-class ToolCallFailed(ToolCallError):
-    """Raised when a tool call fails"""
+class ToolCallExecutionError(ToolCallError):
+    """Raised when an error occurs while executing a tool call. (Calling the Tool's callable with the ToolCall's arguments)"""
 
 
 class ToolChoiceError(ToolCallError):
