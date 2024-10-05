@@ -54,8 +54,8 @@ from .openai import OpenAIWrapper
 class NvidiaWrapper(OpenAIWrapper, RerankerClient):
     provider = "nvidia"
     default_model = "meta/llama-3.1-405b-instruct"
-    # default_embedding_model = "nvidia/nv-embed-v1" #NV-Embed-QA
-    default_embedding_model = "NV-Embed-QA" 
+    default_embedding_model = "nvidia/nv-embed-v1" #NV-Embed-QA
+    # default_embedding_model = "NV-Embed-QA" 
 
     default_reranking_model = "nv-rerank-qa-mistral-4b:1"
     
@@ -79,7 +79,7 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
         return super().init_client(**client_kwargs)
   
 
-    # Embeddings
+    # Embeddings (Only override OpenAIWrapper if necessary)
     def validate_task_type(self,
                             model: str,
                             task_type: Optional[EmbeddingTaskTypeInput] = None,
@@ -95,7 +95,6 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
              "Supported input types are 'retreival_query', 'retreival_document'")
     
         
-
     def _get_embed_response(
             self,
             input: Sequence[str],
@@ -109,11 +108,15 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
             **kwargs
             ) -> CreateEmbeddingResponse:
         
-        # if input_too_large == "truncate_end":
-        #     truncate = "END"
-        # elif input_too_large == "truncate_start":
-        #     truncate = "START"
-        # else:
-        #     truncate = None
-        model = f"{model}-{task_type}" 
-        return self.client.embeddings.create(input=input, model=model, **kwargs)  
+        extra_body = {"input_type": task_type}
+        if input_too_large == "truncate_end":
+            extra_body["truncate"] = "END"
+        elif input_too_large == "truncate_start":
+            extra_body["truncate"] = "START"
+        else:
+            extra_body["truncate"] = "NONE" # Raise error if input is too large
+        
+        # model = f"{model}-{task_type}" 
+        return self.client.embeddings.create(input=input, model=model, extra_body=extra_body, **kwargs)  
+
+    

@@ -83,8 +83,8 @@ class ObjectToolParameter(ToolParameter):
             "properties": properties,
             "required": required,
         }
-        if "additionalProperties" in include:
-            self_dict["additionalProperties"] = self.additionalProperties
+        # if "additionalProperties" in include:
+        #     self_dict["additionalProperties"] = self.additionalProperties
 
         if self.defs and "defs" in include:
             self_dict["$defs"] = {name: prop.to_dict() for name, prop in self.defs.items()}

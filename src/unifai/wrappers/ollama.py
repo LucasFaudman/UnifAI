@@ -433,6 +433,7 @@ class OllamaWrapper(EmbeddingClient, LLMClient):
                             content = ""
                             lbrackets, rbrackets = 0, 0
                         except JSONDecodeError as e:
+                            # TODO log e
                             yield MessageChunk(
                                 role="assistant", 
                                 content=chunk_content

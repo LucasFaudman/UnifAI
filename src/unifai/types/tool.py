@@ -57,7 +57,7 @@ class Tool(BaseModel):
                 "name": self.name,
                 "description": self.description,
                 "parameters": self.parameters.to_dict(),
-                "strict": self.strict
+                # "strict": self.strict
             },            
         }
 
