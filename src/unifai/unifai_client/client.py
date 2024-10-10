@@ -34,6 +34,7 @@ from unifai.type_conversions import make_few_shot_prompt, standardize_eval_prame
 # from unifai.exceptions import EmbeddingDimensionsError
 
 from .chat import Chat
+from .rag_engine import RAGEngine, RAGSpec, IndexDocloaderRetriever
 # from .chroma_emebedding import UnifAIChromaEmbeddingFunction, get_chroma_client
 from pathlib import Path
 
@@ -47,7 +48,7 @@ class UnifAIClient:
     TOOLS: list[ToolInput] = []
     TOOL_CALLABLES: dict[str, Callable] = {}
     EVAL_PARAMETERS: list[EvaluateParametersInput] = []
-
+    RAG_SPECS: list[RAGSpec] = []
 
 
 
@@ -58,6 +59,7 @@ class UnifAIClient:
                  tools: Optional[list[ToolInput]] = None,
                  tool_callables: Optional[dict[str, Callable]] = None,
                  eval_prameters: Optional[list[EvaluateParametersInput]] = None,
+                 rag_specs: Optional[list[RAGSpec]] = None,
                  default_llm_provider: Optional[LLMProvider] = None,
                  default_embedding_provider: Optional[EmbeddingProvider] = None,
                  default_vector_db_provider: Optional[VectorDBProvider] = None, 
@@ -78,10 +80,12 @@ class UnifAIClient:
         self.tools: dict[str, Tool] = {}
         self.tool_callables: dict[str, Callable] = {}
         self.eval_prameters: dict[str, EvaluateParameters] = {}
+        self.rag_specs: dict[str, RAGSpec] = {}
         
         self.add_tools(tools or self.TOOLS)
         self.add_tool_callables(tool_callables)
         self.add_eval_prameters(eval_prameters or self.EVAL_PARAMETERS)
+        self.add_rag_specs(rag_specs or self.RAG_SPECS)
         
 
     def set_provider_client_kwargs(self, provider_client_kwargs: Optional[dict[Provider, dict[str, Any]]] = None):
@@ -153,6 +157,11 @@ class UnifAIClient:
     def add_eval_prameters(self, eval_prameters: Optional[list[EvaluateParametersInput]]):
         if not eval_prameters: return
         self.eval_prameters.update(standardize_eval_prameters(eval_prameters))
+
+
+    def add_rag_specs(self, rag_specs: Optional[list[RAGSpec]]):
+        if not rag_specs: return
+        self.rag_specs.update({spec.name: spec for spec in rag_specs})
 
 
     def import_client_wrapper(self, provider: Provider) -> Type[LLMClient|EmbeddingClient|VectorDBClient|RerankerClient]:
@@ -507,11 +516,61 @@ class UnifAIClient:
             input, model, dimensions, task_type, input_too_large, dimensions_too_large, task_type_not_supported, **kwargs)
 
 
+    def get_rag_engine(
+            self,
+            rag_spec: RAGSpec | str,
+            # index_name: str,
+            # vector_db_provider: Optional[VectorDBProvider] = None,                            
+            # embedding_provider: Optional[LLMProvider] = None,
+            # embedding_model: Optional[str] = None,
+            # embedding_dimensions: Optional[int] = None,
+            # embedding_distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
+            # docloader: Optional[Callable[[list[str]],list[str]]] = None,
+            # rerank_provider: Optional[RerankProvider] = None,
+            # rerank_model: Optional[str] = None,
+            # retreiver_kwargs: Optional[dict] = None,
+            # reranker_kwargs: Optional[dict] = None,    
+            # prompt_template_kwargs: Optional[dict] = None,                       
+
+    ) -> RAGEngine:
+        if isinstance(rag_spec, str):
+            if (spec := self.rag_specs.get(rag_spec)) is None:
+                raise ValueError(f"RAG spec '{rag_spec}' not found in rag_specs")
+            rag_spec = spec
+        if not isinstance(rag_spec, RAGSpec):
+            raise ValueError(
+                f"Invalid rag_spec: {rag_spec}. Must be a RAGSpec object or a string (name of a RAGSpec in self.RAG_SPECS)")
+        
+
+        index = self.get_or_create_index(
+            name=rag_spec.index_name,
+            vector_db_provider=rag_spec.vector_db_provider,
+            embedding_provider=rag_spec.embedding_provider,
+            embedding_model=rag_spec.embedding_model,
+            dimensions=rag_spec.embedding_dimensions,
+            distance_metric=rag_spec.embedding_distance_metric,
+        )
+        if rag_spec.docloader:
+            retreiver = IndexDocloaderRetriever(index=index, docloader=rag_spec.docloader)
+        else:
+            retreiver = index
+        if rag_spec.rerank_provider:
+            reranker = self.get_rerank_client(rag_spec.rerank_provider)
+        else:
+            reranker = None
+        
+        return RAGEngine(
+            rag_spec=rag_spec,
+            retreiver=retreiver,
+            reranker=reranker
+        )
+
+
 
     def get_or_create_index(self, 
                             name: str,
                             vector_db_provider: Optional[VectorDBProvider] = None,                            
-                            embedding_provider: Optional[LLMProvider] = None,
+                            embedding_provider: Optional[EmbeddingProvider] = None,
                             embedding_model: Optional[str] = None,
                             dimensions: Optional[int] = None,
                             distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 

@@ -237,13 +237,13 @@ class UnifAIChromaEmbeddingFunction(EmbeddingFunction[list[str]]):
             parent,
             embedding_provider: Optional[str] = None,
             model: Optional[str] = None,
-            max_dimensions: Optional[int] = None,
+            dimensions: Optional[int] = None,
             response_infos: Optional[list[ResponseInfo]] = None,
     ):
         self.parent = parent
         self.embedding_provider = embedding_provider or parent.default_provider
         self.model = model
-        self.max_dimensions = max_dimensions
+        self.dimensions = dimensions
         self.response_infos = response_infos or []
 
     def __call__(self, input: Documents) -> Embeddings:
@@ -253,7 +253,7 @@ class UnifAIChromaEmbeddingFunction(EmbeddingFunction[list[str]]):
             input=input,
             model=self.model,
             provider=self.embedding_provider,
-            max_dimensions=self.max_dimensions
+            dimensions=self.dimensions
         )
         self.response_infos.append(embed_result.response_info)
         return embed_result.list()
@@ -310,7 +310,7 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
             parent=self.parent,
             embedding_provider=embedding_provider or self.default_embedding_provider,
             model=embedding_model or self.default_embedding_model,
-            max_dimensions=dimensions or self.default_dimensions,
+            dimensions=dimensions or self.default_dimensions,
             response_infos=response_infos
         )
                                

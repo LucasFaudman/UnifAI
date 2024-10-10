@@ -45,11 +45,28 @@ from unifai.exceptions import (
     STATUS_CODE_TO_EXCEPTION_MAP,
     ProviderUnsupportedFeatureError
 )
+from openai._utils import maybe_transform
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings, EmbeddingTaskTypeInput
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings, EmbeddingTaskTypeInput, VectorDBQueryResult
 from unifai.type_conversions import stringify_content
 from ._base_reranker_client import RerankerClient
-from .openai import OpenAIWrapper 
+from .openai import OpenAIWrapper
+
+
+from typing_extensions import Literal, Required, TypeAlias, TypedDict
+
+# # if inspect.isclass(origin) and not issubclass(origin, BaseModel) and issubclass(origin, pydantic.BaseModel):
+# # > raise TypeError("Pydantic models must subclass our base model type, e.g. `from openai import BaseModel`")
+# from openai import BaseModel
+
+
+# class NvidiaRerankItem(BaseModel):
+#     index: int
+#     logit: float
+
+# class NvidiaRerankResponse(BaseModel):
+#     rankings: list[NvidiaRerankItem]
+
 
 class NvidiaWrapper(OpenAIWrapper, RerankerClient):
     provider = "nvidia"
@@ -64,9 +81,11 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
     # - embedding parameters (truncate, input_type, etc)
     # - with many more with tbd)
     default_base_url = "https://integrate.api.nvidia.com/v1"
-    retreival_base_url = "https://ai.api.nvidia.com/v1/retrieval/nvidia/"
+    retreival_base_url = "https://ai.api.nvidia.com/v1/retrieval/nvidia"
+    vlm_base_url = "https://ai.api.nvidia.com/v1/vlm/nvidia"
     
     default_embedding_model = "nvidia/nv-embed-v1" #NV-Embed-QA
+    default_reranking_model = "nvidia/nv-rerankqa-mistral-4b-v3"
     default_multimodal_model = "NV-Embed-QA" 
 
     model_embedding_dimensions = {
@@ -79,13 +98,17 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
         "snowflake/arctic-embed-l": 1024,
     }    
 
+    reranking_models = {
+        "nvidia/nv-rerankqa-mistral-4b-v3",
+        "nv-rerank-qa-mistral-4b:1"        
+    }
+
     model_base_urls = {
         "NV-Embed-QA": retreival_base_url,
-        "nvidia/nv-rerankqa-mistral-4b-v3": retreival_base_url,
-        "snowflake/arctic-embed-l": retreival_base_url+"snowflake/arctic-embed-l/",
+        "nv-rerank-qa-mistral-4b:1": retreival_base_url,
+        "nvidia/nv-rerankqa-mistral-4b-v3": f"{retreival_base_url}/nv-rerankqa-mistral-4b-v3",
+        "snowflake/arctic-embed-l": f"{retreival_base_url}/snowflake/arctic-embed-l",
     } 
-
-    default_reranking_model = "nv-rerank-qa-mistral-4b:1"
 
 
 
@@ -136,4 +159,54 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
         # model = f"{model}-{task_type}" 
         return self.client.embeddings.create(input=input, model=model, extra_body=extra_body, **kwargs)  
 
+
     
+    
+    def _get_rerank_response(
+        self,
+        query: str,
+        query_result: VectorDBQueryResult,
+        model: str,
+        top_n: Optional[int] = None,               
+        **kwargs
+        ) -> Any:
+        # if inspect.isclass(origin) and not issubclass(origin, BaseModel) and issubclass(origin, pydantic.BaseModel):
+        # > raise TypeError("Pydantic models must subclass our base model type, e.g. `from openai import BaseModel`")
+        from openai import BaseModel
+        class NvidiaRerankItem(BaseModel):
+            index: int
+            logit: float
+
+        class NvidiaRerankResponse(BaseModel):
+            rankings: list[NvidiaRerankItem]
+
+        assert query_result.documents, "No documents to rerank"
+        body = {
+            "model": model,
+            "query": {"text": query},
+            "passages": [{"text": document} for document in query_result.documents],
+        }
+
+
+        self.client.base_url = self.model_base_urls[model]
+        resp = self.client.post(
+            "/reranking",
+            body=body,
+            # options=make_request_options(
+            #     extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            # ),
+            cast_to=NvidiaRerankResponse,
+            stream=False,
+            stream_cls=None,
+        )
+        self.client.base_url = self.default_base_url
+        return resp
+        
+
+    def _extract_reranked_order(
+        self,
+        response: Any,
+        top_n: Optional[int] = None,
+        **kwargs
+        ) -> list[int]:
+        return [item.index for item in response.rankings]

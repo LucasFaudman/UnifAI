@@ -48,6 +48,7 @@ def parameterize_embedding_provider_embedding_model(func):
             ("openai", "text-embedding-3-small"),
             # ("openai", "text-embedding-ada-002"),
             ("google", None),
+            ("nvidia", None),
             # ("google", "models/text-embedding-004"),
             # ("google", "embedding-gecko-001"),
             # ("google", "embedding-001"),
