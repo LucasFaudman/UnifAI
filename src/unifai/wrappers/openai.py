@@ -455,7 +455,6 @@ class OpenAIWrapper(EmbeddingClient, LLMClient):
         for chunk in response:
             if chunk.usage:
                 usage = self.extract_usage(chunk)
-                break
             if not chunk.choices:
                 continue
 

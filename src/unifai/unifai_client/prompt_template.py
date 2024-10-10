@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 class PromptTemplate(BaseModel):
     template: Union[str, Callable[..., str]]
-    value_formatters: Optional[Mapping[str|type, Callable[..., Any]]] = None
+    value_formatters: Optional[Mapping[str|type, Optional[Callable[..., Any]]]] = None
     nested_kwargs: Optional[Mapping[str, Any]] = None
     template_getter_kwargs: Optional[Mapping[str, Any]] = None
     kwargs: Optional[Mapping[str, Any]] = None
@@ -90,7 +90,7 @@ class PromptTemplate(BaseModel):
         resolved_value_formatters = {**self.value_formatters} if self.value_formatters else {}
         if value_formatters:
             resolved_value_formatters.update(value_formatters)
-        
+
         for key, value in resolved_kwargs.items():       
             if formatter := resolved_value_formatters.get(key) or resolved_value_formatters.get(type(value)):
                 resolved_kwargs[key] = formatter(value)

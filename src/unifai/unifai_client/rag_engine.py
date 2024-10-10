@@ -141,32 +141,3 @@ class RAGEngine:
         if self.reranker:
             query_result = self.rerank(query, query_result, **(reranker_kwargs or {}))
         return self.augment(query, query_result, prompt_template, **(prompt_template_kwargs or {}))
-
-  
-    # def retrieve_and_augment(
-    #         self,
-    #         query: str,
-    #         top_k: Optional[int] = None,
-    #         where: Optional[dict] = None,
-    #         where_document: Optional[dict] = None,
-    #         prompt_template: Optional[PromptTemplate] = None,
-    #         **prompt_template_kwargs) -> str:
-    #     query_result = self.retrieve(query, top_k, where, where_document, **prompt_template_kwargs)
-    #     return self.augment(query, query_result, prompt_template or self.default_prompt_template, **prompt_template_kwargs)
-            
-
-    # def retreive_rerank_and_augment(
-    #         self,
-    #         query: str,
-    #         top_k: Optional[int] = None,
-    #         top_n: Optional[int] = None,
-    #         where: Optional[dict] = None,
-    #         where_document: Optional[dict] = None,
-    #         retreiver_kwargs: Optional[dict] = None,
-    #         reranker_kwargs: Optional[dict] = None,
-    #         prompt_template: Optional[PromptTemplate] = None,
-    #         **prompt_template_kwargs
-    #     ) -> str:
-    #     query_result = self.retrieve(query, top_k, where, where_document, **(retreiver_kwargs or {}))
-    #     reranked_query_result = self.rerank(query, query_result, top_n, **(reranker_kwargs or {}))
-    #     return self.augment(query, reranked_query_result, prompt_template or self.default_prompt_template, **prompt_template_kwargs)

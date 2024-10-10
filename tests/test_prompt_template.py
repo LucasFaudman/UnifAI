@@ -55,8 +55,8 @@ def _test_prompt_template(template: str|Callable[..., str],
                             **init_kwargs
                             )
     assert prompt.template == template
-    assert prompt.nested_kwargs == (init_nested_kwargs if init_nested_kwargs is not None else {})
-    assert prompt.template_getter_kwargs == (init_template_getter_kwargs if init_template_getter_kwargs is not None else {})
+    assert prompt.nested_kwargs == init_nested_kwargs
+    assert prompt.template_getter_kwargs == init_template_getter_kwargs
     assert prompt.kwargs == init_kwargs
 
     formatted = prompt.format(

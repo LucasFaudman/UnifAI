@@ -46,6 +46,7 @@ from unifai.exceptions import (
     ProviderUnsupportedFeatureError
 )
 from openai._utils import maybe_transform
+from openai._base_client import make_request_options
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings, EmbeddingTaskTypeInput, VectorDBQueryResult
 from unifai.type_conversions import stringify_content
@@ -156,8 +157,17 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
         else:
             extra_body["truncate"] = "NONE" # Raise error if input is too large
         
-        # model = f"{model}-{task_type}" 
-        return self.client.embeddings.create(input=input, model=model, extra_body=extra_body, **kwargs)  
+        # Use the model specific base URL if required
+        if other_base_url := self.model_base_urls.get(model):
+            self.client.base_url = other_base_url
+        
+        respone = self.client.embeddings.create(input=input, model=model, extra_body=extra_body, **kwargs)
+        
+        # Reset the base URL if changed
+        if other_base_url:
+            self.client.base_url = self.default_base_url
+        
+        return respone
 
 
     
@@ -187,20 +197,32 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
             "passages": [{"text": document} for document in query_result.documents],
         }
 
-
+        options = {}
+        if (
+            (extra_headers := kwargs.get("extra_headers"))
+            or (extra_query := kwargs.get("extra_query"))
+            or (extra_body := kwargs.get("extra_body"))
+            or (timeout := kwargs.get("timeout"))
+        ):
+            options["options"] = make_request_options(
+                extra_headers=extra_headers, 
+                extra_query=extra_query, 
+                extra_body=extra_body, 
+                timeout=timeout
+            )
+            
+        # Use the reranking model specific base URL (always required)
         self.client.base_url = self.model_base_urls[model]
-        resp = self.client.post(
+        respone = self.client.post(
             "/reranking",
             body=body,
-            # options=make_request_options(
-            #     extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
-            # ),
+            **options,
             cast_to=NvidiaRerankResponse,
             stream=False,
             stream_cls=None,
         )
         self.client.base_url = self.default_base_url
-        return resp
+        return respone
         
 
     def _extract_reranked_order(
