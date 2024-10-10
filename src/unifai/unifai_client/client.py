@@ -54,17 +54,18 @@ class UnifAIClient:
 
 
     
-    def __init__(self, 
-                 provider_client_kwargs: Optional[dict[Provider, dict[str, Any]]] = None,
-                 tools: Optional[list[ToolInput]] = None,
-                 tool_callables: Optional[dict[str, Callable]] = None,
-                 eval_prameters: Optional[list[EvaluateParametersInput]] = None,
-                 rag_specs: Optional[list[RAGSpec]] = None,
-                 default_llm_provider: Optional[LLMProvider] = None,
-                 default_embedding_provider: Optional[EmbeddingProvider] = None,
-                 default_vector_db_provider: Optional[VectorDBProvider] = None, 
-                 default_rerank_provider: Optional[RerankProvider] = None                
-                 ):
+    def __init__(
+            self, 
+            provider_client_kwargs: Optional[dict[Provider, dict[str, Any]]] = None,
+            tools: Optional[list[ToolInput]] = None,
+            tool_callables: Optional[dict[str, Callable]] = None,
+            eval_prameters: Optional[list[EvaluateParametersInput]] = None,
+            rag_specs: Optional[list[RAGSpec]] = None,
+            default_llm_provider: Optional[LLMProvider] = None,
+            default_embedding_provider: Optional[EmbeddingProvider] = None,
+            default_vector_db_provider: Optional[VectorDBProvider] = None, 
+            default_rerank_provider: Optional[RerankProvider] = None                
+    ) -> None:
         
         # self.provider_client_kwargs = provider_client_kwargs if provider_client_kwargs is not None else {}        
         # self.providers = list(self.provider_client_kwargs.keys())        
@@ -149,6 +150,7 @@ class UnifAIClient:
             if (tool_callable := getattr(tool, "callable", None)) is not None:
                 self.tool_callables[tool_name] = tool_callable
 
+    
     def add_tool_callables(self, tool_callables: Optional[dict[str, Callable]]):
         if not tool_callables: return
         self.tool_callables.update(tool_callables)
@@ -265,53 +267,58 @@ class UnifAIClient:
 
     def start_chat(
             self,
-            **kwargs
-            # messages: Optional[Sequence[MessageInput]] = None,
-            # provider: Optional[AIProvider] = None,            
-            # model: Optional[str] = None,
-            # system_prompt: Optional[str] = None,             
-            # tools: Optional[Sequence[ToolInput]] = None,
-            # tool_callables: Optional[dict[str, Callable]] = None,
-            # tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
-            # response_format: Optional[Union[str, dict[str, str]]] = None,
+            messages: Optional[Sequence[MessageInput]] = None,
+            provider: Optional[LLMProvider] = None,            
+            model: Optional[str] = None,
+            system_prompt: Optional[str] = None,
+            return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
+            response_format: Optional[Union[str, dict[str, str]]] = None,
 
-            # return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
-            # enforce_tool_choice: bool = False,
-            # tool_choice_error_retries: int = 3,
+            tools: Optional[Sequence[ToolInput]] = None,
+            tool_callables: Optional[dict[str, Callable]] = None,
+            tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
+            enforce_tool_choice: bool = True,
+            tool_choice_error_retries: int = 3,
 
-            # max_tokens: Optional[int] = None,
-            # frequency_penalty: Optional[float] = None,
-            # presence_penalty: Optional[float] = None,
-            # seed: Optional[int] = None,
-            # stop_sequences: Optional[list[str]] = None, 
-            # temperature: Optional[float] = None,
-            # top_k: Optional[int] = None,
-            # top_p: Optional[float] = None,
-            ) -> Chat:
-            return Chat(
-                parent=self,
-                provider=kwargs.pop("provider", self.default_llm_provider),
-                messages=kwargs.pop("messages", []),
-                **kwargs
-                # model=model,
-                # system_prompt=system_prompt,
-                # tools=tools,
-                # tool_callables=tool_callables,
-                # tool_choice=tool_choice,
-                # response_format=response_format,
-                # return_on=return_on,
-                # enforce_tool_choice=enforce_tool_choice,
-                # tool_choice_error_retries=tool_choice_error_retries,
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None,
 
-                # max_tokens=max_tokens,
-                # frequency_penalty=frequency_penalty,
-                # presence_penalty=presence_penalty,
-                # seed=seed,
-                # stop_sequences=stop_sequences,
-                # temperature=temperature,
-                # top_k=top_k,
-                # top_p=top_p,                
-            )
+    ) -> Chat:
+        return Chat(
+            # parent=self,
+            get_client=self.get_llm_client,
+            parent_tools=self.tools,
+            parent_tool_callables=self.tool_callables,
+            
+            messages=messages if messages is not None else [],
+            provider=provider or self.default_llm_provider,
+            model=model,
+            system_prompt=system_prompt,
+            
+            return_on=return_on,
+            response_format=response_format,
+
+            tools=tools,
+            tool_callables=tool_callables,
+            tool_choice=tool_choice,                
+            enforce_tool_choice=enforce_tool_choice,
+            tool_choice_error_retries=tool_choice_error_retries,
+
+            max_tokens=max_tokens,
+            frequency_penalty=frequency_penalty,
+            presence_penalty=presence_penalty,
+            seed=seed,
+            stop_sequences=stop_sequences,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+        )
 
     
     def chat(
@@ -320,12 +327,12 @@ class UnifAIClient:
             provider: Optional[LLMProvider] = None,            
             model: Optional[str] = None,
             system_prompt: Optional[str] = None,             
+            return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
+            response_format: Optional[Union[str, dict[str, str]]] = None,
+
             tools: Optional[Sequence[ToolInput]] = None,
             tool_callables: Optional[dict[str, Callable]] = None,
             tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
-            response_format: Optional[Union[str, dict[str, str]]] = None,
-
-            return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
             enforce_tool_choice: bool = True,
             tool_choice_error_retries: int = 3,
 
@@ -339,90 +346,90 @@ class UnifAIClient:
             top_p: Optional[float] = None,
 
             **kwargs
-            ) -> Chat:
-            chat = self.start_chat(
-                messages=messages if messages is not None else [],
-                provider=provider,
-                model=model,
-                system_prompt=system_prompt,
-                tools=tools,
-                tool_callables=tool_callables,
-                tool_choice=tool_choice,
-                response_format=response_format,
+    ) -> Chat:
+        chat = self.start_chat(
+            messages=messages if messages is not None else [],
+            provider=provider,
+            model=model,
+            system_prompt=system_prompt,
+            return_on=return_on,
+            response_format=response_format,
+            
+            tools=tools,
+            tool_callables=tool_callables,
+            tool_choice=tool_choice,
+            enforce_tool_choice=enforce_tool_choice,
+            tool_choice_error_retries=tool_choice_error_retries,
 
-                return_on=return_on,
-                enforce_tool_choice=enforce_tool_choice,
-                tool_choice_error_retries=tool_choice_error_retries,
+            max_tokens=max_tokens,
+            frequency_penalty=frequency_penalty,
+            presence_penalty=presence_penalty,
+            seed=seed,
+            stop_sequences=stop_sequences,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+        )
 
-                max_tokens=max_tokens,
-                frequency_penalty=frequency_penalty,
-                presence_penalty=presence_penalty,
-                seed=seed,
-                stop_sequences=stop_sequences,
-                temperature=temperature,
-                top_k=top_k,
-                top_p=top_p,
-            )
-
-            if messages:
-                chat.run(**kwargs)
-            return chat
+        if messages:
+            chat.run(**kwargs)
+        return chat
         
 
     def chat_stream(
-        self,
-        messages: Optional[Sequence[MessageInput]] = None,
-        provider: Optional[LLMProvider] = None,            
-        model: Optional[str] = None,
-        system_prompt: Optional[str] = None,             
-        tools: Optional[Sequence[ToolInput]] = None,
-        tool_callables: Optional[dict[str, Callable]] = None,
-        tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
-        response_format: Optional[Union[str, dict[str, str]]] = None,
+            self,
+            messages: Optional[Sequence[MessageInput]] = None,
+            provider: Optional[LLMProvider] = None,            
+            model: Optional[str] = None,
+            system_prompt: Optional[str] = None,             
+            return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
+            response_format: Optional[Union[str, dict[str, str]]] = None,
 
-        return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
-        enforce_tool_choice: bool = True,
-        tool_choice_error_retries: int = 3,
+            tools: Optional[Sequence[ToolInput]] = None,
+            tool_callables: Optional[dict[str, Callable]] = None,
+            tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
+            enforce_tool_choice: bool = True,
+            tool_choice_error_retries: int = 3,
 
-        max_tokens: Optional[int] = None,
-        frequency_penalty: Optional[float] = None,
-        presence_penalty: Optional[float] = None,
-        seed: Optional[int] = None,
-        stop_sequences: Optional[list[str]] = None, 
-        temperature: Optional[float] = None,
-        top_k: Optional[int] = None,
-        top_p: Optional[float] = None,
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None,
 
-        **kwargs
-        ) -> Generator[MessageChunk, None, Chat]:
+            **kwargs
+    ) -> Generator[MessageChunk, None, Chat]:
 
-            chat = self.start_chat(
-                messages=messages,
-                provider=provider,
-                model=model,
-                system_prompt=system_prompt,
-                tools=tools,
-                tool_callables=tool_callables,
-                tool_choice=tool_choice,
-                response_format=response_format,
+        chat = self.start_chat(
+            messages=messages if messages is not None else [],
+            provider=provider,
+            model=model,
+            system_prompt=system_prompt,
+            return_on=return_on,
+            response_format=response_format,
+            
+            tools=tools,
+            tool_callables=tool_callables,
+            tool_choice=tool_choice,
+            enforce_tool_choice=enforce_tool_choice,
+            tool_choice_error_retries=tool_choice_error_retries,
 
-                return_on=return_on,
-                enforce_tool_choice=enforce_tool_choice,
-                tool_choice_error_retries=tool_choice_error_retries,
+            max_tokens=max_tokens,
+            frequency_penalty=frequency_penalty,
+            presence_penalty=presence_penalty,
+            seed=seed,
+            stop_sequences=stop_sequences,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+        )
 
-                max_tokens=max_tokens,
-                frequency_penalty=frequency_penalty,
-                presence_penalty=presence_penalty,
-                seed=seed,
-                stop_sequences=stop_sequences,
-                temperature=temperature,
-                top_k=top_k,
-                top_p=top_p,
-            )
-
-            if messages:
-                yield from chat.run_stream(**kwargs)
-            return chat
+        if messages:
+            yield from chat.run_stream(**kwargs)
+        return chat
     
 
     def evaluate(self, 

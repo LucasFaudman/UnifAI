@@ -11,36 +11,43 @@ from unifai.types import (
     Usage,
 )
 from unifai.type_conversions import standardize_tools, standardize_messages, standardize_tool_choice, standardize_response_format
+from unifai.wrappers._base_llm_client import LLMClient
 
 class Chat:
 
-    def __init__(self, 
-                 parent,
-                 provider: LLMProvider,    
-                 messages: Sequence[MessageInput],                         
-                 model: Optional[str] = None,
-                 system_prompt: Optional[str] = None,
-                 tools: Optional[Sequence[ToolInput]] = None,
-                 tool_callables: Optional[dict[str, Callable]] = None,
-                 tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,                 
-                 response_format: Optional[Union[Literal["text", "json", "json_schema"], dict[Literal["type"], Literal["text", "json", "json_schema"]]]] = None,
-                 
-                 return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
-                 enforce_tool_choice: bool = False,
-                 tool_choice_error_retries: int = 3,
+    def __init__(
+            self, 
 
-                 max_tokens: Optional[int] = None,
-                 frequency_penalty: Optional[float] = None,
-                 presence_penalty: Optional[float] = None,
-                 seed: Optional[int] = None,
-                 stop_sequences: Optional[list[str]] = None, 
-                 temperature: Optional[float] = None,
-                 top_k: Optional[int] = None,
-                 top_p: Optional[float] = None,                   
-                 ):
-        
+            get_client: Callable[[LLMProvider], LLMClient],
+            parent_tools: dict[str, Tool],
+            parent_tool_callables: dict[str, Callable],
 
-        self.parent = parent
+            provider: LLMProvider,    
+            messages: Sequence[MessageInput],                         
+            model: Optional[str] = None,
+            system_prompt: Optional[str] = None,
+            tools: Optional[Sequence[ToolInput]] = None,
+            tool_callables: Optional[dict[str, Callable]] = None,
+            tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,                 
+            response_format: Optional[Union[Literal["text", "json", "json_schema"], dict[Literal["type"], Literal["text", "json", "json_schema"]]]] = None,
+            
+            return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
+            enforce_tool_choice: bool = False,
+            tool_choice_error_retries: int = 3,
+
+            max_tokens: Optional[int] = None,
+            frequency_penalty: Optional[float] = None,
+            presence_penalty: Optional[float] = None,
+            seed: Optional[int] = None,
+            stop_sequences: Optional[list[str]] = None, 
+            temperature: Optional[float] = None,
+            top_k: Optional[int] = None,
+            top_p: Optional[float] = None,                   
+    ):
+        self.get_client = get_client
+        self.parent_tools = parent_tools
+        self.parent_tool_callables = parent_tool_callables
+
         self.provider = provider
         self.set_provider(provider)
         self.set_model(model)
@@ -68,7 +75,7 @@ class Chat:
 
 
     def set_provider(self, provider: LLMProvider, model: Optional[str]=None) -> Self:        
-        self.client = self.parent.get_client(provider)
+        self.client = self.get_client(provider)
         if provider != self.provider:
             self.reformat_client_args()
         self.provider = provider
@@ -116,7 +123,7 @@ class Chat:
     
     def set_tools(self, tools: Optional[Sequence[ToolInput]]) -> Self:
         if tools:
-            self.std_tools = standardize_tools(tools, tool_dict=self.parent.tools)
+            self.std_tools = standardize_tools(tools, tool_dict=self.parent_tools)
             self.client_tools = [self.client.prep_input_tool(tool) for tool in self.std_tools.values()]
         else:
             self.std_tools = self.client_tools = None
@@ -124,9 +131,9 @@ class Chat:
     
     def set_tool_callables(self, tool_callables: Optional[dict[str, Callable]]) -> Self:
         if tool_callables:
-            self.tool_callables = {**self.parent.tool_callables, **tool_callables}
+            self.tool_callables = {**self.parent_tool_callables, **tool_callables}
         else:
-            self.tool_callables = self.parent.tool_callables
+            self.tool_callables = self.parent_tool_callables
         return self
     
     def set_tool_choice(self, tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]]) -> Self:
@@ -217,7 +224,7 @@ class Chat:
                 tool_callable = tool.callable
             elif self_tool_callable := self.tool_callables.get(tool_name):
                 tool_callable = self_tool_callable            
-            elif parent_tool_callable := self.parent.tool_callables.get(tool_name):                
+            elif parent_tool_callable := self.parent_tool_callables.get(tool_name):                
                 tool_callable = parent_tool_callable
             else:
                 raise ValueError(f"Tool '{tool_name}' callable not found")
