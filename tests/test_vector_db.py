@@ -486,7 +486,7 @@ def test_vector_db_query_simple(provider: Provider,
         assert group_ids
         assert len(group_ids) == sub_group_size * len(groups[group_name])
     
-    query = index.query(["dog", "fish"], include=["metadatas", "documents"], n_results=30)
+    query = index.query_many(["dog", "fish"], include=["metadatas", "documents"], n_results=30)
     assert query
     dog_result, fish_result = query
     assert dog_result.ids

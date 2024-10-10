@@ -54,10 +54,6 @@ from .openai import OpenAIWrapper
 class NvidiaWrapper(OpenAIWrapper, RerankerClient):
     provider = "nvidia"
     default_model = "meta/llama-3.1-405b-instruct"
-    default_embedding_model = "nvidia/nv-embed-v1" #NV-Embed-QA
-    # default_embedding_model = "NV-Embed-QA" 
-
-    default_reranking_model = "nv-rerank-qa-mistral-4b:1"
     
     # Nvidia API is OpenAI Compatible 
     # (with minor differences: 
@@ -68,8 +64,29 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
     # - embedding parameters (truncate, input_type, etc)
     # - with many more with tbd)
     default_base_url = "https://integrate.api.nvidia.com/v1"
-    # default_base_url = "https://ai.api.nvidia.com/v1/retrieval/nvidia/"
+    retreival_base_url = "https://ai.api.nvidia.com/v1/retrieval/nvidia/"
     
+    default_embedding_model = "nvidia/nv-embed-v1" #NV-Embed-QA
+    default_multimodal_model = "NV-Embed-QA" 
+
+    model_embedding_dimensions = {
+        "baai/bge-m3": 1024,
+        "NV-Embed-QA": 1024,
+        "nvidia/nvclip": 1024,
+        "nvidia/nv-embed-v1": 4096,
+        "nvidia/nv-embedqa-e5-v5": 1024,
+        "nvidia/nv-embedqa-mistral-7b-v2": 4096,
+        "snowflake/arctic-embed-l": 1024,
+    }    
+
+    model_base_urls = {
+        "NV-Embed-QA": retreival_base_url,
+        "nvidia/nv-rerankqa-mistral-4b-v3": retreival_base_url,
+        "snowflake/arctic-embed-l": retreival_base_url+"snowflake/arctic-embed-l/",
+    } 
+
+    default_reranking_model = "nv-rerank-qa-mistral-4b:1"
+
 
 
     def init_client(self, **client_kwargs) -> Any:
