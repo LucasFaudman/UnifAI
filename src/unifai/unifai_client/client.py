@@ -34,6 +34,7 @@ from unifai.type_conversions import make_few_shot_prompt, standardize_eval_prame
 # from unifai.exceptions import EmbeddingDimensionsError
 
 from .chat import Chat
+from .tool_caller import ToolCaller
 from .rag_engine import RAGEngine, RAGSpec, IndexDocloaderRetriever
 # from .chroma_emebedding import UnifAIChromaEmbeddingFunction, get_chroma_client
 from pathlib import Path
@@ -264,6 +265,30 @@ class UnifAIClient:
     def list_models(self, provider: Optional[LLMProvider] = None) -> list[str]:
         return self.get_llm_client(provider).list_models()
 
+    def make_tool_caller(
+            self,
+            tools: Optional[Sequence[ToolInput]] = None,
+            tool_callables: Optional[dict[str, Callable]] = None,
+            tool_caller_class_or_instance: Type[ToolCaller]|ToolCaller = ToolCaller,
+    ) -> ToolCaller:
+        tool_callables = {**self.tool_callables}
+        if tools:
+            for tool in tools:
+                if isinstance(tool, str):
+                    tool = self.tools.get(tool)
+
+                if isinstance(tool, Tool) and tool.callable:
+                    tool_callables[tool.name] = tool.callable
+
+        if tool_callables:
+            tool_callables.update(tool_callables)
+        
+        if isinstance(tool_caller_class_or_instance, ToolCaller):
+            tool_caller_class_or_instance.set_tool_callables(tool_callables)
+            return tool_caller_class_or_instance
+        
+        return tool_caller_class_or_instance(tool_callables=tool_callables)
+            
 
     def start_chat(
             self,
@@ -274,11 +299,13 @@ class UnifAIClient:
             return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
             response_format: Optional[Union[str, dict[str, str]]] = None,
 
-            tools: Optional[Sequence[ToolInput]] = None,
-            tool_callables: Optional[dict[str, Callable]] = None,
+            tools: Optional[Sequence[ToolInput]] = None,            
             tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
             enforce_tool_choice: bool = True,
             tool_choice_error_retries: int = 3,
+
+            tool_callables: Optional[dict[str, Callable]] = None,
+            tool_caller_class_or_instance: Optional[Type[ToolCaller]] = ToolCaller,
 
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
@@ -290,12 +317,18 @@ class UnifAIClient:
             top_p: Optional[float] = None,
 
     ) -> Chat:
+
+        if tool_caller_class_or_instance:
+            tool_caller = self.make_tool_caller(tools, tool_callables, tool_caller_class_or_instance)
+        else:
+            tool_caller = None
+
         return Chat(
             # parent=self,
             get_client=self.get_llm_client,
             parent_tools=self.tools,
-            parent_tool_callables=self.tool_callables,
-            
+            # parent_tool_callables=self.tool_callables,
+
             messages=messages if messages is not None else [],
             provider=provider or self.default_llm_provider,
             model=model,
@@ -305,8 +338,9 @@ class UnifAIClient:
             response_format=response_format,
 
             tools=tools,
-            tool_callables=tool_callables,
-            tool_choice=tool_choice,                
+            # tool_callables=tool_callables,
+            tool_choice=tool_choice,
+            tool_caller=tool_caller,                
             enforce_tool_choice=enforce_tool_choice,
             tool_choice_error_retries=tool_choice_error_retries,
 

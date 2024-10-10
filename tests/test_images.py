@@ -76,7 +76,9 @@ def test_image_input_animals(
     if provider == "openai":
         func_kwargs["model"] = "gpt-4-turbo"
     if provider == "ollama":
-        func_kwargs["model"] = "llava-llama3:latest"        
+        func_kwargs["model"] = "llava-llama3:latest" 
+    if provider == "nvidia":
+        func_kwargs["model"] = "microsoft/phi-3-vision-128k-instruct"                 
 
     if image_source.startswith("base64"):
         image = Image.from_base64(
@@ -166,7 +168,9 @@ def test_image_and_tools_input_animals(
     if provider == "openai":
         func_kwargs["model"] = "gpt-4o"
     if provider == "ollama":
-        func_kwargs["model"] = "llava-llama3:latest"        
+        func_kwargs["model"] = "llava-llama3:latest"    
+    if provider == "nvidia":
+        func_kwargs["model"] = "microsoft/phi-3-vision-128k-instruct"            
 
     if image_source.startswith("base64"):
         image = Image.from_base64(

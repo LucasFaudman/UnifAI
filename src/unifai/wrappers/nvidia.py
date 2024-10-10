@@ -47,6 +47,7 @@ from unifai.exceptions import (
 )
 from openai._utils import maybe_transform
 from openai._base_client import make_request_options
+from openai.types.chat.completion_create_params import CompletionCreateParams
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings, EmbeddingTaskTypeInput, VectorDBQueryResult
 from unifai.type_conversions import stringify_content
@@ -83,11 +84,11 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
     # - with many more with tbd)
     default_base_url = "https://integrate.api.nvidia.com/v1"
     retreival_base_url = "https://ai.api.nvidia.com/v1/retrieval/nvidia"
-    vlm_base_url = "https://ai.api.nvidia.com/v1/vlm/nvidia"
+    vlm_base_url = "https://ai.api.nvidia.com/v1/vlm/"
     
     default_embedding_model = "nvidia/nv-embed-v1" #NV-Embed-QA
     default_reranking_model = "nvidia/nv-rerankqa-mistral-4b-v3"
-    default_multimodal_model = "NV-Embed-QA" 
+    default_multimodal_model = "nvidia/vila" 
 
     model_embedding_dimensions = {
         "baai/bge-m3": 1024,
@@ -104,11 +105,30 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
         "nv-rerank-qa-mistral-4b:1"        
     }
 
+    vlm_models = {
+        "adept/fuyu-8b",
+        "google/deplot",
+        "google/paligemma",
+        # "liuhaotian/llava-v1.6-34b",
+        # "liuhaotian/llava-v1.6-mistral-7b",
+        # "community/llava-v1.6-34b",
+        # "community/llava-v1.6-mistral-7b",        
+        # "meta/llama-3.2-11b-vision-instruct",
+        # "meta/llama-3.2-90b-vision-instruct",
+        # "microsoft/florence-2"
+        "microsoft/kosmos-2",
+        "microsoft/phi-3-vision-128k-instruct",
+        "nvidia/neva-22b",
+        "nvidia/vila"
+    }
+
     model_base_urls = {
         "NV-Embed-QA": retreival_base_url,
         "nv-rerank-qa-mistral-4b:1": retreival_base_url,
         "nvidia/nv-rerankqa-mistral-4b-v3": f"{retreival_base_url}/nv-rerankqa-mistral-4b-v3",
         "snowflake/arctic-embed-l": f"{retreival_base_url}/snowflake/arctic-embed-l",
+        # "meta/llama-3.2-11b-vision-instruct": "https://ai.api.nvidia.com/v1/gr/meta/llama-3.2-11b-vision-instruct",
+        # "meta/llama-3.2-90b-vision-instruct": "https://ai.api.nvidia.com/v1/gr/meta/llama-3.2-90b-vision-instruct",
     } 
 
 
@@ -170,8 +190,7 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
         return respone
 
 
-    
-    
+    # Reranking
     def _get_rerank_response(
         self,
         query: str,
@@ -232,3 +251,54 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
         **kwargs
         ) -> list[int]:
         return [item.index for item in response.rankings]
+    
+
+    # Chat
+    def _create_completion(self, kwargs) -> ChatCompletion|Stream[ChatCompletionChunk]:
+        if kwargs.get("model") not in self.vlm_models:
+            return self.client.chat.completions.create(**kwargs)
+                
+        model = kwargs.get("model")
+        extra_headers = kwargs.pop("extra_headers", None)
+        extra_query = kwargs.pop("extra_query", None)
+        extra_body = kwargs.pop("extra_body", None)
+        timeout = kwargs.pop("timeout", None)
+        stream = kwargs.get("stream", None)
+
+        vlm_model_base_url = self.model_base_urls.get(model, self.vlm_base_url)
+        print(f"VLM Model Base URL: {vlm_model_base_url}")
+        self.client.base_url = vlm_model_base_url
+        response = self.client.post(
+            f"/{model}",
+            body=maybe_transform(
+                kwargs,
+                CompletionCreateParams,
+            ),
+            options=make_request_options(
+                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+            ),
+            cast_to=ChatCompletion,
+            stream=stream or False,
+            stream_cls=Stream[ChatCompletionChunk],
+        )
+        self.client.base_url = self.default_base_url
+        return response
+    
+
+    def prep_input_user_message(self, message: Message) -> dict:
+        message_dict = {"role": "user"}
+        content = message.content
+             
+        if message.images:
+            if not content:
+                content = ""
+            if content:
+                content += " "
+            content += " ".join(map(self.prep_input_image, message.images))
+                    
+        message_dict["content"] = content
+        return message_dict    
+    
+
+    def prep_input_image(self, image: Image) -> str:
+        return f"<img src=\"{image.data_uri}\" />"

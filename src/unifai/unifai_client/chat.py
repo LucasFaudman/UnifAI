@@ -12,6 +12,7 @@ from unifai.types import (
 )
 from unifai.type_conversions import standardize_tools, standardize_messages, standardize_tool_choice, standardize_response_format
 from unifai.wrappers._base_llm_client import LLMClient
+from .tool_caller import ToolCaller
 
 class Chat:
 
@@ -20,18 +21,21 @@ class Chat:
 
             get_client: Callable[[LLMProvider], LLMClient],
             parent_tools: dict[str, Tool],
-            parent_tool_callables: dict[str, Callable],
+
 
             provider: LLMProvider,    
             messages: Sequence[MessageInput],                         
             model: Optional[str] = None,
             system_prompt: Optional[str] = None,
-            tools: Optional[Sequence[ToolInput]] = None,
-            tool_callables: Optional[dict[str, Callable]] = None,
-            tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,                 
-            response_format: Optional[Union[Literal["text", "json", "json_schema"], dict[Literal["type"], Literal["text", "json", "json_schema"]]]] = None,
-            
+
             return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
+            response_format: Optional[Union[Literal["text", "json", "json_schema"], dict[Literal["type"], Literal["text", "json", "json_schema"]]]] = None,
+
+
+            tools: Optional[Sequence[ToolInput]] = None,
+            tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,                 
+            tool_caller: Optional[ToolCaller] = None,
+                        
             enforce_tool_choice: bool = False,
             tool_choice_error_retries: int = 3,
 
@@ -46,18 +50,21 @@ class Chat:
     ):
         self.get_client = get_client
         self.parent_tools = parent_tools
-        self.parent_tool_callables = parent_tool_callables
 
         self.provider = provider
         self.set_provider(provider)
         self.set_model(model)
         self.set_system_prompt(system_prompt)
         self.set_messages(messages, system_prompt)
-        self.set_tools(tools)
-        self.set_tool_callables(tool_callables)
-        self.set_tool_choice(tool_choice)
-        self.set_response_format(response_format)
+        
         self.return_on = return_on
+        self.set_response_format(response_format)
+
+
+        self.set_tools(tools)
+        self.set_tool_choice(tool_choice)
+        self.set_tool_caller(tool_caller)
+        
         self.enforce_tool_choice = enforce_tool_choice
         self.tool_choice_error_retries = tool_choice_error_retries
 
@@ -101,9 +108,11 @@ class Chat:
         self.system_prompt = system_prompt
         return self    
     
-    def set_messages(self, 
-                     messages: Sequence[Union[Message, str, dict[str, Any]]],
-                     system_prompt: Optional[str] = None) -> Self:
+    def set_messages(
+            self, 
+            messages: Sequence[Union[Message, str, dict[str, Any]]],
+            system_prompt: Optional[str] = None
+    ) -> Self:
 
         # standardize inputs and prep copies for client in its format
         # (Note to self: 2 copies are stored to prevent converting back and forth between formats on each iteration.
@@ -115,6 +124,7 @@ class Chat:
             self.std_messages, system_prompt or self.system_prompt)
         return self
     
+
     def extend_messages(self, std_messages: Iterable[Message]) -> None:
         for std_message in std_messages:
             self.std_messages.append(std_message)
@@ -129,12 +139,6 @@ class Chat:
             self.std_tools = self.client_tools = None
         return self
     
-    def set_tool_callables(self, tool_callables: Optional[dict[str, Callable]]) -> Self:
-        if tool_callables:
-            self.tool_callables = {**self.parent_tool_callables, **tool_callables}
-        else:
-            self.tool_callables = self.parent_tool_callables
-        return self
     
     def set_tool_choice(self, tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]]) -> Self:
         if tool_choice:
@@ -150,6 +154,25 @@ class Chat:
             self.std_tool_choice = self.std_tool_choice_queue = self.std_tool_choice_index = self.client_tool_choice = None
         return self
     
+
+    def set_tool_caller(
+            self, 
+            tool_caller: Optional[ToolCaller] = None,
+    ) -> Self:
+        if tool_caller:
+            self.tool_caller = tool_caller
+        else:
+            self.tool_caller = None
+        return self
+
+
+    def set_tool_callables(self, tool_callables: dict[str, Callable]) -> Self:
+        if self.tool_caller:
+            self.tool_caller.set_tool_callables(tool_callables)
+        else:
+            self.tool_caller = ToolCaller(tool_callables)        
+        return self
+
 
     def set_response_format(self, response_format: Optional[Union[Literal["text", "json", "json_schema"], dict[Literal["type"], Literal["text", "json", "json_schema"]]]]) -> Self:
         if response_format:
@@ -217,26 +240,9 @@ class Chat:
         return any(tool_call.tool_name == self.return_on for tool_call in tool_calls)   
 
 
-    def do_tool_calls(self, tool_calls: list[ToolCall]) -> list[ToolCall]:
-        for tool_call in tool_calls:
-            tool_name = tool_call.tool_name
-            if self.std_tools and (tool := self.std_tools.get(tool_name)) and tool.callable:
-                tool_callable = tool.callable
-            elif self_tool_callable := self.tool_callables.get(tool_name):
-                tool_callable = self_tool_callable            
-            elif parent_tool_callable := self.parent_tool_callables.get(tool_name):                
-                tool_callable = parent_tool_callable
-            else:
-                raise ValueError(f"Tool '{tool_name}' callable not found")
-            
-            # TODO catch ToolCallError
-            tool_call.output = tool_callable(**tool_call.arguments)
-                   
-        return tool_calls
-                    
                         
     def extend_messages_with_tool_outputs(self, 
-                                        tool_calls: Sequence[ToolCall],
+                                        tool_calls: list[ToolCall],
                                         # content: Optional[str] = None
                                         ) -> None:
 
@@ -300,10 +306,10 @@ class Chat:
 
             if tool_calls := std_message.tool_calls:
                 # Return on tool_call before processing messages
-                if self.check_return_on_tool_call(tool_calls):
+                if not self.tool_caller or self.check_return_on_tool_call(tool_calls):
                     break
 
-                tool_calls = self.do_tool_calls(tool_calls)
+                tool_calls = self.tool_caller.call_tools(tool_calls)
                 self.extend_messages_with_tool_outputs(tool_calls)
                 # Process messages after submitting tool outputs
                 continue
@@ -312,6 +318,7 @@ class Chat:
             break
 
         return self
+    
     
     def run_stream(self, **kwargs) -> Generator[MessageChunk, None, Self]:
         while True:
@@ -349,10 +356,10 @@ class Chat:
 
             if tool_calls := std_message.tool_calls:
                 # Return on tool_call before processing messages
-                if self.check_return_on_tool_call(tool_calls):
+                if not self.tool_caller or self.check_return_on_tool_call(tool_calls):
                     break
 
-                tool_calls = self.do_tool_calls(tool_calls)
+                tool_calls = self.tool_caller.call_tools(tool_calls)
                 self.extend_messages_with_tool_outputs(tool_calls)
                 # Process messages after submitting tool outputs
                 continue

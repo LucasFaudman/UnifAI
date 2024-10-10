@@ -163,6 +163,10 @@ class OpenAIWrapper(EmbeddingClient, LLMClient):
         )
 
    
+    def _create_completion(self, kwargs) -> ChatCompletion|Stream[ChatCompletionChunk]:
+        return self.client.chat.completions.create(**kwargs)
+
+                
     # Chat 
     def _get_chat_response(
             self,
@@ -215,48 +219,9 @@ class OpenAIWrapper(EmbeddingClient, LLMClient):
             if top_p:
                 kwargs["top_p"] = top_p
             
-
-
-            return self.client.chat.completions.create(
-                # messages=messages,
-                # model=model,
-                # frequency_penalty=frequency_penalty,
-                # max_tokens=max_tokens,  
-                # presence_penalty=presence_penalty,
-                # response_format=response_format,
-                # seed=seed,
-                # stop=stop_sequences,                
-                # stream=stream,
-                # temperature=temperature,
-                # tool_choice=tool_choice,
-                # tools=tools,
-                # top_p=top_p,
-                **kwargs
-            )   
+            return self._create_completion(kwargs)  
     
-            # if tool_choice and not tools:
-            #     tool_choice = None
-
-            # if stream:
-            #     kwargs["stream_options"] = kwargs.get("stream_options", {})
-            #     kwargs["stream_options"]["include_usage"] = True
-
-            # return self.client.chat.completions.create(
-            #     messages=messages,
-            #     model=model,
-            #     frequency_penalty=frequency_penalty,
-            #     max_tokens=max_tokens,  
-            #     presence_penalty=presence_penalty,
-            #     response_format=response_format,
-            #     seed=seed,
-            #     stop=stop_sequences,                
-            #     stream=stream,
-            #     temperature=temperature,
-            #     tool_choice=tool_choice,
-            #     tools=tools,
-            #     top_p=top_p,
-            #     **kwargs
-            # )         
+       
     
     # Convert from UnifAI to AI Provider format        
         # Messages        
@@ -411,7 +376,7 @@ class OpenAIWrapper(EmbeddingClient, LLMClient):
 
         # Response Info (Model, Usage, Done Reason, etc.)
     def extract_response_info(self, response: Any, **kwargs) -> ResponseInfo:
-        model = response.model
+        model = response.model or kwargs.get("model")
         done_reason = self.extract_done_reason(response.choices[0])
         usage = self.extract_usage(response)
         
@@ -430,8 +395,8 @@ class OpenAIWrapper(EmbeddingClient, LLMClient):
         #     images = self.extract_images(client_message.images)
         images = None
 
-        created_at = datetime.fromtimestamp(response.created)
-        response_info = self.extract_response_info(response)       
+        created_at = datetime.fromtimestamp(response.created) if response.created else datetime.now()
+        response_info = self.extract_response_info(response, **kwargs)       
         
         std_message = Message(
             role=client_message.role,
