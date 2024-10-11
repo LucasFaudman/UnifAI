@@ -154,7 +154,7 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
             metadatas=get_result["metadatas"],
             documents=get_result["documents"],
             embeddings=get_result["embeddings"],
-            included=get_result["included"] 
+            included=["ids", *get_result["included"]] 
         )
     
 
@@ -211,7 +211,7 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
                 documents=documents,
                 embeddings=embeddings,
                 distances=distances,
-                included=included
+                included=["ids", *included]
             ) for ids, metadatas, documents, embeddings, distances in zip_longest(
                 query_result["ids"],
                 query_result["metadatas"] or empty_tuple,

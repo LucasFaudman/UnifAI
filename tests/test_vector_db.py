@@ -279,7 +279,7 @@ def test_vector_db_add(provider: Provider,
     )
 
     # test including embeddings
-    sleep(10)
+    if provider == 'pinecone': sleep(10)
     assert index.count() == 1
     get_result = index.get(["test_id"])
     assert get_result
@@ -312,7 +312,7 @@ def test_vector_db_add(provider: Provider,
         embeddings=manual_embeddings
     )
 
-    sleep(10)
+    if provider == 'pinecone': sleep(10)
     assert index.count() == 2
     get_result = index.get(["test_id_2"], where={"test": "metadata2"}, include=["metadatas", "documents", "embeddings"])
     # get_result = index.get(where={"test": "metadata2"}, include=["metadatas", "documents", "embeddings"])
@@ -339,7 +339,7 @@ def test_vector_db_add(provider: Provider,
         embeddings=manual_embeddings2
     )
 
-    sleep(10)
+    if provider == 'pinecone': sleep(10)
     assert index.count() == 2
     get_result = index.get(["test_id_2"], include=["metadatas", "documents", "embeddings"])
     assert get_result
@@ -350,7 +350,7 @@ def test_vector_db_add(provider: Provider,
 
     # test deleting
     index.delete(["test_id_2"])
-    sleep(10)
+    if provider == 'pinecone': sleep(10)
     assert index.count() == 1
     get_result = index.get(["test_id_2"], include=["metadatas", "documents", "embeddings"])
     assert not get_result.metadatas
@@ -365,7 +365,7 @@ def test_vector_db_add(provider: Provider,
         embeddings=manual_embeddings2
     )
 
-    sleep(10)
+    if provider == 'pinecone': sleep(10)
     assert index.count() == 2
     get_result = index.get(["test_id_2"], include=["metadatas", "documents", "embeddings"])
     assert get_result
@@ -378,7 +378,7 @@ def test_vector_db_add(provider: Provider,
     all_ids = index.list_ids()
     assert all_ids == ["test_id", "test_id_2"]
     index.delete_all()
-    sleep(10)
+    if provider == 'pinecone': sleep(10)
     assert index.count() == 0
 
     # test upsert with multiple
@@ -390,12 +390,6 @@ def test_vector_db_add(provider: Provider,
         many_metadatas.append({"test": f"metadata_{i}"})
         many_documents.append(f"test document_{i}")
         many_embeddings.append([.1] * dimensions)    
-    # for i in sorted(map(str, range(num_docs))):
-    #     many_ids.append(f"test_id_{i}")
-    #     many_metadatas.append({"test": f"metadata_{i}"})
-    #     many_documents.append(f"test document_{i}")
-    #     many_embeddings.append([.1] * dimensions)
-    
         
     index.add(
         ids=many_ids,
@@ -403,9 +397,9 @@ def test_vector_db_add(provider: Provider,
         documents=many_documents,
         embeddings=many_embeddings
     )
-    sleep(40)
+    if provider == 'pinecone': sleep(40)
     assert index.count() == num_docs
-    sleep(40)
+    if provider == 'pinecone': sleep(40)
     get_result = index.get(many_ids, include=["metadatas", "documents", "embeddings"])
     assert get_result
     print(get_result.ids)
@@ -417,7 +411,7 @@ def test_vector_db_add(provider: Provider,
 
     # test deleting all
     index.delete_all()
-    sleep(10)
+    if provider == 'pinecone': sleep(10)
     assert index.count() == 0
 
     # test upsert with multiple after deleting all
@@ -427,9 +421,9 @@ def test_vector_db_add(provider: Provider,
         documents=many_documents,
         embeddings=many_embeddings
     )
-    sleep(40)
+    if provider == 'pinecone': sleep(40)
     assert index.count() == num_docs
-    sleep(40)
+    if provider == 'pinecone': sleep(40)
     get_result = index.get(many_ids, include=["metadatas", "documents", "embeddings"])
     assert get_result
     print(get_result.ids)
@@ -530,7 +524,7 @@ def test_vector_db_query_simple(provider: Provider,
         documents=documents,
     )
 
-    sleep(20)
+    if provider == 'pinecone': sleep(20)
     assert index.count() == len(ids)
     for group_name in groups:
         # group_ids = index.get(ids=ids, where={"group": group_name}).ids
