@@ -51,7 +51,10 @@ PROVIDER_DEFAULTS = {
     "pinecone": (
         "pinecone",
         {"api_key": PINECONE_API_KEY},
-        {"serverless_spec": {"cloud": "aws", "region": "us-east-1"}}
+        {
+            "serverless_spec": {"cloud": "aws", "region": "us-east-1"},
+            "deletion_protection": "disabled"
+            }
     ),   
 
     "cohere": (

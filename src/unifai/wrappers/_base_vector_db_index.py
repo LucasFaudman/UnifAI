@@ -8,6 +8,51 @@ from pydantic import BaseModel
 
 T = TypeVar("T")
 
+class DocumentDB:
+    def get_documents(self, ids: Collection[str]) -> Iterable[str]:
+        raise NotImplementedError
+    
+    def get_document(self, id: str) -> str:
+        return next(iter(self.get_documents([id])))
+    
+    def set_documents(self, ids: Collection[str], documents: Collection[str]) -> None:
+        raise NotImplementedError
+    
+    def set_document(self, id: str, document: str) -> None:
+        self.set_documents([id], [document])
+    
+    def delete_documents(self, ids: Collection[str]) -> None:
+        raise NotImplementedError
+    
+    def delete_document(self, id: str) -> None:
+        self.delete_documents([id])
+    
+
+class DictDocumentDB(DocumentDB):
+    def __init__(self, documents: dict[str, str]):
+        self.documents = documents
+
+    def get_documents(self, ids: Collection[str]) -> Iterable[str]:
+        return (self.documents[id] for id in ids)
+    
+    def get_document(self, id: str) -> str:
+        return self.documents[id]
+
+    def set_documents(self, ids: Collection[str], documents: Collection[str]) -> None:
+        for id, document in zip(ids, documents):
+            self.documents[id] = document
+
+    def set_document(self, id: str, document: str) -> None:
+        self.documents[id] = document
+
+    def delete_documents(self, ids: Collection[str]) -> None:
+        for id in ids:
+            del self.documents[id]
+    
+    def delete_document(self, id: str) -> None:
+        del self.documents[id]
+
+
 class VectorDBIndex(UnifAIExceptionConverter):
     provider = "base_vector_db"
 
@@ -20,6 +65,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
                  embedding_model: Optional[str] = None,
                  dimensions: Optional[int] = None,
                  distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
+                 document_db: Optional[DocumentDB] = None,
                  **kwargs
                  ):
         
@@ -31,6 +77,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
         self.embedding_model = embedding_model
         self.dimensions = dimensions
         self.distance_metric = distance_metric
+        self.document_db = document_db
         self.kwargs = kwargs
 
 
@@ -130,9 +177,10 @@ class VectorDBIndex(UnifAIExceptionConverter):
         
         raise NotImplementedError("This method must be implemented by the subclass")    
 
-    def get_all_ids(self, **kwargs) -> list[str]:
-        return self.get(include=[], **kwargs).ids
+
+    def list_ids(self, **kwargs) -> list[str]:
+        raise NotImplementedError("This method must be implemented by the subclass")
     
 
     def delete_all(self, **kwargs) -> None:
-        self.delete(ids=self.get_all_ids(), **kwargs)
+        raise NotImplementedError("This method must be implemented by the subclass")

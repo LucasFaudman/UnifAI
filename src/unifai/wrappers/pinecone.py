@@ -1,6 +1,6 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_vector_db_client import VectorDBIndex, VectorDBClient
+from ._base_vector_db_client import VectorDBIndex, VectorDBClient, DocumentDB
 
 from unifai.types import ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, BadRequestError
@@ -13,7 +13,7 @@ from pinecone.exceptions import PineconeException, PineconeApiException
 from json import loads as json_loads, JSONDecodeError
 
 
-from itertools import zip_longest
+from itertools import zip_longest, chain
 
 def convert_spec(spec: dict, spec_type: Literal["pod", "serverless", None]) ->  PodSpec | ServerlessSpec:
     if not spec_type:
@@ -121,11 +121,12 @@ class PineconeIndex(VectorDBIndex, PineconeExceptionConverter):
 
         # if embeddings and documents:
         #     raise ValueError("Cannot provide both documents and embeddings")
-        if documents and self.embedding_function:
+        if not embeddings and documents and self.embedding_function:
             embeddings = self.embedding_function(documents)
         if not embeddings:
             raise ValueError("Must provide either documents or embeddings")
-
+        if documents and self.document_db:
+            self.document_db.set_documents(ids, documents)
                     
         for id, metadata, embedding in zip_longest(ids, metadatas, embeddings):
             self.wrapped.update(
@@ -149,10 +150,12 @@ class PineconeIndex(VectorDBIndex, PineconeExceptionConverter):
 
         # if embeddings and documents:
         #     raise ValueError("Cannot provide both documents and embeddings")
-        if documents and self.embedding_function:
+        if not embeddings and documents and self.embedding_function:
             embeddings = self.embedding_function(documents)
         if not embeddings:
             raise ValueError("Must provide either documents or embeddings")
+        if documents and self.document_db:
+            self.document_db.set_documents(ids, documents)        
         
         vectors = []        
         for id, metadata, embedding in zip_longest(ids, metadatas, embeddings):
@@ -177,8 +180,73 @@ class PineconeIndex(VectorDBIndex, PineconeExceptionConverter):
                ) -> None:
         if where_document:
             raise ProviderUnsupportedFeatureError("where_document is not supported by Pinecone")
+        if self.document_db:
+            self.document_db.delete_documents(ids)
+        self.wrapped.delete(ids=ids, filter=where, **add_default_namespace(kwargs))
 
-        self.wrapped.delete(ids=ids, filters=where, **kwargs)
+
+    def check_filter(self, filter: dict|str, value: Any) -> bool:
+        if isinstance(filter, str):
+            return value == filter
+        filter_operator, filter_value = next(iter(filter.items()))
+        if filter_operator == "$eq":
+            return value == filter_value
+        if filter_operator == "$ne":
+            return value != filter_value
+        if filter_operator == "$gt":
+            return value > filter_value
+        if filter_operator == "$gte":
+            return value >= filter_value
+        if filter_operator == "$lt":
+            return value < filter_value
+        if filter_operator == "$lte":
+            return value <= filter_value
+        if filter_operator == "$in":
+            return value in filter_value
+        if filter_operator == "$nin":
+            return value not in filter_value
+        if filter_operator == "$exists":
+            return bool(value) == filter_value
+        if filter_operator == "$contains":
+            return filter_value in value
+        if filter_operator == "$not_contains":
+            return filter_value not in value
+        # if filter_operator == "$and":
+        #     for sub_filter in filter_value:
+        #         if not self.check_filter(sub_filter, value):
+        #             return False
+        #     return True
+        # if filter_operator == "$or":
+        #     for sub_filter in filter_value:
+        #         if self.check_filter(sub_filter, value):
+        #             return True
+        #     return False
+        raise ValueError(f"Invalid filter {filter}")
+
+
+    def check_metadata_filters(self, where: dict, metadata: dict) -> bool:
+        for key, filter in where.items():
+            if key == "$and":
+                for sub_filter in filter:
+                    if not self.check_metadata_filters(sub_filter, metadata):
+                        return False
+                continue
+            
+            if key == "$or":
+                _any = False
+                for sub_filter in filter:
+                    if self.check_metadata_filters(sub_filter, metadata):
+                        _any = True
+                        break
+                if not _any:                    
+                    return False
+                continue
+            
+            value = metadata.get(key)
+            if not self.check_filter(filter, value):
+                return False
+            
+        return True
 
 
     @convert_exceptions
@@ -192,58 +260,46 @@ class PineconeIndex(VectorDBIndex, PineconeExceptionConverter):
             **kwargs
             ) -> VectorDBGetResult:
         
-        if not ids:
-            raise ValueError("Must provide ids to get")        
-        if where_document:
-            raise ProviderUnsupportedFeatureError("where_document is not supported by Pinecone")
+        if where_document and not self.document_db:
+            raise ProviderUnsupportedFeatureError("where_document is not supported by Pinecone directly. A DocumentDB subclass must be provided to support this feature")
         
+        result = self.wrapped.fetch(ids=ids, **add_default_namespace(kwargs))
         
-        if "embeddings" in include:
-            include_values = True            
-            embeddings = []
-        else:
-            include_values = False
-            embeddings = None
+        result_ids = []
+        embeddings = [] if "embeddings" in include else None
+        metadatas = [] if "metadatas" in include else None
+        documents = [] if "documents" in include else None
 
-        if "metadatas" in include:
-            include_metadatas = True
-            metadatas = []
-        else:
-            include_metadatas = False
-            metadatas = None
-
-        if "documents" in include:
-            # include_values = True
-            documents = []
-        else:
-            # include_values = False
-            documents = None
-
-        for id in ids:
-            result = self.wrapped.query(
-                id=id, 
-                top_k=1,
-                include_values=include_values, 
-                include_metadatas=include_metadatas,
-                filter=where,
-                **add_default_namespace(kwargs)                
-            )
-            matches = result["matches"]
-            if not matches:
+        for vector in result.vectors.values():
+            metadata = vector.metadata
+            # Pinecone Fetch does not support 'where' metadata filtering so need to do it here
+            if where and not self.check_metadata_filters(where, metadata):
                 continue
-            match = matches[0]
+            # Same for 'where_document' filtering but only if document_db is provided to get the documents 
+            if where_document and self.document_db:
+                document = self.document_db.get_document(vector.id)
+                if not self.check_filter(where_document, document):
+                    continue
+                if documents is not None: # "documents" in include
+                    documents.append(document)
 
+            # Append result after filtering
+            result_ids.append(vector.id)
             if embeddings is not None:
-                embeddings.append(match["values"])
+                embeddings.append(vector.values)
             if metadatas is not None:
-                metadatas.append(match["metadata"])
-            
+                metadatas.append(metadata)
+
+        if documents is not None and not where_document and self.document_db:
+            # Get documents for all results if not already done when checking where_document
+            documents.extend(self.document_db.get_documents(result_ids))
+
         return VectorDBGetResult(
-            ids=ids,
+            ids=result_ids,
             metadatas=metadatas,
             documents=documents,
             embeddings=embeddings,
-            included=include
+            included=["ids", *include]
         )
     
     @convert_exceptions
@@ -257,67 +313,65 @@ class PineconeIndex(VectorDBIndex, PineconeExceptionConverter):
               **kwargs
               ) -> VectorDBQueryResult:   
         
-        if where_document:
-            raise ProviderUnsupportedFeatureError("where_document is not supported by Pinecone")
+        if where_document and not self.document_db:
+            raise ProviderUnsupportedFeatureError("where_document is not supported by Pinecone directly. A DocumentDB subclass must be provided to support this feature")
 
         if query_text is not None and self.embedding_function:
-            query_embedding = self.embedding_function(query_text)
+            query_embedding = self.embedding_function(query_text)[0]            
         elif query_embedding is None:
             raise ValueError("Either (query_text and embedding_function) or query_embedding must be provided")
 
-        ids = []        
-        if "embeddings" in include:
-            include_values = True            
-            embeddings = []
-        else:
-            include_values = False
-            embeddings = None
-
-        if "metadatas" in include:
-            include_metadatas = True
-            metadatas = []
-        else:
-            include_metadatas = False
-            metadatas = None
-
-        if "documents" in include:
-            documents = []
-        else:
-            documents = None
-
-        if "distances" in include:
-            distances = []
-        else:
-            distances = None
-
-
+        result_ids = []
+        embeddings = [] if "embeddings" in include else None
+        metadatas = [] if "metadatas" in include else None        
+        distances = [] if "distances" in include else None
+        documents = [] if "documents" in include else None
+        
         result = self.wrapped.query(
             vector=query_embedding,
             top_k=n_results,
             filter=where,
-            include_values=include_values,
-            include_metadatas=include_metadatas,
+            include_values=(embeddings is not None),
+            include_metadata=(include_metadata:=(metadatas is not None)),
             **add_default_namespace(kwargs)
         )
 
         for match in result["matches"]:
-            ids.append(match["id"])
+            if where and include_metadata:
+                metadata = match["metadata"]
+                # Preforms any additional metadata filtering not supported by Pinecone
+                if not self.check_metadata_filters(where, metadata):
+                    continue
+
+            id = match["id"]            
+            # Same for 'where_document' filtering but only if document_db is provided to get the documents 
+            if where_document and self.document_db:
+                document = self.document_db.get_document(id)
+                if not self.check_filter(where_document, document):
+                    continue
+                if documents is not None: # "documents" in include
+                    documents.append(document)
+
+            # Append result after filtering
+            result_ids.append(id)
             if embeddings is not None:
                 embeddings.append(match["values"])
             if metadatas is not None:
                 metadatas.append(match["metadata"])
-            # if documents is not None:
-                # documents.append(match["document"])
             if distances is not None:
                 distances.append(match["score"])
 
+        if documents is not None and not where_document and self.document_db:
+            # Get documents for all results if not already done when checking where_document
+            documents.extend(self.document_db.get_documents(result_ids))  
+
         return VectorDBQueryResult(
-            ids=ids,
+            ids=result_ids,
             metadatas=metadatas,
             documents=documents,
             embeddings=embeddings,
             distances=distances,
-            included=include
+            included=["ids", *include]
         )
             
 
@@ -331,12 +385,30 @@ class PineconeIndex(VectorDBIndex, PineconeExceptionConverter):
               include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
               **kwargs
               ) -> list[VectorDBQueryResult]: 
+        
+        if where_document and not self.document_db:
+            raise ProviderUnsupportedFeatureError("where_document is not supported by Pinecone directly. A DocumentDB subclass must be provided to support this feature")
+        
+        if query_embeddings is None: 
+            if query_texts is None:
+                raise ValueError("Must provide either query_texts or query_embeddings not both")
+            if self.embedding_function:
+                query_embeddings = self.embedding_function(query_texts)
+        if not query_embeddings:
+            raise ValueError("Must provide either query_texts or query_embeddings")
 
-        empty_tuple = ()
         return [
-            self.query(query_text, query_embedding, n_results, where, where_document, include, **kwargs)
-            for query_text, query_embedding in zip_longest(query_texts or empty_tuple, query_embeddings or empty_tuple)
+            self.query(None, query_embedding, n_results, where, where_document, include, **kwargs)
+            for query_embedding in query_embeddings
         ]
+
+
+    def list_ids(self, **kwargs) -> list[str]:
+        return list(chain(*self.wrapped.list(**add_default_namespace(kwargs))))
+    
+
+    def delete_all(self, **kwargs) -> None:
+        self.wrapped.delete(delete_all=True, **add_default_namespace(kwargs))     
 
 
 class PineconeClient(VectorDBClient, PineconeExceptionConverter):
@@ -356,8 +428,7 @@ class PineconeClient(VectorDBClient, PineconeExceptionConverter):
                      embedding_model: Optional[str] = None,
                      dimensions: Optional[int] = None,
                      distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
-                    #  spec = dict|ServerlessSpec|PodSpec,
-                    #  spec_type: Literal["pod", "serverless", None] = None,                     
+                     document_db: Optional[DocumentDB] = None,         
                      **kwargs
                      ) -> PineconeIndex:
         
@@ -413,6 +484,7 @@ class PineconeClient(VectorDBClient, PineconeExceptionConverter):
             embedding_model=embedding_model,
             dimensions=dimensions,
             distance_metric=distance_metric,
+            document_db=document_db,
             **index_kwargs
         )
         self.indexes[name] = index
@@ -426,6 +498,7 @@ class PineconeClient(VectorDBClient, PineconeExceptionConverter):
                   embedding_model: Optional[str] = None,
                   dimensions: Optional[int] = None,
                   distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
+                  document_db: Optional[DocumentDB] = None,
                   **kwargs                                    
                   ) -> PineconeIndex:
         if index := self.indexes.get(name):
@@ -449,6 +522,7 @@ class PineconeClient(VectorDBClient, PineconeExceptionConverter):
             embedding_model=embedding_model,
             dimensions=dimensions,
             distance_metric=distance_metric,
+            document_db=document_db,
             **index_kwargs
         )
         self.indexes[name] = index

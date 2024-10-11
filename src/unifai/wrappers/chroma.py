@@ -1,6 +1,6 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_vector_db_client import VectorDBIndex, VectorDBClient
+from ._base_vector_db_client import VectorDBIndex, VectorDBClient, DocumentDB
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, BadRequestError
@@ -94,7 +94,8 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
                 ) -> Self:
           
         self.wrapped.update(
-            ids=ids, metadatas=metadatas, 
+            ids=ids, 
+            metadatas=metadatas, 
             documents=documents, 
             embeddings=embeddings,
             **kwargs
@@ -220,6 +221,15 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
                 fillvalue=None
             )
         ]    
+    
+
+
+    def list_ids(self, **kwargs) -> list[str]:
+        return self.get(include=[], **kwargs).ids
+
+
+    def delete_all(self, **kwargs) -> None:
+        self.delete(ids=self.list_ids(), **kwargs)    
 
 
 # class UnifAIChromaEmbeddingFunction(EmbeddingFunction[list[str]]):
@@ -299,6 +309,7 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
                      embedding_model: Optional[str] = None,
                      dimensions: Optional[int] = None,
                      distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
+                     document_db: Optional[DocumentDB] = None,
                      **kwargs
                      ) -> ChromaIndex:
         
@@ -338,6 +349,7 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
             embedding_model=embedding_model,
             dimensions=dimensions,
             distance_metric=distance_metric,
+            document_db=document_db,
             **index_kwargs
         )
         self.indexes[name] = index
@@ -350,6 +362,7 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
                   embedding_model: Optional[str] = None,
                   dimensions: Optional[int] = None,
                   distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
+                  document_db: Optional[DocumentDB] = None,
                   **kwargs                                    
                   ) -> ChromaIndex:
         if index := self.indexes.get(name):
@@ -393,6 +406,7 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
             embedding_model=embedding_model,
             dimensions=dimensions,
             distance_metric=distance_metric,
+            document_db=document_db,
             **index_kwargs
         )
         self.indexes[name] = index

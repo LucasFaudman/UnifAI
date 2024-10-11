@@ -1,10 +1,10 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
 from ._base_client_wrapper import BaseClientWrapper
-from ._base_vector_db_index import VectorDBIndex
+from ._base_vector_db_index import VectorDBIndex, DocumentDB
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
-from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, BadRequestError
+from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, BadRequestError, NotFoundError
 
 
 T = TypeVar("T")
@@ -37,27 +37,6 @@ class EmbeddingFunction:
             self.response_infos.append(embed_result.response_info)
         return embed_result.list()
     
-
-class DocumentDB:
-    def get_documents(self, ids: Collection[str]) -> list[str]:
-        raise NotImplementedError
-    
-    def set_documents(self, ids: Collection[str], documents: Collection[str]) -> None:
-        raise NotImplementedError
-    
-
-class DictDocumentDB(DocumentDB):
-    def __init__(self, documents: dict[str, str]):
-        self.documents = documents
-
-    def get_documents(self, ids: Collection[str]) -> list[str]:
-        return [self.documents[id] for id in ids]
-
-    def set_documents(self, ids: Collection[str], documents: Collection[str]) -> None:
-        for id, document in zip(ids, documents):
-            self.documents[id] = document
-
-
 
 class VectorDBClient(BaseClientWrapper):
     provider = "base_vector_db"
@@ -143,7 +122,7 @@ class VectorDBClient(BaseClientWrapper):
                 document_db=document_db,
                 **kwargs
             )
-        except BadRequestError:
+        except (BadRequestError, NotFoundError):
             return self.create_index(
                 name=name,
                 metadata=metadata,

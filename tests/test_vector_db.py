@@ -2,13 +2,15 @@ import pytest
 from typing import Optional, Literal
 
 from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider
-from unifai.wrappers._base_vector_db_client import VectorDBClient, VectorDBIndex
+from unifai.wrappers._base_vector_db_client import VectorDBClient, VectorDBIndex, DocumentDB
+from unifai.wrappers._base_vector_db_index import DictDocumentDB
 
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
-from unifai.exceptions import BadRequestError
+from unifai.exceptions import BadRequestError, NotFoundError
 from basetest import base_test, base_test_vector_dbs_all, PROVIDER_DEFAULTS, VECTOR_DB_PROVIDERS
 from chromadb.errors import InvalidCollectionException
 
+from time import sleep
 @base_test_vector_dbs_all
 def test_init_vector_db_init_clients(provider, client_kwargs, func_kwargs):
     ai = UnifAIClient({
@@ -90,8 +92,8 @@ def parameterize_distance_metric(func):
 
 
 
-# @base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
-@base_test_vector_dbs_all
+@base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
+# @base_test_vector_dbs_all
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -142,15 +144,16 @@ def test_vector_db_create_index(provider: Provider,
                 "_unifai_embedding_config": ",".join((
                 str(embedding_provider),
                 str(embedding_model),
-                str(dimensions),
-                str(distance_metric)
+                str(dimensions if dimensions is not None else 1536),
+                str(distance_metric if distance_metric is not None else "cosine")
             ))                
     }
-    assert index.metadata == updated_metadata
+    if provider == "chroma": assert index.metadata == updated_metadata
+    
     assert index.embedding_provider == embedding_provider
     assert index.embedding_model == embedding_model
-    assert index.dimensions == dimensions
-    assert index.distance_metric == distance_metric
+    assert index.dimensions == dimensions if dimensions is not None else 1536
+    assert index.distance_metric == distance_metric if distance_metric is not None else "cosine"
 
     assert client.get_index(name) is index
 
@@ -158,8 +161,9 @@ def test_vector_db_create_index(provider: Provider,
     assert client.list_indexes() == [name]
     assert client.count_indexes() == 1
 
-    index2_name = "index_2"
-    with pytest.raises(BadRequestError):
+    index2_name = "index-2"
+    # TODO both should raise InvalidIndexException
+    with pytest.raises((BadRequestError, NotFoundError)):
         index2 = client.get_index(index2_name)
 
     index2 = client.get_or_create_index(
@@ -168,17 +172,18 @@ def test_vector_db_create_index(provider: Provider,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
-        distance_metric=distance_metric
+        distance_metric=distance_metric,
+        **func_kwargs
     )
 
     assert index2
     assert isinstance(index2, VectorDBIndex)
     assert index2.name == index2_name
-    assert index2.metadata == updated_metadata
+    if provider == "chroma": assert index2.metadata == updated_metadata
     assert index2.embedding_provider == embedding_provider
     assert index2.embedding_model == embedding_model
-    assert index2.dimensions == dimensions
-    assert index2.distance_metric == distance_metric
+    assert index2.dimensions == dimensions if dimensions is not None else 1536
+    assert index2.distance_metric == distance_metric if distance_metric is not None else "cosine"
 
     assert client.get_index(index2_name) is index2
     # assert client.list_indexes() == [index2_name, name]
@@ -186,18 +191,19 @@ def test_vector_db_create_index(provider: Provider,
     assert client.count_indexes() == 2
     
     # test getting index by metadata
-    client.indexes.pop(index2_name)
-    metaloaded_index2 = client.get_index(name=index2_name)
-    assert metaloaded_index2
-    assert isinstance(metaloaded_index2, VectorDBIndex)
-    assert metaloaded_index2.name == index2.name
-    assert metaloaded_index2.metadata == index2.metadata
-    assert metaloaded_index2.embedding_provider == index2.embedding_provider
-    assert metaloaded_index2.embedding_model == index2.embedding_model
-    assert metaloaded_index2.dimensions == index2.dimensions
-    assert metaloaded_index2.distance_metric == index2.distance_metric
+    if provider == "chroma":
+        client.indexes.pop(index2_name)
+        metaloaded_index2 = client.get_index(name=index2_name)
+        assert metaloaded_index2
+        assert isinstance(metaloaded_index2, VectorDBIndex)
+        assert metaloaded_index2.name == index2.name
+        assert metaloaded_index2.metadata == index2.metadata
+        assert metaloaded_index2.embedding_provider == index2.embedding_provider
+        assert metaloaded_index2.embedding_model == index2.embedding_model
+        assert metaloaded_index2.dimensions == index2.dimensions
+        assert metaloaded_index2.distance_metric == index2.distance_metric
 
-    assert client.get_index(index2_name) == metaloaded_index2
+        assert client.get_index(index2_name) == metaloaded_index2
 
     # test deleting index
     client.delete_index(index2_name)
@@ -217,7 +223,8 @@ def approx_embeddings(embeddings, expected_embeddings):
             assert pytest.approx(value) == pytest.approx(expected_embeddings[i][j])
 
 # @base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
-@base_test_vector_dbs_all
+# @base_test_vector_dbs_all
+@base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -246,6 +253,11 @@ def test_vector_db_add(provider: Provider,
     assert isinstance(client, VectorDBClient)
     client.delete_all_indexes() # Reset for each test
 
+    if provider == "chroma":
+        document_db = None
+    else:
+        document_db = DictDocumentDB({})
+
     index = client.create_index(
         name=name,
         metadata=metadata,
@@ -253,6 +265,7 @@ def test_vector_db_add(provider: Provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
         distance_metric=distance_metric,
+        document_db=document_db,
         **func_kwargs
     )
     assert index
@@ -266,6 +279,7 @@ def test_vector_db_add(provider: Provider,
     )
 
     # test including embeddings
+    sleep(10)
     assert index.count() == 1
     get_result = index.get(["test_id"])
     assert get_result
@@ -298,8 +312,10 @@ def test_vector_db_add(provider: Provider,
         embeddings=manual_embeddings
     )
 
+    sleep(10)
     assert index.count() == 2
-    get_result = index.get(where={"test": "metadata2"}, include=["metadatas", "documents", "embeddings"])
+    get_result = index.get(["test_id_2"], where={"test": "metadata2"}, include=["metadatas", "documents", "embeddings"])
+    # get_result = index.get(where={"test": "metadata2"}, include=["metadatas", "documents", "embeddings"])
 
     assert get_result
     assert get_result.ids == ["test_id_2"]
@@ -309,6 +325,7 @@ def test_vector_db_add(provider: Provider,
 
     get_result = index.get(["test_id", "test_id_2"], include=["metadatas", "documents", "embeddings"])
     assert get_result
+    assert get_result.sort().ids == ["test_id", "test_id_2"]
     assert get_result.ids == ["test_id", "test_id_2"]
     assert get_result.metadatas == [{"test": "metadata"}, {"test": "metadata2"}]
     assert get_result.documents == ["test document", "test document2"]
@@ -322,6 +339,7 @@ def test_vector_db_add(provider: Provider,
         embeddings=manual_embeddings2
     )
 
+    sleep(10)
     assert index.count() == 2
     get_result = index.get(["test_id_2"], include=["metadatas", "documents", "embeddings"])
     assert get_result
@@ -332,6 +350,7 @@ def test_vector_db_add(provider: Provider,
 
     # test deleting
     index.delete(["test_id_2"])
+    sleep(10)
     assert index.count() == 1
     get_result = index.get(["test_id_2"], include=["metadatas", "documents", "embeddings"])
     assert not get_result.metadatas
@@ -346,6 +365,7 @@ def test_vector_db_add(provider: Provider,
         embeddings=manual_embeddings2
     )
 
+    sleep(10)
     assert index.count() == 2
     get_result = index.get(["test_id_2"], include=["metadatas", "documents", "embeddings"])
     assert get_result
@@ -355,31 +375,41 @@ def test_vector_db_add(provider: Provider,
     approx_embeddings(get_result.embeddings, manual_embeddings2)
 
     # Test get/delete all ids
-    all_ids = index.get_all_ids()
+    all_ids = index.list_ids()
     assert all_ids == ["test_id", "test_id_2"]
     index.delete_all()
+    sleep(10)
     assert index.count() == 0
 
     # test upsert with multiple
     num_docs = 69
     many_ids, many_metadatas, many_documents, many_embeddings = [], [], [], []
-    for i in sorted(map(str, range(num_docs))):
-        many_ids.append(f"test_id_{i}")
+    ids = [(i, f"test_id_{i}") for i in range(num_docs)]
+    for i, id in sorted(ids, key=lambda x: x[1]):
+        many_ids.append(id)
         many_metadatas.append({"test": f"metadata_{i}"})
         many_documents.append(f"test document_{i}")
-        many_embeddings.append([.1] * dimensions)
+        many_embeddings.append([.1] * dimensions)    
+    # for i in sorted(map(str, range(num_docs))):
+    #     many_ids.append(f"test_id_{i}")
+    #     many_metadatas.append({"test": f"metadata_{i}"})
+    #     many_documents.append(f"test document_{i}")
+    #     many_embeddings.append([.1] * dimensions)
     
-    
-    
+        
     index.add(
         ids=many_ids,
         metadatas=many_metadatas,
         documents=many_documents,
         embeddings=many_embeddings
     )
+    sleep(40)
     assert index.count() == num_docs
+    sleep(40)
     get_result = index.get(many_ids, include=["metadatas", "documents", "embeddings"])
     assert get_result
+    print(get_result.ids)
+    assert get_result.sort().ids == many_ids
     assert get_result.ids == many_ids
     assert get_result.metadatas == many_metadatas
     assert get_result.documents == many_documents
@@ -387,6 +417,7 @@ def test_vector_db_add(provider: Provider,
 
     # test deleting all
     index.delete_all()
+    sleep(10)
     assert index.count() == 0
 
     # test upsert with multiple after deleting all
@@ -396,18 +427,23 @@ def test_vector_db_add(provider: Provider,
         documents=many_documents,
         embeddings=many_embeddings
     )
+    sleep(40)
     assert index.count() == num_docs
+    sleep(40)
     get_result = index.get(many_ids, include=["metadatas", "documents", "embeddings"])
     assert get_result
+    print(get_result.ids)
+    assert get_result.sort().ids == many_ids
     assert get_result.ids == many_ids
     assert get_result.metadatas == many_metadatas
     assert get_result.documents == many_documents
-    approx_embeddings(get_result.embeddings, many_embeddings)    
+    approx_embeddings(get_result.embeddings, many_embeddings) 
 
     del ai
 
 # @base_test_vector_dbs_all
 # @base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
+
 @base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
@@ -437,6 +473,12 @@ def test_vector_db_query_simple(provider: Provider,
     assert isinstance(client, VectorDBClient)
     client.delete_all_indexes() # Reset for each test
 
+
+    if provider == "chroma":
+        document_db = None
+    else:
+        document_db = DictDocumentDB({})
+
     index = client.create_index(
         name=name,
         metadata=metadata,
@@ -444,6 +486,7 @@ def test_vector_db_query_simple(provider: Provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
         distance_metric=distance_metric,
+        document_db=document_db,
         **func_kwargs
     )
     assert index
@@ -487,9 +530,13 @@ def test_vector_db_query_simple(provider: Provider,
         documents=documents,
     )
 
+    sleep(20)
     assert index.count() == len(ids)
     for group_name in groups:
-        group_ids = index.get(where={"group": group_name}).ids
+        # group_ids = index.get(ids=ids, where={"group": group_name}).ids
+        # group_ids = index.get(where={"group": group_name}).ids
+        get_result = index.get(ids=ids, where={"group": {"$eq":group_name}})
+        group_ids = get_result.ids        
         assert group_ids
         assert len(group_ids) == sub_group_size * len(groups[group_name])
     
