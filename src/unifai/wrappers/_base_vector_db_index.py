@@ -15,6 +15,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
                  wrapped: Any,
                  name: str,
                  metadata: Optional[dict] = None,
+                 embedding_function: Optional[Callable] = None,
                  embedding_provider: Optional[LLMProvider] = None,
                  embedding_model: Optional[str] = None,
                  dimensions: Optional[int] = None,
@@ -25,6 +26,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
         self.wrapped = wrapped
         self.name = name
         self.metadata = metadata or {}
+        self.embedding_function = embedding_function
         self.embedding_provider = embedding_provider
         self.embedding_model = embedding_model
         self.dimensions = dimensions
@@ -32,7 +34,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
         self.kwargs = kwargs
 
 
-    def count(self) -> int:
+    def count(self, **kwargs) -> int:
         raise NotImplementedError("This method must be implemented by the subclass")
     
 
@@ -42,10 +44,9 @@ class VectorDBIndex(UnifAIExceptionConverter):
                embedding_provider: Optional[LLMProvider] = None,
                embedding_model: Optional[str] = None,
                dimensions: Optional[int] = None,
-               distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
-               
+               distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,               
                metadata_update_mode: Optional[Literal["replace", "merge"]] = "replace",
-
+               **kwargs
                ) -> Self:
         
         raise NotImplementedError("This method must be implemented by the subclass")
@@ -56,6 +57,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
             metadatas: Optional[list[dict]] = None,
             documents: Optional[list[str]] = None,
             embeddings: Optional[list[Embedding]] = None,
+            **kwargs
             ) -> Self:
         
         raise NotImplementedError("This method must be implemented by the subclass")
@@ -66,6 +68,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
                 metadatas: Optional[list[dict]] = None,
                 documents: Optional[list[str]] = None,
                 embeddings: Optional[list[Embedding]] = None,
+                **kwargs
                 ) -> Self:
           
         raise NotImplementedError("This method must be implemented by the subclass")
@@ -76,6 +79,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
                 metadatas: Optional[list[dict]] = None,
                 documents: Optional[list[str]] = None,
                 embeddings: Optional[list[Embedding]] = None,
+                **kwargs
                 ) -> Self:
         
         raise NotImplementedError("This method must be implemented by the subclass")
@@ -85,6 +89,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
                ids: list[str],
                where: Optional[dict] = None,
                where_document: Optional[dict] = None,
+               **kwargs
                ) -> None:
         raise NotImplementedError("This method must be implemented by the subclass")
 
@@ -96,6 +101,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
             offset: Optional[int] = None,
             where_document: Optional[dict] = None,
             include: list[Literal["metadatas", "documents", "embeddings"]] = ["metadatas", "documents"],
+            **kwargs
             ) -> VectorDBGetResult:
         raise NotImplementedError("This method must be implemented by the subclass")
 
@@ -107,6 +113,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
+              **kwargs
               ) -> VectorDBQueryResult:
         
         raise NotImplementedError("This method must be implemented by the subclass")
@@ -118,13 +125,14 @@ class VectorDBIndex(UnifAIExceptionConverter):
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
+              **kwargs
               ) -> list[VectorDBQueryResult]:
         
         raise NotImplementedError("This method must be implemented by the subclass")    
 
-    def get_all_ids(self) -> list[str]:
-        return self.get(include=[]).ids
+    def get_all_ids(self, **kwargs) -> list[str]:
+        return self.get(include=[], **kwargs).ids
     
 
-    def delete_all(self) -> None:
-        self.delete(ids=self.get_all_ids())
+    def delete_all(self, **kwargs) -> None:
+        self.delete(ids=self.get_all_ids(), **kwargs)

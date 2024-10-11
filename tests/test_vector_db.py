@@ -34,8 +34,8 @@ def parameterize_name_and_metadata(func):
     return pytest.mark.parametrize(
         "name, metadata",
         [
-            ("test_index", {"test": "metadata"}),
-            # ("test_index", {"test": "metadata", "another": "metadata"}),
+            ("test-index", {"test": "metadata"}),
+            # ("test-index", {"test": "metadata", "another": "metadata"}),
         ]
     )(func)
 
@@ -90,7 +90,8 @@ def parameterize_distance_metric(func):
 
 
 
-@base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
+# @base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
+@base_test_vector_dbs_all
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -129,7 +130,8 @@ def test_vector_db_create_index(provider: Provider,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
-        distance_metric=distance_metric
+        distance_metric=distance_metric,
+        **func_kwargs
     )
     assert index
     assert isinstance(index, VectorDBIndex)
@@ -214,7 +216,8 @@ def approx_embeddings(embeddings, expected_embeddings):
         for j, value in enumerate(embedding):
             assert pytest.approx(value) == pytest.approx(expected_embeddings[i][j])
 
-@base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
+# @base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
+@base_test_vector_dbs_all
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -249,7 +252,8 @@ def test_vector_db_add(provider: Provider,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
-        distance_metric=distance_metric
+        distance_metric=distance_metric,
+        **func_kwargs
     )
     assert index
     assert isinstance(index, VectorDBIndex)
@@ -402,8 +406,9 @@ def test_vector_db_add(provider: Provider,
 
     del ai
 
-
-@base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
+# @base_test_vector_dbs_all
+# @base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
+@base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -438,7 +443,8 @@ def test_vector_db_query_simple(provider: Provider,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
-        distance_metric=distance_metric
+        distance_metric=distance_metric,
+        **func_kwargs
     )
     assert index
     assert isinstance(index, VectorDBIndex)

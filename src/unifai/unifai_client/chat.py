@@ -367,7 +367,7 @@ class Chat:
             print("Returning on content:", std_message.content)
             break
 
-        return self    
+        return self
 
 
     def clear_messages(self) -> Self:

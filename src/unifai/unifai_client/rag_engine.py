@@ -53,10 +53,6 @@ class IndexDocloaderRetriever(Retriever):
         return query_result
 
 
-  
-
-
-
 class RAGEngine:
 
     def __init__(

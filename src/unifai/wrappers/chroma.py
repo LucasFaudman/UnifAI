@@ -36,30 +36,10 @@ class ChromaExceptionConverter(UnifAIExceptionConverter):
 
 class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
     provider = "chroma"
-
-    def __init__(self,
-                 wrapped: ChromaCollection,
-                 name: str,
-                 metadata: Optional[dict] = None,
-                 embedding_provider: Optional[LLMProvider] = None,
-                 embedding_model: Optional[str] = None,
-                 dimensions: Optional[int] = None,
-                 distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
-                 **kwargs
-                 ):
-        
-        self.wrapped = wrapped
-        self.name = name
-        self.metadata = metadata or {}
-        self.embedding_provider = embedding_provider
-        self.embedding_model = embedding_model
-        self.dimensions = dimensions
-        self.distance_metric = distance_metric
-        self.kwargs = kwargs
-
+    wrapped: ChromaCollection
     
     @convert_exceptions
-    def count(self) -> int:
+    def count(self, **kwargs) -> int:
         return self.wrapped.count()
     
     @convert_exceptions
@@ -69,10 +49,9 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
                embedding_provider: Optional[LLMProvider] = None,
                embedding_model: Optional[str] = None,
                dimensions: Optional[int] = None,
-               distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
-               
+               distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,               
                metadata_update_mode: Optional[Literal["replace", "merge"]] = "replace",
-
+               **kwargs
                ) -> Self:
         
         if new_name is not None:
@@ -83,7 +62,7 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
             else:
                 self.metadata.update(new_metadata)
                 
-        self.wrapped.modify(name=self.name, metadata=self.metadata)
+        self.wrapped.modify(name=self.name, metadata=self.metadata, **kwargs)
         return self
 
             
@@ -93,13 +72,15 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
             metadatas: Optional[list[dict]] = None,
             documents: Optional[list[str]] = None,
             embeddings: Optional[list[Embedding]] = None,
+            **kwargs
             ) -> Self:
         
         self.wrapped.add(
             ids=ids, 
             metadatas=metadatas, 
             documents=documents, 
-            embeddings=embeddings
+            embeddings=embeddings,
+            **kwargs
         )
         return self
 
@@ -109,12 +90,14 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
                 metadatas: Optional[list[dict]] = None,
                 documents: Optional[list[str]] = None,
                 embeddings: Optional[list[Embedding]] = None,
+                **kwargs
                 ) -> Self:
           
         self.wrapped.update(
             ids=ids, metadatas=metadatas, 
             documents=documents, 
-            embeddings=embeddings
+            embeddings=embeddings,
+            **kwargs
         )
         return self
     
@@ -124,12 +107,14 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
                 metadatas: Optional[list[dict]] = None,
                 documents: Optional[list[str]] = None,
                 embeddings: Optional[list[Embedding]] = None,
+                **kwargs
                 ) -> Self:
         
         self.wrapped.upsert(
             ids=ids, metadatas=metadatas, 
             documents=documents, 
-            embeddings=embeddings
+            embeddings=embeddings,
+            **kwargs
         )
         return self
     
@@ -138,8 +123,9 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
                ids: list[str],
                where: Optional[dict] = None,
                where_document: Optional[dict] = None,
+               **kwargs
                ) -> None:
-        return self.wrapped.delete(ids=ids, where=where, where_document=where_document)
+        return self.wrapped.delete(ids=ids, where=where, where_document=where_document, **kwargs)
 
 
     @convert_exceptions
@@ -149,7 +135,8 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
             limit: Optional[int] = None,
             offset: Optional[int] = None,
             where_document: Optional[dict] = None,
-            include: list[Literal["embeddings", "metadatas", "documents"]] = ["metadatas", "documents"]
+            include: list[Literal["embeddings", "metadatas", "documents"]] = ["metadatas", "documents"],
+            **kwargs
             ) -> VectorDBGetResult:
         
         get_result = self.wrapped.get(
@@ -158,7 +145,8 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
             limit=limit, 
             offset=offset, 
             where_document=where_document, 
-            include=include
+            include=include,
+            **kwargs
         )
         return VectorDBGetResult(
             ids=get_result["ids"],
@@ -176,6 +164,7 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
+              **kwargs
               ) -> VectorDBQueryResult:
         if query_text is not None:
             query_texts = [query_text]
@@ -185,7 +174,7 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
             query_embeddings = [query_embedding]
         else:
             raise ValueError("Either query_text or query_embedding must be provided")
-        return self.query_many(query_texts, query_embeddings, n_results, where, where_document, include)[0]
+        return self.query_many(query_texts, query_embeddings, n_results, where, where_document, include, **kwargs)[0]
 
     
     @convert_exceptions
@@ -196,6 +185,7 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
+              **kwargs
               ) -> list[VectorDBQueryResult]:
         
         if query_texts is None and query_embeddings is None:
@@ -207,7 +197,8 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
             n_results=n_results, 
             where=where, 
             where_document=where_document, 
-            include=include
+            include=include,
+            **kwargs
         )
 
         included = query_result["included"]
@@ -231,32 +222,32 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
         ]    
 
 
-class UnifAIChromaEmbeddingFunction(EmbeddingFunction[list[str]]):
-    def __init__(
-            self,
-            parent,
-            embedding_provider: Optional[str] = None,
-            model: Optional[str] = None,
-            dimensions: Optional[int] = None,
-            response_infos: Optional[list[ResponseInfo]] = None,
-    ):
-        self.parent = parent
-        self.embedding_provider = embedding_provider or parent.default_provider
-        self.model = model
-        self.dimensions = dimensions
-        self.response_infos = response_infos or []
+# class UnifAIChromaEmbeddingFunction(EmbeddingFunction[list[str]]):
+#     def __init__(
+#             self,
+#             parent,
+#             embedding_provider: Optional[str] = None,
+#             model: Optional[str] = None,
+#             dimensions: Optional[int] = None,
+#             response_infos: Optional[list[ResponseInfo]] = None,
+#     ):
+#         self.parent = parent
+#         self.embedding_provider = embedding_provider or parent.default_provider
+#         self.model = model
+#         self.dimensions = dimensions
+#         self.response_infos = response_infos or []
 
-    def __call__(self, input: Documents) -> Embeddings:
-        """Embed the input documents."""
-        print(f"Embedding {len(input)} documents")
-        embed_result = self.parent.embed(
-            input=input,
-            model=self.model,
-            provider=self.embedding_provider,
-            dimensions=self.dimensions
-        )
-        self.response_infos.append(embed_result.response_info)
-        return embed_result.list()
+#     def __call__(self, input: Documents) -> Embeddings:
+#         """Embed the input documents."""
+#         print(f"Embedding {len(input)} documents")
+#         embed_result = self.parent.embed(
+#             input=input,
+#             model=self.model,
+#             provider=self.embedding_provider,
+#             dimensions=self.dimensions
+#         )
+#         self.response_infos.append(embed_result.response_info)
+#         return embed_result.list()
         
 
 class ChromaClient(VectorDBClient, ChromaExceptionConverter):
@@ -299,21 +290,7 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
         self._client = self.import_client()(**self.client_kwargs)
         return self._client
     
-    
-    def get_embedding_function(self,
-                               embedding_provider: Optional[str] = None,
-                               embedding_model: Optional[str] = None,
-                               dimensions: Optional[int] = None,
-                               response_infos: Optional[list[ResponseInfo]] = None,
-                                 ) -> UnifAIChromaEmbeddingFunction:
-        return UnifAIChromaEmbeddingFunction(
-            parent=self.parent,
-            embedding_provider=embedding_provider or self.default_embedding_provider,
-            model=embedding_model or self.default_embedding_model,
-            dimensions=dimensions or self.default_dimensions,
-            response_infos=response_infos
-        )
-                               
+                                   
     @convert_exceptions                           
     def create_index(self, 
                      name: str,
@@ -434,6 +411,6 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
         return [collection.name for collection in self.client.list_collections(limit=limit, offset=offset)]
     
     @convert_exceptions
-    def delete_index(self, name: str) -> None:
+    def delete_index(self, name: str, **kwargs) -> None:
         self.indexes.pop(name, None)
-        return self.client.delete_collection(name=name)
+        return self.client.delete_collection(name=name, **kwargs)

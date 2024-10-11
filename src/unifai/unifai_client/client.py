@@ -40,10 +40,13 @@ from .rag_engine import RAGEngine, RAGSpec, IndexDocloaderRetriever
 from pathlib import Path
 
 LLM_PROVIDERS: frozenset[LLMProvider] = frozenset(("anthropic", "google", "openai", "ollama", "nvidia"))
-EMBEDDING_PROVIDERS: frozenset[EmbeddingProvider] = frozenset(("google", "openai", "ollama", "cohere"))
+EMBEDDING_PROVIDERS: frozenset[EmbeddingProvider] = frozenset(("google", "openai", "ollama", "cohere", "nvidia"))
 VECTOR_DB_PROVIDERS: frozenset[VectorDBProvider] = frozenset(("chroma", "pinecone"))
-RERANK_PROVIDERS: frozenset[RerankProvider] = frozenset(("cohere", "rank_bm25"))
-REQUIRES_PARENT: frozenset[Provider] = frozenset(("chroma", "pinecone"))
+RERANK_PROVIDERS: frozenset[RerankProvider] = frozenset(("nvidia", "cohere", "rank_bm25"))
+REQUIRED_BOUND_METHODS: dict[Provider, list[str]] = {
+    "chroma": ["embed"],
+    "pinecone": ["embed"],
+}
 
 class UnifAIClient:
     TOOLS: list[ToolInput] = []
@@ -76,7 +79,9 @@ class UnifAIClient:
 
         self.set_provider_client_kwargs(provider_client_kwargs)
         self.set_default_llm_provider(default_llm_provider)
+        self.set_default_embedding_provider(default_embedding_provider)
         self.set_default_vector_db_provider(default_vector_db_provider)
+        self.set_default_rerank_provider(default_rerank_provider)
         
         self._clients: dict[Provider, LLMClient|EmbeddingClient|VectorDBClient|RerankerClient] = {}
         self.tools: dict[str, Tool] = {}
@@ -207,19 +212,13 @@ class UnifAIClient:
             case _:
                 raise ValueError(f"Invalid provider: {provider}")
             
-
-    # def init_client(self, provider: Provider, *client_args, **client_kwargs) -> LLMClient|VectorDBClient:
-    #     client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
-    #     if provider in REQUIRES_PARENT and "parent" not in client_kwargs:
-    #         client_kwargs["parent"] = self
-    #     client_kwarg_args = client_kwargs.pop("args", ())
-    #     self._clients[provider] = self.import_client_wrapper(provider)(*client_args, *client_kwarg_args, **client_kwargs)
-    #     return self._clients[provider]
     
     def init_client(self, provider: Provider, **client_kwargs) -> LLMClient|EmbeddingClient|VectorDBClient|RerankerClient:
         client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
-        if provider in REQUIRES_PARENT and "parent" not in client_kwargs:
-            client_kwargs["parent"] = self
+        if required_bound_methods := REQUIRED_BOUND_METHODS.get(provider):
+            for method in required_bound_methods:
+                if method not in client_kwargs:
+                    client_kwargs[method] = getattr(self, method)
         self._clients[provider] = self.import_client_wrapper(provider)(**client_kwargs)
         return self._clients[provider]    
 
