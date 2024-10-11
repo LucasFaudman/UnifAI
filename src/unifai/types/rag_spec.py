@@ -8,7 +8,7 @@ from .valid_inputs import EmbeddingProvider, VectorDBProvider, RerankProvider
 from .vector_db import VectorDBQueryResult
 
 from unifai.unifai_client.prompt_template import PromptTemplate
-
+from unifai.wrappers._base_vector_db_index import DocumentDB
 
 from pydantic import BaseModel, Field
 
@@ -41,7 +41,10 @@ class RAGSpec(BaseModel):
     embedding_model: Optional[str] = None
     embedding_dimensions: Optional[int] = None
     embedding_distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None
-    docloader: Optional[Callable[[Collection[str]],list[str]]] = None
+    
+    # docloader: Optional[Callable[[Collection[str]],list[str]]] = None
+    document_db_cls: Optional[Type[DocumentDB]] = None
+    document_db_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     rerank_provider: Optional[RerankProvider] = None
     rerank_model: Optional[str] = None

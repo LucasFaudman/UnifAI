@@ -581,6 +581,10 @@ class UnifAIClient:
             raise ValueError(
                 f"Invalid rag_spec: {rag_spec}. Must be a RAGSpec object or a string (name of a RAGSpec in self.RAG_SPECS)")
         
+        if rag_spec.document_db_cls:
+            document_db = rag_spec.document_db_cls(**rag_spec.document_db_kwargs)
+        else:
+            document_db = None
 
         index = self.get_or_create_index(
             name=rag_spec.index_name,
@@ -589,11 +593,9 @@ class UnifAIClient:
             embedding_model=rag_spec.embedding_model,
             dimensions=rag_spec.embedding_dimensions,
             distance_metric=rag_spec.embedding_distance_metric,
+            document_db=document_db
         )
-        if rag_spec.docloader:
-            retreiver = IndexDocloaderRetriever(index=index, docloader=rag_spec.docloader)
-        else:
-            retreiver = index
+
         if rag_spec.rerank_provider:
             reranker = self.get_rerank_client(rag_spec.rerank_provider)
         else:
@@ -601,7 +603,7 @@ class UnifAIClient:
         
         return RAGEngine(
             rag_spec=rag_spec,
-            retreiver=retreiver,
+            retreiver=index,
             reranker=reranker
         )
 

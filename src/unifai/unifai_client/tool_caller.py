@@ -66,16 +66,8 @@ class ToolCaller:
                         tool_call=tool_call,
                         original_exception=e,
                     )
-
-        # try:
-        #     tool_call.output = tool_callable(**tool_call.arguments)
-        #     return tool_call
-        # except Exception as e:
-        #     raise ToolCallExecutionError(
-        #         message=f"Error executing tool '{tool_name}'",
-        #         tool_call=tool_call,
-        #         original_exception=e,
-        #     )
+        # TODO raise ToolCallExecutionError if retries are exceeded
+        return tool_call
 
 
     def call_tools(self, tool_calls: list[ToolCall]) -> list[ToolCall]:

@@ -112,7 +112,8 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
                 ) -> Self:
         
         self.wrapped.upsert(
-            ids=ids, metadatas=metadatas, 
+            ids=ids, 
+            metadatas=metadatas, 
             documents=documents, 
             embeddings=embeddings,
             **kwargs
@@ -412,9 +413,11 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
         self.indexes[name] = index
         return index        
 
+
     @convert_exceptions
     def count_indexes(self) -> int:
         return self.client.count_collections()
+
 
     @convert_exceptions
     def list_indexes(self,

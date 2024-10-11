@@ -3,6 +3,7 @@ from typing import Optional, Literal
 
 from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider, RerankProvider, EmbeddingProvider
 from unifai.wrappers._base_vector_db_client import VectorDBClient, VectorDBIndex
+from unifai.wrappers._base_vector_db_index import DictDocumentDB
 from unifai.wrappers._base_reranker_client import RerankerClient
 
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
@@ -10,8 +11,12 @@ from unifai.exceptions import BadRequestError
 from basetest import base_test_rerankers_all, PROVIDER_DEFAULTS, EMBEDDING_PROVIDERS
 from unifai.unifai_client.rag_engine import RAGSpec, RAGEngine
 
+from time import sleep
+
+
 @pytest.mark.parametrize("vector_db_provider", [
-    "chroma"
+    "chroma",
+    "pinecone",
 ])
 @pytest.mark.parametrize("embedding_provider, embedding_model", [
     ("openai", None),
@@ -35,6 +40,7 @@ def test_rag_engine_simple(
         rerank_model: str
     ):
 
+    func_kwargs = PROVIDER_DEFAULTS[vector_db_provider][2]
     ai = UnifAIClient({
         vector_db_provider: PROVIDER_DEFAULTS[vector_db_provider][1],
         embedding_provider: PROVIDER_DEFAULTS[embedding_provider][1],
@@ -57,18 +63,26 @@ def test_rag_engine_simple(
     vector_db = ai.get_vector_db_client(vector_db_provider)
     vector_db.delete_all_indexes() # Clear any existing indexes before testing in case previous tests failed to clean up
 
+    if vector_db_provider == 'pinecone':
+        document_db = DictDocumentDB({})
+    else:
+        document_db = None
+
     index = vector_db.get_or_create_index(
-        name="rag_test",
+        name="rag-test",
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
+        document_db=document_db,
+        **func_kwargs
     )
 
     assert isinstance(index, VectorDBIndex)
-    assert index.name == "rag_test"
+    assert index.name == "rag-test"
     assert index.provider == vector_db_provider
     assert index.embedding_provider == embedding_provider
     assert index.embedding_model == embedding_model
 
+    if vector_db_provider == 'pinecone': sleep(10)
     assert index.count() == 0
     doc_ids = [f"doc_{i}" for i in range(len(documents))]
     index.upsert(
@@ -76,11 +90,13 @@ def test_rag_engine_simple(
         metadatas=[{"doc_index": i} for i in range(len(documents))],
         documents=documents,
     )
+
+    if vector_db_provider == 'pinecone': sleep(20)
     assert index.count() == len(documents)
 
     rag_spec = RAGSpec(
         name="test_rag_spec",
-        index_name="rag_test",
+        index_name="rag-test",
         vector_db_provider=vector_db_provider,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
@@ -88,9 +104,12 @@ def test_rag_engine_simple(
         rerank_model=rerank_model,
         top_k=5,
         top_n=3,
+        document_db_cls=DictDocumentDB if document_db else None,
+        document_db_kwargs={"documents": document_db.documents if document_db else None},
     )
 
     rag_engine = ai.get_rag_engine(rag_spec)
+    assert isinstance(rag_engine, RAGEngine)
 
     query_result = rag_engine.retrieve(query, top_k=5)
     assert query_result
