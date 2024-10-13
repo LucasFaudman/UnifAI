@@ -10,7 +10,8 @@ class SimpleChat:
                 "anthropic": PROVIDER_DEFAULTS["anthropic"][1],
                 "google": PROVIDER_DEFAULTS["google"][1],
                 "openai": PROVIDER_DEFAULTS["openai"][1],
-                "ollama": PROVIDER_DEFAULTS["ollama"][1]
+                "ollama": PROVIDER_DEFAULTS["ollama"][1],
+                
             }
         )
 

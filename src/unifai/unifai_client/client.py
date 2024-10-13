@@ -259,6 +259,17 @@ class UnifAIClient:
     def get_rerank_client(self, provider: Optional[RerankProvider] = None, **client_kwargs) -> RerankerClient:
         provider = provider or self.default_rerank_provider
         return self.get_client(provider, **client_kwargs)
+    
+    
+    def get_provider_default_model(self, provider: Provider, model_type: Literal["llm", "embedding", "rerank"]) -> str:        
+        if model_type == "llm":
+            return self.get_llm_client(provider).default_model
+        elif model_type == "embedding":
+            return self.get_embedding_client(provider).default_embedding_model
+        elif model_type == "rerank":
+            return self.get_rerank_client(provider).default_reranking_model
+        else:
+            return ValueError(f"Invalid model_type: {model_type}. Must be one of: 'llm', 'embedding', 'rerank'")
 
     # List Models
     def list_models(self, provider: Optional[LLMProvider] = None) -> list[str]:

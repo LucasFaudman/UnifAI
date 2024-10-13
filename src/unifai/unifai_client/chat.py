@@ -323,7 +323,7 @@ class Chat:
     def run_stream(self, **kwargs) -> Generator[MessageChunk, None, Self]:
         while True:
             # print(f"{self.client_kwargs(stream=True, **kwargs)=}")
-            print(f"{self.client_kwargs(kwargs)['tool_choice']=}")
+            # print(f"{self.client_kwargs(kwargs)['tool_choice']=}")
             std_message, client_message = yield from self.client.chat_stream(
                **self.client_kwargs(override_kwargs=kwargs)
             )
@@ -364,7 +364,7 @@ class Chat:
                 # Process messages after submitting tool outputs
                 continue
 
-            print("Returning on content:", std_message.content)
+            # print("Returning on content:", std_message.content)
             break
 
         return self

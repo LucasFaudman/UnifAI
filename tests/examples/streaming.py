@@ -8,16 +8,18 @@ ai = UnifAIClient(
         "anthropic": PROVIDER_DEFAULTS["anthropic"][1],
         "google": PROVIDER_DEFAULTS["google"][1],
         "openai": PROVIDER_DEFAULTS["openai"][1],
-        "ollama": PROVIDER_DEFAULTS["ollama"][1]
+        "ollama": PROVIDER_DEFAULTS["ollama"][1],
+        "nvidia": PROVIDER_DEFAULTS["nvidia"][1],
+        "cohere": PROVIDER_DEFAULTS["cohere"][1],
     }
 )
 messages = ["Hello this is a test"]
 
-for provider in ["openai", 
+for provider in ["nvidia", "openai", "google", "anthropic", #"ollama"
                 #  "google", "anthropic", "ollama"
                  ]:
     # try:
-    print(f"Provider: {provider}")
+    print(f"Provider: {provider}\nModel: {ai.get_client(provider).default_model}\n>>>")
     for message_chunk in ai.chat_stream(messages=messages, provider=provider):
         print(message_chunk.content, flush=True, end="")
     print("\n")
