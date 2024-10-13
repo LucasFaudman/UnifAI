@@ -62,7 +62,7 @@ from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, Re
 from unifai.type_conversions import stringify_content
 from ._base_llm_client import LLMClient, convert_exceptions
 
-class AnthropicWrapper(LLMClient):
+class AnthropicAdapter(LLMClient):
     provider = "anthropic"
     client: Anthropic
     default_model = "claude-3-5-sonnet-20240620"

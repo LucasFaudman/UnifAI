@@ -1,56 +1,14 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
-from unifai.types import (
-    LLMProvider, 
-    Message,
-    MessageChunk,
-    MessageInput, 
-    Tool,
-    ToolInput,
-    ToolCall,
-    Usage,
-    VectorDBQueryResult,
-)
-from unifai.type_conversions import standardize_tools, standardize_messages, standardize_tool_choice, standardize_response_format
+from ..adapters._base_vector_db_index import VectorDBIndex
+from ..adapters._base_reranker import Reranker
+from ..types.rag_spec import RAGSpec, VectorDBQueryResult
 from .prompt_template import PromptTemplate
 
-from unifai.wrappers._base_vector_db_index import VectorDBIndex
-from unifai.wrappers._base_reranker_client import RerankerClient
-from unifai.types.rag_spec import RAGSpec
-
-from pydantic import BaseModel
 
 class Retriever:
     def query(self, query_text: str, n_results: int, **kwargs) -> VectorDBQueryResult:
         raise NotImplementedError
-
-
-# class IndexOnlyRetriever(Retriever):
-#     def __init__(self, index: VectorDBIndex):
-#         self.index = index
-
-#     def query(self, query_text: str, n_results: int, **kwargs) -> VectorDBQueryResult:
-#         return self.index.query(query_text=query_text, n_results=n_results, **kwargs)
-
-
-class Docloader:
-    def __call__(self, ids: Collection[str]) -> list[str]:
-        raise NotImplementedError   
-
-
-class IndexDocloaderRetriever(Retriever):
-    def __init__(
-            self,
-            index: VectorDBIndex, 
-            docloader: Callable[[Collection[str]], list[str]]
-        ):
-        self.index = index
-        self.docloader = docloader
-
-    def query(self, query_text: str, n_results: int, **kwargs) -> VectorDBQueryResult:
-        query_result = self.index.query(query_text=query_text, n_results=n_results, **kwargs)
-        query_result.documents = self.docloader(query_result.ids)
-        return query_result
 
 
 class RAGEngine:
@@ -59,7 +17,7 @@ class RAGEngine:
             self, 
             rag_spec: RAGSpec,
             retreiver: VectorDBIndex|Retriever,
-            reranker: Optional[RerankerClient] = None,
+            reranker: Optional[Reranker] = None,
         ):
         self.retreiver = retreiver
         self.reranker = reranker
@@ -112,6 +70,18 @@ class RAGEngine:
         )
     
     
+    def query(
+            self, 
+            query: str,
+            retreiver_kwargs: Optional[dict] = None,
+            reranker_kwargs: Optional[dict] = None,
+            ) -> VectorDBQueryResult:
+        query_result = self.retrieve(query, **(retreiver_kwargs or {}))
+        if self.reranker:
+            query_result = self.rerank(query, query_result, **(reranker_kwargs or {}))        
+        return query_result
+
+
     def augment(
             self,
             query: str,
@@ -125,7 +95,8 @@ class RAGEngine:
         return prompt_template.format(query=query, query_result=query_result, **prompt_template_kwargs)
 
 
-    def ragify(self, 
+    def ragify(
+            self, 
             query: str,
             prompt_template: Optional[PromptTemplate] = None,
             retreiver_kwargs: Optional[dict] = None,
@@ -133,7 +104,5 @@ class RAGEngine:
             prompt_template_kwargs: Optional[dict] = None,            
             ) -> str:
 
-        query_result = self.retrieve(query, **(retreiver_kwargs or {}))
-        if self.reranker:
-            query_result = self.rerank(query, query_result, **(reranker_kwargs or {}))
+        query_result = self.query(query, retreiver_kwargs, reranker_kwargs)
         return self.augment(query, query_result, prompt_template, **(prompt_template_kwargs or {}))

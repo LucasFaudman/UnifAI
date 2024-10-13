@@ -1,13 +1,13 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator, Iterable, Generator
 
-from ._base_client_wrapper import BaseClientWrapper
+from ._base_adapter import BaseAdapter
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Usage, Embeddings, EmbeddingTaskTypeInput
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, EmbeddingDimensionsError
 
 T = TypeVar("T")
 
-class EmbeddingClient(BaseClientWrapper):
+class Embedder(BaseAdapter):
     provider = "base_embedding"
     default_embedding_model = "llama3.1:8b-instruct-q2_K"
 

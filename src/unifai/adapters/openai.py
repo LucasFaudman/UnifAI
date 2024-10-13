@@ -71,9 +71,9 @@ from unifai.exceptions import (
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings, EmbeddingTaskTypeInput
 from unifai.type_conversions import stringify_content
 from ._base_llm_client import LLMClient
-from ._base_embedding_client import EmbeddingClient
+from ._base_embedder import Embedder
 
-class OpenAIWrapper(EmbeddingClient, LLMClient):
+class OpenAIWrapper(Embedder, LLMClient):
     provider = "openai"
     client: OpenAI
     default_model = "gpt-4o"

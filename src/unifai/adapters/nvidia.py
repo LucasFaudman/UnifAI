@@ -51,26 +51,44 @@ from openai.types.chat.completion_create_params import CompletionCreateParams
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings, EmbeddingTaskTypeInput, VectorDBQueryResult
 from unifai.type_conversions import stringify_content
-from ._base_reranker_client import RerankerClient
+from ._base_reranker import Reranker
 from .openai import OpenAIWrapper
 
 
 from typing_extensions import Literal, Required, TypeAlias, TypedDict
 
-# # if inspect.isclass(origin) and not issubclass(origin, BaseModel) and issubclass(origin, pydantic.BaseModel):
-# # > raise TypeError("Pydantic models must subclass our base model type, e.g. `from openai import BaseModel`")
-# from openai import BaseModel
+
+class TempBaseURL:
+    """
+    Temporarily change the base URL of the client to the provided base URL and then reset it after exiting the context
+
+    Nvidia API requires different base URLs for different models unlike OpenAI which uses the same base URL for all models and endpoints
+
+    Args:
+        client (OpenAI): The OpenAI client
+        base_url (Optional[str]): The new base URL to use
+        default_base_url (str): The default base URL to reset to after exiting the context 
+    """
+
+    def __init__(self, 
+                 client: OpenAI, 
+                 base_url: Optional[str], 
+                 default_base_url: str
+                 ):
+        self.client = client
+        self.base_url = base_url
+        self.default_base_url = default_base_url
+
+    def __enter__(self):
+        if self.base_url:
+            self.client.base_url = self.base_url
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.base_url:
+            self.client.base_url = self.default_base_url
 
 
-# class NvidiaRerankItem(BaseModel):
-#     index: int
-#     logit: float
-
-# class NvidiaRerankResponse(BaseModel):
-#     rankings: list[NvidiaRerankItem]
-
-
-class NvidiaWrapper(OpenAIWrapper, RerankerClient):
+class NvidiaWrapper(OpenAIWrapper, Reranker):
     provider = "nvidia"
     default_model = "meta/llama-3.1-405b-instruct"
     
@@ -131,7 +149,7 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
         # "meta/llama-3.2-90b-vision-instruct": "https://ai.api.nvidia.com/v1/gr/meta/llama-3.2-90b-vision-instruct",
     } 
 
-
+    _openai_compatible_nvidia_rerank_response = None
 
     def init_client(self, **client_kwargs) -> Any:
         if "base_url" not in client_kwargs:
@@ -191,6 +209,25 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
 
 
     # Reranking
+    def _get_openai_compatible_nvidia_rerank_response(self) -> type:
+        """
+        Entire point of this is to have a castable type subclassing OpenAI's BaseModel so it does not
+        raise TypeError("Pydantic models must subclass our base model type, e.g. `from openai import BaseModel`")
+        and it is only created once and at runtime (not recreated every call and only created if needed)
+        """
+        if self._openai_compatible_nvidia_rerank_response is None:
+            from openai import BaseModel 
+            class NvidiaRerankItem(BaseModel):
+                index: int
+                logit: float
+
+            class NvidiaRerankResponse(BaseModel):
+                rankings: list[NvidiaRerankItem]
+
+            self._openai_compatible_nvidia_rerank_response = NvidiaRerankResponse
+        return self._openai_compatible_nvidia_rerank_response
+
+
     def _get_rerank_response(
         self,
         query: str,
@@ -199,15 +236,6 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
         top_n: Optional[int] = None,               
         **kwargs
         ) -> Any:
-        # if inspect.isclass(origin) and not issubclass(origin, BaseModel) and issubclass(origin, pydantic.BaseModel):
-        # > raise TypeError("Pydantic models must subclass our base model type, e.g. `from openai import BaseModel`")
-        from openai import BaseModel
-        class NvidiaRerankItem(BaseModel):
-            index: int
-            logit: float
-
-        class NvidiaRerankResponse(BaseModel):
-            rankings: list[NvidiaRerankItem]
 
         assert query_result.documents, "No documents to rerank"
         body = {
@@ -229,20 +257,19 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
                 extra_body=extra_body, 
                 timeout=timeout
             )
-            
+
         # Use the reranking model specific base URL (always required)
-        self.client.base_url = self.model_base_urls[model]
-        respone = self.client.post(
-            "/reranking",
-            body=body,
-            **options,
-            cast_to=NvidiaRerankResponse,
-            stream=False,
-            stream_cls=None,
-        )
-        self.client.base_url = self.default_base_url
-        return respone
-        
+        model_base_url = self.model_base_urls.get(model)
+        with TempBaseURL(self.client, model_base_url, self.default_base_url):
+            return self.client.post(
+                "/reranking",
+                body=body,
+                **options,
+                cast_to=self._get_openai_compatible_nvidia_rerank_response(), # See above
+                stream=False,
+                stream_cls=None,
+            )
+
 
     def _extract_reranked_order(
         self,
@@ -254,37 +281,36 @@ class NvidiaWrapper(OpenAIWrapper, RerankerClient):
     
 
     # Chat
-    def _create_completion(self, kwargs) -> ChatCompletion|Stream[ChatCompletionChunk]:
+    def _create_completion(self, kwargs) -> ChatCompletion|Stream[ChatCompletionChunk]:        
         if kwargs.get("model") not in self.vlm_models:
+            # For non-multimodal models, use the default OpenAI completion method
             return self.client.chat.completions.create(**kwargs)
                 
         model = kwargs.get("model")
+        stream = kwargs.get("stream", None)
         extra_headers = kwargs.pop("extra_headers", None)
         extra_query = kwargs.pop("extra_query", None)
         extra_body = kwargs.pop("extra_body", None)
         timeout = kwargs.pop("timeout", None)
-        stream = kwargs.get("stream", None)
 
-        vlm_model_base_url = self.model_base_urls.get(model, self.vlm_base_url)
-        print(f"VLM Model Base URL: {vlm_model_base_url}")
-        self.client.base_url = vlm_model_base_url
-        response = self.client.post(
-            f"/{model}",
-            body=maybe_transform(
-                kwargs,
-                CompletionCreateParams,
-            ),
-            options=make_request_options(
-                extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
-            ),
-            cast_to=ChatCompletion,
-            stream=stream or False,
-            stream_cls=Stream[ChatCompletionChunk],
-        )
-        self.client.base_url = self.default_base_url
-        return response
+        # Get VLM base URL for the model or use the default VLM base URL
+        model_base_url = self.model_base_urls.get(model, self.vlm_base_url)
+        with TempBaseURL(self.client, model_base_url, self.default_base_url):
+            return self.client.post(
+                f"/{model}",
+                body=maybe_transform(
+                    kwargs,
+                    CompletionCreateParams,
+                ),
+                options=make_request_options(
+                    extra_headers=extra_headers, extra_query=extra_query, extra_body=extra_body, timeout=timeout
+                ),
+                cast_to=ChatCompletion,
+                stream=stream or False,
+                stream_cls=Stream[ChatCompletionChunk],
+            )
+
     
-
     def prep_input_user_message(self, message: Message) -> dict:
         message_dict = {"role": "user"}
         content = message.content

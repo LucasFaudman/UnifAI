@@ -1,6 +1,6 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_client_wrapper import BaseClientWrapper, UnifAIExceptionConverter
+from ._base_adapter import BaseAdapter, UnifAIExceptionConverter
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 T = TypeVar("T")
 
-class RerankerClient(BaseClientWrapper):
+class Reranker(BaseAdapter):
     provider = "base_reranker"
     default_reranking_model = "rerank-english-v3.0"
 

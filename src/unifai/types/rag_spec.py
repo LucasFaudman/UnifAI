@@ -2,13 +2,13 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 
 
 
-from unifai.wrappers._base_vector_db_index import VectorDBIndex
-from unifai.wrappers._base_reranker_client import RerankerClient
+from unifai.adapters._base_vector_db_index import VectorDBIndex
+from unifai.adapters._base_reranker import Reranker
 from .valid_inputs import EmbeddingProvider, VectorDBProvider, RerankProvider
 from .vector_db import VectorDBQueryResult
 
-from unifai.unifai_client.prompt_template import PromptTemplate
-from unifai.wrappers._base_vector_db_index import DocumentDB
+from unifai.components.prompt_template import PromptTemplate
+from unifai.adapters._base_vector_db_index import DocumentDB
 
 from pydantic import BaseModel, Field
 

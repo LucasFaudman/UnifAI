@@ -11,8 +11,8 @@ from unifai.types import (
     Usage,
 )
 from unifai.type_conversions import standardize_tools, standardize_messages, standardize_tool_choice, standardize_response_format
-from unifai.wrappers._base_llm_client import LLMClient
-from .tool_caller import ToolCaller
+from unifai.adapters._base_llm_client import LLMClient
+from ..components.tool_caller import ToolCaller
 
 class Chat:
 
@@ -476,36 +476,6 @@ class Chat:
         yield from self.run_stream(**kwargs)
         return self
 
-
-
-
-    # def send_message(self, *message: Union[Message, str, dict[str, Any]], **kwargs) -> Message:
-    #     if not message:
-    #         raise ValueError("No message(s) provided")
-
-    #     messages = standardize_messages(message)
-
-    #     # prevent error when using multiple return_tools without submitting tool outputs
-    #     if (last_message := self.last_message) and last_message.role == "assistant" and last_message.tool_calls:
-    #         # Submit tool outputs before sending new messages. 
-    #         # Use first new message content as content of tool message or send after as user message based on provider
-    #         self.extend_messages_with_tool_outputs(last_message.tool_calls, content=messages.pop(0).content)
-        
-    #     self.extend_messages(messages)
-    #     return self.run(**kwargs).last_message
-    
-    
-    # def submit_tool_outputs(self, 
-    #                         tool_calls: Sequence[ToolCall], 
-    #                         tool_outputs: Optional[Sequence[Any]],
-    #                         **kwargs
-    #                         ) -> Self:
-    #     if tool_outputs:
-    #         for tool_call, tool_output in zip(tool_calls, tool_outputs):
-    #             tool_call.output = tool_output
-    #     self.extend_messages_with_tool_outputs(tool_calls)
-    #     return self.run(**kwargs)
-    
 
     def __str__(self) -> str:
         return f"Chat(provider={self.provider}, model={self.model},  messages={len(self.std_messages)}, tools={len(self.std_tools) if self.std_tools else None}, tool_choice={self.std_tool_choice}, response_format={self.std_response_format})"

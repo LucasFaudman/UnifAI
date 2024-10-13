@@ -97,7 +97,7 @@ from unifai.types import (
 )
 from unifai.type_conversions import stringify_content
 from ._base_llm_client import LLMClient
-from ._base_embedding_client import EmbeddingClient, EmbeddingTaskTypeInput
+from ._base_embedder import Embedder, EmbeddingTaskTypeInput
 
 from random import choices as random_choices
 from string import ascii_letters, digits
@@ -115,18 +115,18 @@ GoogleEmbeddingTaskType = Literal[
     "CODE_RETRIEVAL_QUERY"  # Specifies that the query embedding is used for code retrieval for Java and Python. 
 ]
 
-class GoogleAIWrapper(EmbeddingClient, LLMClient):
+class GoogleAIWrapper(Embedder, LLMClient):
     provider = "google"
     default_model = "gemini-1.5-flash-latest"
     default_embedding_model = "text-embedding-004"
     
     model_embedding_dimensions = {
-        "textembedding-gecko@001": 1568,
-        "textembedding-gecko-multilingual@001": 1568,
-        "textembedding-gecko@003": 1568,
-        "text-multilingual-embedding-002": 1568,
-        "text-embedding-004	": 1568,
-        "text-embedding-preview-0815": 1568,
+        "textembedding-gecko@001": 768,
+        "textembedding-gecko-multilingual@001": 768,
+        "textembedding-gecko@003": 768,
+        "text-multilingual-embedding-002": 768,
+        "text-embedding-004	": 768,
+        "text-embedding-preview-0815": 768,
     }
     # models_with_embedding_task_type_support = {
     #     "models/embedding-001",
@@ -144,25 +144,18 @@ class GoogleAIWrapper(EmbeddingClient, LLMClient):
 
 
     # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
-    def convert_exception(self, exception: Exception) -> UnifAIError:
-        # if isinstance(exception, (BrokenResponseError, IncompleteIterationError)):
-        
+    def convert_exception(self, exception: Exception) -> UnifAIError:      
         if isinstance(exception, GoogleAPICallError):
             message = exception.message
             status_code = exception.code
 
             if status_code == 400:
-                if "API key" in message:
-                    # Convert BadRequestError to AuthenticationError
-                    status_code = 401
+                if "API key" in message:                    
+                    status_code = 401 # BadRequestError to AuthenticationError
                 elif "unexpected model" in message:
-                    # Convert BadRequestError to NotFoundError
-                    status_code = 404
-
+                    status_code = 404 # BadRequestError to NotFoundError
             elif status_code == 403 and "authentication" in message:
-                # Convert PermissionDeniedError to AuthenticationError
-                status_code = 401
-                                    
+                status_code = 401 # PermissionDeniedError to AuthenticationError                                      
         else:
             message = str(exception)
             status_code = None
@@ -171,7 +164,6 @@ class GoogleAIWrapper(EmbeddingClient, LLMClient):
             unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
         else:
             unifai_exception_type = UnknownAPIError
-
         return unifai_exception_type(message=message, status_code=status_code, original_exception=exception)
 
 

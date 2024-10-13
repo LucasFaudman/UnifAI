@@ -2,8 +2,8 @@ import pytest
 from typing import Optional, Literal
 
 from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider
-from unifai.wrappers._base_vector_db_client import VectorDBClient, VectorDBIndex, DocumentDB
-from unifai.wrappers._base_vector_db_index import DictDocumentDB
+from unifai.adapters._base_vector_db_client import VectorDBClient, VectorDBIndex, DocumentDB
+from unifai.adapters._base_vector_db_index import DictDocumentDB
 
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError, NotFoundError

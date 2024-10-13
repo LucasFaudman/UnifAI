@@ -1,16 +1,16 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_client_wrapper import BaseClientWrapper, UnifAIExceptionConverter
-from ._base_embedding_client import EmbeddingClient
+from ._base_adapter import BaseAdapter, UnifAIExceptionConverter
+from ._base_embedder import Embedder
 from ._base_llm_client import LLMClient
-from ._base_reranker_client import RerankerClient
+from ._base_reranker import Reranker
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError
 
 T = TypeVar("T")
 
-class RankBM25Wrapper(RerankerClient):
+class RankBM25Wrapper(Reranker):
     provider = "rank_bm25"
     default_reranking_model = "BM25Okapi"
     

@@ -4,8 +4,9 @@
 # from .ollama_wrapper import OllamaWrapper
 
 from .types import *
-from .type_conversions import tool
-from .unifai_client import UnifAIClient, Chat, PromptTemplate
+from .type_conversions import tool, tool_from_func, tool_from_dict
+from .client import UnifAIClient, Chat
+from .components import PromptTemplate, RAGEngine, Retriever, ToolCaller, ConcurrentToolCaller
 
 # __all__ = [
 #     "BaseAIClientWrapper",
@@ -14,4 +15,5 @@ from .unifai_client import UnifAIClient, Chat, PromptTemplate
 #     "OllamaWrapper",
 #     "UnifAIClient",
 #     "AIProvider"
+
 # ]

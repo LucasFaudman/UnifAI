@@ -1,8 +1,8 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self, ClassVar
 
-from ._base_client_wrapper import BaseClientWrapper, UnifAIExceptionConverter
-from ._base_embedding_client import EmbeddingClient
-from ._base_reranker_client import RerankerClient
+from ._base_adapter import BaseAdapter, UnifAIExceptionConverter
+from ._base_embedder import Embedder
+from ._base_reranker import Reranker
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError
@@ -14,7 +14,7 @@ T = TypeVar("T")
 from importlib import import_module
 from itertools import product
 
-class SentenceTransformersWrapper(EmbeddingClient, RerankerClient):
+class SentenceTransformersWrapper(Embedder, Reranker):
     client: SentenceTransformer
 
     provider = "sentence_transformers"

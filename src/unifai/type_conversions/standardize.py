@@ -6,7 +6,7 @@ from unifai.types import (
     ToolInput,
     ToolChoiceInput,
     ResponseFormatInput,
-    EvaluateParameters,
+    EvalSpec,
     EvaluateParametersInput
 )
 from .tool_from_dict import tool_from_dict
@@ -76,13 +76,13 @@ def standardize_response_format(response_format: ResponseFormatInput) -> str:
     raise ValueError(f"Invalid response_format type: {type(response_format)}")
 
 
-def standardize_eval_prameters(eval_types: Sequence[EvaluateParametersInput]) -> dict[str, EvaluateParameters]:
+def standardize_eval_prameters(eval_types: Sequence[EvaluateParametersInput]) -> dict[str, EvalSpec]:
     std_eval_types = {}
     for eval_type in eval_types:
-        if isinstance(eval_type, EvaluateParameters):
+        if isinstance(eval_type, EvalSpec):
             std_eval_types[eval_type.eval_type] = eval_type
         elif isinstance(eval_type, dict):
-            std_eval_types[eval_type['eval_type']] = EvaluateParameters(**eval_type)
+            std_eval_types[eval_type['eval_type']] = EvalSpec(**eval_type)
         else:
             raise ValueError(f"Invalid eval_type type: {type(eval_type)}")
     return std_eval_types

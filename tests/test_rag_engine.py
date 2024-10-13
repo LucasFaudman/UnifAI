@@ -2,14 +2,14 @@ import pytest
 from typing import Optional, Literal
 
 from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider, RerankProvider, EmbeddingProvider
-from unifai.wrappers._base_vector_db_client import VectorDBClient, VectorDBIndex
-from unifai.wrappers._base_vector_db_index import DictDocumentDB
-from unifai.wrappers._base_reranker_client import RerankerClient
+from unifai.adapters._base_vector_db_client import VectorDBClient, VectorDBIndex
+from unifai.adapters._base_vector_db_index import DictDocumentDB
+from unifai.adapters._base_reranker import Reranker
 
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError
 from basetest import base_test_rerankers_all, PROVIDER_DEFAULTS, EMBEDDING_PROVIDERS
-from unifai.unifai_client.rag_engine import RAGSpec, RAGEngine
+from unifai.components.rag_engine import RAGSpec, RAGEngine
 
 from time import sleep
 

@@ -1,4 +1,4 @@
-from .eval_parameters import EvaluateParameters
+from .eval_parameters import EvalSpec
 from .image import Image
 from .message import Message, MessageChunk
 from .embeddings import Embeddings, Embedding
@@ -36,7 +36,7 @@ from .valid_inputs import (
 from .vector_db import VectorDBGetResult, VectorDBQueryResult
 
 __all__ = [
-    "EvaluateParameters", 
+    "EvalSpec", 
     "Image", 
     "Message", 
     "MessageChunk",

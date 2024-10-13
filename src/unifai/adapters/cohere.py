@@ -1,9 +1,9 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_client_wrapper import BaseClientWrapper, UnifAIExceptionConverter
-from ._base_embedding_client import EmbeddingClient, EmbeddingTaskTypeInput
+from ._base_adapter import BaseAdapter, UnifAIExceptionConverter
+from ._base_embedder import Embedder, EmbeddingTaskTypeInput
 from ._base_llm_client import LLMClient
-from ._base_reranker_client import RerankerClient
+from ._base_reranker import Reranker
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, EmbeddingDimensionsError
@@ -13,7 +13,7 @@ from cohere.core import ApiError as CohereAPIError
 
 T = TypeVar("T")
 
-class CohereWrapper(EmbeddingClient, RerankerClient, LLMClient):
+class CohereAdapter(Embedder, Reranker, LLMClient):
     client: ClientV2
 
     provider = "cohere"

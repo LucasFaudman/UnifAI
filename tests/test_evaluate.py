@@ -1,6 +1,6 @@
 import pytest
 from unifai import UnifAIClient, LLMProvider
-from unifai.types import Message, Tool, EvaluateParameters
+from unifai.types import Message, Tool, EvalSpec
 from basetest import base_test_llms_all
 
 TOOLS = {
@@ -28,7 +28,7 @@ TOOLS = {
 }
 
 EVAL_TYPES = [
-    EvaluateParameters(
+    EvalSpec(
         eval_type="urlEval",
         system_prompt=(
         "You review URLs and HTML text to flag elements that may contain spam, misinformation, or other malicious items. "

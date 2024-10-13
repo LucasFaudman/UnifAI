@@ -1,13 +1,13 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator, Iterable, Generator
 
-from ._base_client_wrapper import BaseClientWrapper, convert_exceptions, convert_exceptions_generator
+from ._base_adapter import BaseAdapter, convert_exceptions, convert_exceptions_generator
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embeddings, Usage
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
 
 T = TypeVar("T")
 
-class LLMClient(BaseClientWrapper):
+class LLMClient(BaseAdapter):
     provider = "base_ai"
     default_model = "mistral:7b-instruct"
 

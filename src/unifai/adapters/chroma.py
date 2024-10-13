@@ -4,7 +4,7 @@ from ._base_vector_db_client import VectorDBIndex, VectorDBClient, DocumentDB
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, BadRequestError
-from unifai.wrappers._base_client_wrapper import UnifAIExceptionConverter, convert_exceptions
+from unifai.adapters._base_adapter import UnifAIExceptionConverter, convert_exceptions
 
 # import chromadb
 from chromadb import Client as ChromaDefaultClient, PersistentClient as ChromaPersistentClient
@@ -232,34 +232,6 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
     def delete_all(self, **kwargs) -> None:
         self.delete(ids=self.list_ids(), **kwargs)    
 
-
-# class UnifAIChromaEmbeddingFunction(EmbeddingFunction[list[str]]):
-#     def __init__(
-#             self,
-#             parent,
-#             embedding_provider: Optional[str] = None,
-#             model: Optional[str] = None,
-#             dimensions: Optional[int] = None,
-#             response_infos: Optional[list[ResponseInfo]] = None,
-#     ):
-#         self.parent = parent
-#         self.embedding_provider = embedding_provider or parent.default_provider
-#         self.model = model
-#         self.dimensions = dimensions
-#         self.response_infos = response_infos or []
-
-#     def __call__(self, input: Documents) -> Embeddings:
-#         """Embed the input documents."""
-#         print(f"Embedding {len(input)} documents")
-#         embed_result = self.parent.embed(
-#             input=input,
-#             model=self.model,
-#             provider=self.embedding_provider,
-#             dimensions=self.dimensions
-#         )
-#         self.response_infos.append(embed_result.response_info)
-#         return embed_result.list()
-        
 
 class ChromaClient(VectorDBClient, ChromaExceptionConverter):
     client: ChromaClientAPI

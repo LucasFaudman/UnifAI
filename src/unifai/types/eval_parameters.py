@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from .message import Message
 from .tool import Tool
 
-class EvaluateParameters(BaseModel):
+class EvalSpec(BaseModel):
     eval_type: str
     system_prompt: str = "Your role is to evaluate the content using the provided tool(s)." 
     examples: Optional[list[Union[Message, dict[Literal["input", "response"], Any]]]] = None   

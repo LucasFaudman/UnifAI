@@ -1,4 +1,4 @@
-from unifai import UnifAIClient, tool, EvaluateParameters
+from unifai import UnifAIClient, tool, EvalSpec
 from _provider_defaults import PROVIDER_DEFAULTS
 
 import webbrowser
@@ -57,7 +57,7 @@ return_ui_component = {
 }
 
 
-get_ui_component = EvaluateParameters(
+get_ui_component = EvalSpec(
     eval_type="return_ui_component",
     system_prompt="Your role is to return a UI component based on the description provided.",
     tools=["return_ui_component"],

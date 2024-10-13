@@ -1,13 +1,13 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator
 from typing import overload
 
-from unifai.wrappers._base_client_wrapper import BaseClientWrapper
-from unifai.wrappers._base_llm_client import LLMClient
-from unifai.wrappers._base_embedding_client import EmbeddingClient
-from unifai.wrappers._base_reranker_client import RerankerClient
+from unifai.adapters._base_adapter import BaseAdapter
+from unifai.adapters._base_llm_client import LLMClient
+from unifai.adapters._base_embedder import Embedder
+from unifai.adapters._base_reranker import Reranker
 
 
-from unifai.wrappers._base_vector_db_client import (
+from unifai.adapters._base_vector_db_client import (
     VectorDBClient, 
     VectorDBIndex,
     VectorDBGetResult,
@@ -20,7 +20,8 @@ from unifai.types import (
     VectorDBProvider,
     RerankProvider,
     Provider, 
-    EvaluateParameters,
+    
+    EvalSpec,
     EvaluateParametersInput, 
     Message,
     MessageChunk,
@@ -34,8 +35,8 @@ from unifai.type_conversions import make_few_shot_prompt, standardize_eval_prame
 # from unifai.exceptions import EmbeddingDimensionsError
 
 from .chat import Chat
-from .tool_caller import ToolCaller
-from .rag_engine import RAGEngine, RAGSpec, IndexDocloaderRetriever
+from ..components.tool_caller import ToolCaller
+from ..components.rag_engine import RAGEngine, RAGSpec
 # from .chroma_emebedding import UnifAIChromaEmbeddingFunction, get_chroma_client
 from pathlib import Path
 
@@ -83,10 +84,10 @@ class UnifAIClient:
         self.set_default_vector_db_provider(default_vector_db_provider)
         self.set_default_rerank_provider(default_rerank_provider)
         
-        self._clients: dict[Provider, LLMClient|EmbeddingClient|VectorDBClient|RerankerClient] = {}
+        self._clients: dict[Provider, LLMClient|Embedder|VectorDBClient|Reranker] = {}
         self.tools: dict[str, Tool] = {}
         self.tool_callables: dict[str, Callable] = {}
-        self.eval_prameters: dict[str, EvaluateParameters] = {}
+        self.eval_prameters: dict[str, EvalSpec] = {}
         self.rag_specs: dict[str, RAGSpec] = {}
         
         self.add_tools(tools or self.TOOLS)
@@ -172,54 +173,54 @@ class UnifAIClient:
         self.rag_specs.update({spec.name: spec for spec in rag_specs})
 
 
-    def import_client_wrapper(self, provider: Provider) -> Type[LLMClient|EmbeddingClient|VectorDBClient|RerankerClient]:
+    def import_adapter(self, provider: Provider) -> Type[LLMClient|Embedder|VectorDBClient|Reranker]:
         match provider:
             # LLM Client Wrappers
             case "anthropic":
-                from unifai.wrappers.anthropic import AnthropicWrapper
-                return AnthropicWrapper
+                from unifai.adapters.anthropic import AnthropicAdapter
+                return AnthropicAdapter
             case "google":
-                from unifai.wrappers.google import GoogleAIWrapper
+                from unifai.adapters.google import GoogleAIWrapper
                 return GoogleAIWrapper
             case "openai":
-                from unifai.wrappers.openai import OpenAIWrapper
+                from unifai.adapters.openai import OpenAIWrapper
                 return OpenAIWrapper
             case "ollama":
-                from unifai.wrappers.ollama import OllamaWrapper
+                from unifai.adapters.ollama import OllamaWrapper
                 return OllamaWrapper
             case "nvidia":
-                from unifai.wrappers.nvidia import NvidiaWrapper
+                from unifai.adapters.nvidia import NvidiaWrapper
                 return NvidiaWrapper
                     
             # Embedding Vector DB Client Wrappers
             case "chroma":
-                from unifai.wrappers.chroma import ChromaClient
+                from unifai.adapters.chroma import ChromaClient
                 return ChromaClient
             case "pinecone":
-                from unifai.wrappers.pinecone import PineconeClient
+                from unifai.adapters.pinecone import PineconeClient
                 return PineconeClient
             
             # Reranker Client Wrappers
             case "cohere":
-                from unifai.wrappers.cohere import CohereWrapper
-                return CohereWrapper  
+                from unifai.adapters.cohere import CohereAdapter
+                return CohereAdapter  
             case "rank_bm25":
-                from unifai.wrappers.rank_bm25 import RankBM25Wrapper
+                from unifai.adapters.rank_bm25 import RankBM25Wrapper
                 return RankBM25Wrapper
             case "sentence_transformers":
-                from unifai.wrappers.sentence_transformers import SentenceTransformersWrapper
+                from unifai.adapters.sentence_transformers import SentenceTransformersWrapper
                 return SentenceTransformersWrapper            
             case _:
                 raise ValueError(f"Invalid provider: {provider}")
             
     
-    def init_client(self, provider: Provider, **client_kwargs) -> LLMClient|EmbeddingClient|VectorDBClient|RerankerClient:
+    def init_client(self, provider: Provider, **client_kwargs) -> LLMClient|Embedder|VectorDBClient|Reranker:
         client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
         if required_bound_methods := REQUIRED_BOUND_METHODS.get(provider):
             for method in required_bound_methods:
                 if method not in client_kwargs:
                     client_kwargs[method] = getattr(self, method)
-        self._clients[provider] = self.import_client_wrapper(provider)(**client_kwargs)
+        self._clients[provider] = self.import_adapter(provider)(**client_kwargs)
         return self._clients[provider]    
 
     @overload
@@ -227,7 +228,7 @@ class UnifAIClient:
         ...
 
     @overload
-    def get_client(self, provider: EmbeddingProvider, **client_kwargs) -> EmbeddingClient:
+    def get_client(self, provider: EmbeddingProvider, **client_kwargs) -> Embedder:
         ...        
 
     @overload
@@ -235,10 +236,10 @@ class UnifAIClient:
         ...        
 
     @overload
-    def get_client(self, provider: RerankProvider, **client_kwargs) -> RerankerClient:
+    def get_client(self, provider: RerankProvider, **client_kwargs) -> Reranker:
         ...
 
-    def get_client(self, provider: Provider, **client_kwargs) -> LLMClient|EmbeddingClient|VectorDBClient|RerankerClient:
+    def get_client(self, provider: Provider, **client_kwargs) -> LLMClient|Embedder|VectorDBClient|Reranker:
         provider = provider or self.default_llm_provider
         if provider not in self._clients or (client_kwargs and self._clients[provider].client_kwargs != client_kwargs):
             return self.init_client(provider, **client_kwargs)
@@ -248,7 +249,7 @@ class UnifAIClient:
         provider = provider or self.default_llm_provider
         return self.get_client(provider, **client_kwargs)
     
-    def get_embedding_client(self, provider: Optional[EmbeddingProvider] = None, **client_kwargs) -> EmbeddingClient:
+    def get_embedding_client(self, provider: Optional[EmbeddingProvider] = None, **client_kwargs) -> Embedder:
         provider = provider or self.default_embedding_provider
         return self.get_client(provider, **client_kwargs)
 
@@ -256,12 +257,12 @@ class UnifAIClient:
         provider = provider or self.default_vector_db_provider
         return self.get_client(provider, **client_kwargs)
     
-    def get_rerank_client(self, provider: Optional[RerankProvider] = None, **client_kwargs) -> RerankerClient:
+    def get_rerank_client(self, provider: Optional[RerankProvider] = None, **client_kwargs) -> Reranker:
         provider = provider or self.default_rerank_provider
         return self.get_client(provider, **client_kwargs)
     
-    
-    def get_provider_default_model(self, provider: Provider, model_type: Literal["llm", "embedding", "rerank"]) -> str:        
+
+    def get_default_model(self, provider: Provider, model_type: Literal["llm", "embedding", "rerank"]) -> str:        
         if model_type == "llm":
             return self.get_llm_client(provider).default_model
         elif model_type == "embedding":
@@ -271,9 +272,11 @@ class UnifAIClient:
         else:
             return ValueError(f"Invalid model_type: {model_type}. Must be one of: 'llm', 'embedding', 'rerank'")
 
+
     # List Models
     def list_models(self, provider: Optional[LLMProvider] = None) -> list[str]:
         return self.get_llm_client(provider).list_models()
+
 
     def make_tool_caller(
             self,
@@ -477,7 +480,7 @@ class UnifAIClient:
     
 
     def evaluate(self, 
-                 eval_type: str | EvaluateParameters, 
+                 eval_type: str | EvalSpec, 
                  content: Any, 
                  provider: Optional[LLMProvider] = None,
                  model: Optional[str] = None,
@@ -488,7 +491,7 @@ class UnifAIClient:
         if isinstance(eval_type, str):
             if (eval_parameters := self.eval_prameters.get(eval_type)) is None:
                 raise ValueError(f"Eval type '{eval_type}' not found in eval_prameters")
-        elif isinstance(eval_type, EvaluateParameters):
+        elif isinstance(eval_type, EvalSpec):
             eval_parameters = eval_type
         else:
             raise ValueError(

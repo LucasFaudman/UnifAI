@@ -4,7 +4,7 @@ from ._base_vector_db_client import VectorDBIndex, VectorDBClient, DocumentDB
 
 from unifai.types import ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, BadRequestError
-from unifai.wrappers._base_client_wrapper import UnifAIExceptionConverter, convert_exceptions
+from unifai.adapters._base_adapter import UnifAIExceptionConverter, convert_exceptions
 
 from pinecone.grpc import PineconeGRPC as Pinecone, GRPCIndex  
 from pinecone import ServerlessSpec, PodSpec, Index

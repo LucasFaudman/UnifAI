@@ -42,7 +42,7 @@ from unifai.exceptions import (
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
 from unifai.type_conversions import stringify_content
 from ._base_llm_client import LLMClient
-from ._base_embedding_client import EmbeddingClient
+from ._base_embedder import Embedder
 
 from random import choices as random_choices
 from string import ascii_letters, digits
@@ -52,7 +52,7 @@ def generate_random_id(length: int = 8, chars: str = ASCII_LETTERS_AND_DIGITS):
     return ''.join(random_choices(chars, k=length))
 
 
-class OllamaWrapper(EmbeddingClient, LLMClient):
+class OllamaWrapper(Embedder, LLMClient):
     provider = "ollama"
     client: OllamaClient
     default_model = "mistral:7b-instruct"

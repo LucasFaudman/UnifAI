@@ -1,5 +1,5 @@
 from unifai import UnifAIClient, tool, Message, Tool, BooleanToolParameter, StringToolParameter
-from unifai.unifai_client.prompt_template import PromptTemplate
+from unifai.components.prompt_template import PromptTemplate
 from _provider_defaults import PROVIDER_DEFAULTS
 
 from collections import defaultdict

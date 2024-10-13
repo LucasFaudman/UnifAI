@@ -1,6 +1,6 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_client_wrapper import BaseClientWrapper
+from ._base_adapter import BaseAdapter
 from ._base_vector_db_index import VectorDBIndex, DocumentDB
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
@@ -38,7 +38,7 @@ class EmbeddingFunction:
         return embed_result.list()
     
 
-class VectorDBClient(BaseClientWrapper):
+class VectorDBClient(BaseAdapter):
     provider = "base_vector_db"
 
     def __init__(self, 
