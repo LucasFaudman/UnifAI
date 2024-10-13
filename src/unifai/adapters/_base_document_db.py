@@ -9,6 +9,8 @@ from pydantic import BaseModel
 T = TypeVar("T")
 
 class DocumentDB(BaseAdapter):
+    provider = "document_db"
+
     def get_documents(self, ids: Collection[str]) -> Iterable[str]:
         raise NotImplementedError("This method must be implemented by the subclass")    
 
@@ -29,6 +31,8 @@ class DocumentDB(BaseAdapter):
     
 
 class DictDocumentDB(DocumentDB):
+    provider = "dict"
+
     def __init__(self, documents: dict[str, str]):
         self.documents = documents
 
@@ -54,6 +58,7 @@ class DictDocumentDB(DocumentDB):
 
 
 class SQLITEDocumentDB(DocumentDB):
+    provider = "sqlite"
     
     def import_client(self) -> Callable:
         from sqlite3 import connect

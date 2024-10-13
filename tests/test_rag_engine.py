@@ -3,7 +3,7 @@ from typing import Optional, Literal
 
 from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider, RerankProvider, EmbeddingProvider
 from unifai.adapters._base_vector_db_client import VectorDBClient, VectorDBIndex
-from unifai.adapters._base_vector_db_index import DictDocumentDB
+from unifai.adapters._base_document_db import DictDocumentDB
 from unifai.adapters._base_reranker import Reranker
 
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo

@@ -52,7 +52,7 @@ from openai.types.chat.completion_create_params import CompletionCreateParams
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings, EmbeddingTaskTypeInput, VectorDBQueryResult
 from unifai.type_conversions import stringify_content
 from ._base_reranker import Reranker
-from .openai import OpenAIWrapper
+from .openai import OpenAIAdapter
 
 
 from typing_extensions import Literal, Required, TypeAlias, TypedDict
@@ -88,7 +88,7 @@ class TempBaseURL:
             self.client.base_url = self.default_base_url
 
 
-class NvidiaWrapper(OpenAIWrapper, Reranker):
+class NvidiaAdapter(OpenAIAdapter, Reranker):
     provider = "nvidia"
     default_model = "meta/llama-3.1-405b-instruct"
     

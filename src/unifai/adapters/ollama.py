@@ -52,7 +52,7 @@ def generate_random_id(length: int = 8, chars: str = ASCII_LETTERS_AND_DIGITS):
     return ''.join(random_choices(chars, k=length))
 
 
-class OllamaWrapper(Embedder, LLMClient):
+class OllamaAdapter(Embedder, LLMClient):
     provider = "ollama"
     client: OllamaClient
     default_model = "mistral:7b-instruct"
@@ -454,12 +454,3 @@ class OllamaWrapper(Embedder, LLMClient):
             response_info=response_info
         )
         return std_message, self.prep_input_assistant_message(std_message)
-
-
-
-
-        
-
-        
-   
-

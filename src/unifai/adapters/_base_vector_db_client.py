@@ -9,7 +9,19 @@ from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, BadR
 
 T = TypeVar("T")
 
-class EmbeddingFunction:
+class VectorDBCompatibleEmbeddingFunction:
+    """
+    Chroma style EmbeddingFunction object that takes a list of documents and returns a list of embeddings.    
+    - Stores the a reference to the embedding function, the embedding provider, model, and dimensions used to generate the embeddings.
+    - Stores a list of response infos for the embeddings. (usage, model, etc)
+    Args:
+        embed (Callable[..., Embeddings]): Embedding function that takes a list of documents and returns a list of embeddings.
+        embedding_provider (Optional[str]): The embedding provider to use.
+        model (Optional[str]): The embedding model to use.
+        dimensions (Optional[int]): The number of dimensions to use.
+        response_infos (Optional[list[ResponseInfo]]): List of response infos (usage, model, etc) for the embeddings.
+    """
+
     def __init__(
             self,
             embed: Callable[..., Embeddings],
@@ -25,7 +37,15 @@ class EmbeddingFunction:
         self.response_infos = response_infos or []
 
     def __call__(self, input: list[str]) -> list[Embedding]:
-        """Embed the input documents."""
+        """
+        Embed a list of documents.
+        
+        Args:
+            input (list[str]): List of documents to embed.
+
+        Returns:
+            list[Embedding]: List of embeddings for the input documents. (list of lists of floats)           
+        """
         print(f"Embedding {len(input)} documents")
         embed_result = self.embed(
             input=input,
@@ -67,8 +87,8 @@ class VectorDBClient(BaseAdapter):
                                embedding_model: Optional[str] = None,
                                dimensions: Optional[int] = None,
                                response_infos: Optional[list[ResponseInfo]] = None,
-                                 ) -> EmbeddingFunction:
-        return EmbeddingFunction(
+                                 ) -> VectorDBCompatibleEmbeddingFunction:
+        return VectorDBCompatibleEmbeddingFunction(
             embed=self.embed,
             embedding_provider=embedding_provider or self.default_embedding_provider,
             model=embedding_model or self.default_embedding_model,

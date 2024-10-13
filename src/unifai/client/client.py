@@ -180,17 +180,17 @@ class UnifAIClient:
                 from unifai.adapters.anthropic import AnthropicAdapter
                 return AnthropicAdapter
             case "google":
-                from unifai.adapters.google import GoogleAIWrapper
-                return GoogleAIWrapper
+                from unifai.adapters.google import GoogleAIAdapter
+                return GoogleAIAdapter
             case "openai":
-                from unifai.adapters.openai import OpenAIWrapper
-                return OpenAIWrapper
+                from unifai.adapters.openai import OpenAIAdapter
+                return OpenAIAdapter
             case "ollama":
-                from unifai.adapters.ollama import OllamaWrapper
-                return OllamaWrapper
+                from unifai.adapters.ollama import OllamaAdapter
+                return OllamaAdapter
             case "nvidia":
-                from unifai.adapters.nvidia import NvidiaWrapper
-                return NvidiaWrapper
+                from unifai.adapters.nvidia import NvidiaAdapter
+                return NvidiaAdapter
                     
             # Embedding Vector DB Client Wrappers
             case "chroma":
@@ -205,11 +205,11 @@ class UnifAIClient:
                 from unifai.adapters.cohere import CohereAdapter
                 return CohereAdapter  
             case "rank_bm25":
-                from unifai.adapters.rank_bm25 import RankBM25Wrapper
-                return RankBM25Wrapper
+                from unifai.adapters.rank_bm25 import RankBM25Adapter
+                return RankBM25Adapter
             case "sentence_transformers":
-                from unifai.adapters.sentence_transformers import SentenceTransformersWrapper
-                return SentenceTransformersWrapper            
+                from unifai.adapters.sentence_transformers import SentenceTransformersAdapter
+                return SentenceTransformersAdapter            
             case _:
                 raise ValueError(f"Invalid provider: {provider}")
             

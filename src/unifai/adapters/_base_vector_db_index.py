@@ -1,57 +1,12 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
 from ._base_adapter import BaseAdapter, UnifAIExceptionConverter
+from ._base_document_db import DocumentDB
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
-from pydantic import BaseModel
 
 T = TypeVar("T")
-
-class DocumentDB:
-    def get_documents(self, ids: Collection[str]) -> Iterable[str]:
-        raise NotImplementedError
-    
-    def get_document(self, id: str) -> str:
-        return next(iter(self.get_documents([id])))
-    
-    def set_documents(self, ids: Collection[str], documents: Collection[str]) -> None:
-        raise NotImplementedError
-    
-    def set_document(self, id: str, document: str) -> None:
-        self.set_documents([id], [document])
-    
-    def delete_documents(self, ids: Collection[str]) -> None:
-        raise NotImplementedError
-    
-    def delete_document(self, id: str) -> None:
-        self.delete_documents([id])
-    
-
-class DictDocumentDB(DocumentDB):
-    def __init__(self, documents: dict[str, str]):
-        self.documents = documents
-
-    def get_documents(self, ids: Collection[str]) -> Iterable[str]:
-        return (self.documents[id] for id in ids)
-    
-    def get_document(self, id: str) -> str:
-        return self.documents[id]
-
-    def set_documents(self, ids: Collection[str], documents: Collection[str]) -> None:
-        for id, document in zip(ids, documents):
-            self.documents[id] = document
-
-    def set_document(self, id: str, document: str) -> None:
-        self.documents[id] = document
-
-    def delete_documents(self, ids: Collection[str]) -> None:
-        for id in ids:
-            del self.documents[id]
-    
-    def delete_document(self, id: str) -> None:
-        del self.documents[id]
-
 
 class VectorDBIndex(UnifAIExceptionConverter):
     provider = "base_vector_db"
@@ -81,6 +36,60 @@ class VectorDBIndex(UnifAIExceptionConverter):
         self.kwargs = kwargs
 
 
+    def check_filter(self, filter: dict|str, value: Any) -> bool:
+        if isinstance(filter, str):
+            return value == filter
+        filter_operator, filter_value = next(iter(filter.items()))
+        if filter_operator == "$eq":
+            return value == filter_value
+        if filter_operator == "$ne":
+            return value != filter_value
+        if filter_operator == "$gt":
+            return value > filter_value
+        if filter_operator == "$gte":
+            return value >= filter_value
+        if filter_operator == "$lt":
+            return value < filter_value
+        if filter_operator == "$lte":
+            return value <= filter_value
+        if filter_operator == "$in":
+            return value in filter_value
+        if filter_operator == "$nin":
+            return value not in filter_value
+        if filter_operator == "$exists":
+            return bool(value) == filter_value
+        if filter_operator == "$contains":
+            return filter_value in value
+        if filter_operator == "$not_contains":
+            return filter_value not in value
+        raise ValueError(f"Invalid filter {filter}")
+
+
+    def check_metadata_filters(self, where: dict, metadata: dict) -> bool:
+        for key, filter in where.items():
+            if key == "$and":
+                for sub_filter in filter:
+                    if not self.check_metadata_filters(sub_filter, metadata):
+                        return False
+                continue
+            
+            if key == "$or":
+                _any = False
+                for sub_filter in filter:
+                    if self.check_metadata_filters(sub_filter, metadata):
+                        _any = True
+                        break
+                if not _any:                    
+                    return False
+                continue
+            
+            value = metadata.get(key)
+            if not self.check_filter(filter, value):
+                return False
+            
+        return True
+
+    
     def count(self, **kwargs) -> int:
         raise NotImplementedError("This method must be implemented by the subclass")
     

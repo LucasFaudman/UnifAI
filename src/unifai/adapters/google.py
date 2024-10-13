@@ -115,7 +115,7 @@ GoogleEmbeddingTaskType = Literal[
     "CODE_RETRIEVAL_QUERY"  # Specifies that the query embedding is used for code retrieval for Java and Python. 
 ]
 
-class GoogleAIWrapper(Embedder, LLMClient):
+class GoogleAIAdapter(Embedder, LLMClient):
     provider = "google"
     default_model = "gemini-1.5-flash-latest"
     default_embedding_model = "text-embedding-004"

@@ -73,7 +73,7 @@ from unifai.type_conversions import stringify_content
 from ._base_llm_client import LLMClient
 from ._base_embedder import Embedder
 
-class OpenAIWrapper(Embedder, LLMClient):
+class OpenAIAdapter(Embedder, LLMClient):
     provider = "openai"
     client: OpenAI
     default_model = "gpt-4o"

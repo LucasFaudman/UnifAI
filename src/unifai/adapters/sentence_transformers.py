@@ -14,7 +14,7 @@ T = TypeVar("T")
 from importlib import import_module
 from itertools import product
 
-class SentenceTransformersWrapper(Embedder, Reranker):
+class SentenceTransformersAdapter(Embedder, Reranker):
     client: SentenceTransformer
 
     provider = "sentence_transformers"
@@ -29,14 +29,12 @@ class SentenceTransformersWrapper(Embedder, Reranker):
 
     def lazy_import(self, module_name: str) -> Any:
         module_name, *submodules = module_name.split(".")
-
         if not (module := globals().get(module_name)):
             module = import_module(module_name)
             globals()[module_name] = module
-
+                    
         for submodule in submodules:
-            module = getattr(module, submodule)
-        
+            module = getattr(module, submodule)        
         return module
 
 
@@ -77,13 +75,8 @@ class SentenceTransformersWrapper(Embedder, Reranker):
                 truncate_dim=truncate_dim,
                 **model_init_kwargs
             )
-            self.st_model_cache[model] = st_model
-        
-        return st_model.encode(
-            sentences=input, 
-            precision="float32", 
-            **kwargs
-        )[:dimensions]
+            self.st_model_cache[model] = st_model        
+        return st_model.encode(sentences=input, precision="float32", **kwargs)[:dimensions]
         
 
     def _extract_embeddings(
@@ -114,7 +107,6 @@ class SentenceTransformersWrapper(Embedder, Reranker):
             # ce_model = sentence_transformers.CrossEncoder(
             ce_model = self.lazy_import("sentence_transformers.CrossEncoder")(
                 model_name=model, 
-                # max_length=truncate_dim,
                 **model_init_kwargs
             )
             self.ce_model_cache[model] = ce_model     
