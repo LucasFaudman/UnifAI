@@ -14,25 +14,25 @@ class VectorDBIndex(UnifAIExceptionConverter):
     def __init__(self,
                  wrapped: Any,
                  name: str,
-                 metadata: Optional[dict] = None,
                  embedding_function: Optional[Callable] = None,
                  embedding_provider: Optional[LLMProvider] = None,
                  embedding_model: Optional[str] = None,
                  dimensions: Optional[int] = None,
                  distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
                  document_db: Optional[DocumentDB] = None,
+                 metadata: Optional[dict] = None,
                  **kwargs
                  ):
         
         self.wrapped = wrapped
         self.name = name
-        self.metadata = metadata or {}
         self.embedding_function = embedding_function
         self.embedding_provider = embedding_provider
         self.embedding_model = embedding_model
         self.dimensions = dimensions
         self.distance_metric = distance_metric
         self.document_db = document_db
+        self.metadata = metadata or {}
         self.kwargs = kwargs
 
 
@@ -89,7 +89,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
             
         return True
 
-    
+
     def count(self, **kwargs) -> int:
         raise NotImplementedError("This method must be implemented by the subclass")
     

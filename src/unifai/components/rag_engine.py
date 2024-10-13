@@ -101,8 +101,8 @@ class RAGEngine:
             prompt_template: Optional[PromptTemplate] = None,
             retreiver_kwargs: Optional[dict] = None,
             reranker_kwargs: Optional[dict] = None,
-            prompt_template_kwargs: Optional[dict] = None,            
+            **prompt_template_kwargs
             ) -> str:
 
         query_result = self.query(query, retreiver_kwargs, reranker_kwargs)
-        return self.augment(query, query_result, prompt_template, **(prompt_template_kwargs or {}))
+        return self.augment(query, query_result, prompt_template, **prompt_template_kwargs)

@@ -374,6 +374,10 @@ class Chat:
         self.std_messages = []
         self.client_messages = []
         return self
+    
+    def pop_message(self) -> Message:        
+        self.client_messages.pop()
+        return self.std_messages.pop()
 
     @property
     def messages(self) -> list[Message]:
@@ -428,7 +432,8 @@ class Chat:
             # Submit tool outputs before sending new messages. 
             # Use first new message content as content of tool message or send after as user message based on provider
             # self.extend_messages_with_tool_outputs(last_message.tool_calls, content=messages.pop(0).content)
-            self.extend_messages_with_tool_outputs(last_message.tool_calls)
+            # self.extend_messages_with_tool_outputs(last_message.tool_calls)
+            self.pop_message()
 
         
         self.extend_messages(messages)

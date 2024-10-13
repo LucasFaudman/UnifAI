@@ -21,8 +21,7 @@ def mime_type_from_path_or_url(path_or_url: str) -> ImageMimeType:
     raise ValueError(f'Invalid image extension: {ext}')
 
 
-class Image(BaseModel):    
-    # data: bytes
+class Image(BaseModel):
     source: str|bytes
     format: Literal['base64', 'url', 'file'] = 'base64'
     mime_type: ImageMimeType = 'image/jpeg'
@@ -60,6 +59,7 @@ class Image(BaseModel):
                     ) -> 'Image':
         return cls(source=base64_data, format='base64', mime_type=mime_type)
 
+
     @classmethod
     def from_data_uri(cls, 
                       data_uri: str,
@@ -88,6 +88,7 @@ class Image(BaseModel):
         mime_type = mime_type or mime_type_from_path_or_url(url)
         return cls(source=url, format='url', mime_type=mime_type)
     
+
     @classmethod
     def from_file(cls,
                       path: str|Path,
@@ -105,17 +106,11 @@ class Image(BaseModel):
         raw_bytes = None
         if self.format == 'base64':
             raw_bytes = b64decode(self.base64_bytes)
-            # return self._raw_bytes
-        
         if self.format == 'url':
             raw_bytes = b'' # TODO: Get image from URL
-            # return self._raw_bytes
-        
         if self.format == 'file':
             with open(self.source, 'rb') as f:
                 raw_bytes = f.read()
-            # return self._raw_bytes
-        
         if raw_bytes is None:
             raise ValueError(f'Invalid image format: {self.format}')
 
@@ -192,6 +187,7 @@ class Image(BaseModel):
             return None        
         return self.source_string
         
+
     @property
     def path(self) -> Optional[Path]:
         if self.format != 'file':

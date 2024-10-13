@@ -68,6 +68,7 @@ class VectorDBClient(BaseAdapter):
                  default_dimensions: int = 1536,
                  default_distance_metric: Literal["cosine", "euclidean", "dotproduct"] = "cosine",
                  default_index_kwargs: Optional[dict] = None,
+                 default_document_db: Optional[DocumentDB] = None,
                  **client_kwargs
                  ):
         super().__init__(**client_kwargs)
@@ -80,6 +81,7 @@ class VectorDBClient(BaseAdapter):
         self.default_dimensions = default_dimensions
         self.default_distance_metric = default_distance_metric
         self.default_index_kwargs = default_index_kwargs or {}
+        self.default_document_db = default_document_db
 
 
     def get_embedding_function(self,
@@ -99,12 +101,12 @@ class VectorDBClient(BaseAdapter):
 
     def create_index(self, 
                      name: str,
-                     metadata: Optional[dict] = None,
                      embedding_provider: Optional[LLMProvider] = None,
                      embedding_model: Optional[str] = None,
                      dimensions: Optional[int] = None,
                      distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
                      document_db: Optional[DocumentDB] = None,
+                     metadata: Optional[dict] = None,
                      **kwargs
                      ) -> VectorDBIndex:
         raise NotImplementedError("This method must be implemented by the subclass")
@@ -124,12 +126,12 @@ class VectorDBClient(BaseAdapter):
 
     def get_or_create_index(self, 
                             name: str,
-                            metadata: Optional[dict] = None,
                             embedding_provider: Optional[LLMProvider] = None,
                             embedding_model: Optional[str] = None,
                             dimensions: Optional[int] = None,
                             distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
                             document_db: Optional[DocumentDB] = None,
+                            metadata: Optional[dict] = None,                            
                             **kwargs
                             ) -> VectorDBIndex:
         try:
@@ -145,12 +147,12 @@ class VectorDBClient(BaseAdapter):
         except (BadRequestError, NotFoundError):
             return self.create_index(
                 name=name,
-                metadata=metadata,
                 embedding_provider=embedding_provider,
                 embedding_model=embedding_model,
                 dimensions=dimensions,
                 distance_metric=distance_metric,
                 document_db=document_db,
+                metadata=metadata,
                 **kwargs
             )
     

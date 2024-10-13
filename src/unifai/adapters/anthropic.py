@@ -190,6 +190,11 @@ class AnthropicAdapter(LLMClient):
                 content.append(tool_use_param)
         if message.images:
             content.extend(map(self.prep_input_image, message.images))
+        
+        if not content:
+            # Should not happen unless switching providers after a tool call
+            content.append(AnthropicTextBlockParam(text="continue", type="text"))
+        
         return AnthropicMessageParam(role="assistant", content=content)
 
 

@@ -70,30 +70,36 @@ class Embeddings(RootModel[list[Embedding]]):
                 ) if self.response_info and other.response_info else None
         )
     
+
     def __iadd__(self, other: "Embeddings") -> "Embeddings":
         self.root += other.list()
         if self.response_info and self.response_info.usage and other.response_info and other.response_info.usage:
             self.response_info.usage += other.response_info.usage
         return self
 
+
     def __len__(self) -> int:
         return self.root.__len__()
     
+
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Embeddings):
             return False
         return self.root == other.root and self.response_info == other.response_info
     
+
     def __getitem__(self, index: int) -> Embedding:
         return self.root[index]
     
+
     def __setitem__(self, index: int, value: Embedding):
         self.root[index] = value
+
 
     def __contains__(self, item: Embedding) -> bool:
         return item in self.root
     
+
     def __iter__(self):
         return self.root.__iter__()
-        # return iter(self.root)
     

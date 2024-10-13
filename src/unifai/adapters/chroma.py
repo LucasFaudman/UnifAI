@@ -2,7 +2,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Colle
 
 from ._base_vector_db_client import VectorDBIndex, VectorDBClient, DocumentDB
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, BadRequestError
 from unifai.adapters._base_adapter import UnifAIExceptionConverter, convert_exceptions
 
@@ -46,7 +46,7 @@ class ChromaIndex(VectorDBIndex, ChromaExceptionConverter):
     def modify(self, 
                new_name: Optional[str]=None, 
                new_metadata: Optional[dict]=None,
-               embedding_provider: Optional[LLMProvider] = None,
+               embedding_provider: Optional[EmbeddingProvider] = None,
                embedding_model: Optional[str] = None,
                dimensions: Optional[int] = None,
                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,               
@@ -277,12 +277,12 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
     @convert_exceptions                           
     def create_index(self, 
                      name: str,
-                     metadata: Optional[dict] = None,
-                     embedding_provider: Optional[LLMProvider] = None,
+                     embedding_provider: Optional[EmbeddingProvider] = None,
                      embedding_model: Optional[str] = None,
                      dimensions: Optional[int] = None,
                      distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
                      document_db: Optional[DocumentDB] = None,
+                     metadata: Optional[dict] = None,                     
                      **kwargs
                      ) -> ChromaIndex:
         
@@ -290,6 +290,7 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
         embedding_model = embedding_model or self.default_embedding_model
         dimensions = dimensions or self.default_dimensions
         distance_metric = distance_metric or self.default_distance_metric
+        document_db = document_db or self.default_document_db
 
         if metadata is None:
             metadata = {}
@@ -317,12 +318,12 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
         index = ChromaIndex(
             wrapped=collection,
             name=name,
-            metadata=metadata,
             embedding_provider=embedding_provider,
             embedding_model=embedding_model,
             dimensions=dimensions,
             distance_metric=distance_metric,
             document_db=document_db,
+            metadata=metadata,
             **index_kwargs
         )
         self.indexes[name] = index
@@ -331,7 +332,7 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
     @convert_exceptions
     def get_index(self, 
                   name: str,
-                  embedding_provider: Optional[LLMProvider] = None,
+                  embedding_provider: Optional[EmbeddingProvider] = None,
                   embedding_model: Optional[str] = None,
                   dimensions: Optional[int] = None,
                   distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -357,7 +358,8 @@ class ChromaClient(VectorDBClient, ChromaExceptionConverter):
         embedding_provider = embedding_provider or self.default_embedding_provider
         embedding_model = embedding_model or self.default_embedding_model
         dimensions = dimensions or self.default_dimensions
-        distance_metric = distance_metric or self.default_distance_metric                
+        distance_metric = distance_metric or self.default_distance_metric 
+        document_db = document_db or self.default_document_db               
 
         embedding_function = self.get_embedding_function(
             embedding_provider=embedding_provider,

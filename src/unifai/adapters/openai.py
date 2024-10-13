@@ -244,7 +244,7 @@ class OpenAIAdapter(Embedder, LLMClient):
         if message.tool_calls:
             message_dict["tool_calls"] = [
                 {
-                    "id": tool_call.id,
+                    "id": tool_call.id[:40],
                     "type": tool_call.type,
                     tool_call.type: {
                         "name": tool_call.tool_name,
@@ -264,7 +264,7 @@ class OpenAIAdapter(Embedder, LLMClient):
             tool_call = message.tool_calls[0]
             return {
                 "role": "tool",
-                "tool_call_id": tool_call.id,
+                "tool_call_id": tool_call.id[:40],
                 "content": stringify_content(tool_call.output),
             }
         raise ValueError("Tool message must have tool_calls")

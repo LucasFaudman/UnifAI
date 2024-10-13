@@ -72,12 +72,6 @@ class UnifAIClient:
             default_rerank_provider: Optional[RerankProvider] = None                
     ) -> None:
         
-        # self.provider_client_kwargs = provider_client_kwargs if provider_client_kwargs is not None else {}        
-        # self.providers = list(self.provider_client_kwargs.keys())        
-        # self.llm_providers = [provider for provider in self.providers if provider in LLM_PROVIDERS]
-        # self.vector_db_providers = [provider for provider in self.providers if provider in VECTOR_DB_PROVIDERS]
-        # self.default_llm_provider: Provider = self.providers[0] if len(self.providers) > 0 else "openai"
-
         self.set_provider_client_kwargs(provider_client_kwargs)
         self.set_default_llm_provider(default_llm_provider)
         self.set_default_embedding_provider(default_embedding_provider)
@@ -641,7 +635,16 @@ class UnifAIClient:
             distance_metric=distance_metric,
             metadata=index_metadata,
             **kwargs
-        )
+        )        
+        # return self.get_vector_db_client(vector_db_provider).get_or_create_index(
+        #     name=name,
+        #     embedding_provider=embedding_provider,
+        #     embedding_model=embedding_model,
+        #     dimensions=dimensions,
+        #     distance_metric=distance_metric,
+        #     metadata=index_metadata,
+        #     **kwargs
+        # )
     
 
     def upsert_index(self,

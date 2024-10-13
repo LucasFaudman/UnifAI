@@ -7,13 +7,15 @@ from basetest import base_test_llms_all, PROVIDER_DEFAULTS
     PROVIDER_DEFAULTS["anthropic"],
     PROVIDER_DEFAULTS["google"],
     PROVIDER_DEFAULTS["openai"],
-    PROVIDER_DEFAULTS["ollama"]
+    PROVIDER_DEFAULTS["ollama"],
+    PROVIDER_DEFAULTS["nvidia"],
 ])
 @pytest.mark.parametrize("provider2, client_kwargs2, func_kwargs2", [
     PROVIDER_DEFAULTS["anthropic"],
     PROVIDER_DEFAULTS["google"],
     PROVIDER_DEFAULTS["openai"],
-    PROVIDER_DEFAULTS["ollama"]
+    PROVIDER_DEFAULTS["ollama"],
+    PROVIDER_DEFAULTS["nvidia"],
 ])
 def test_switch_providers_simple(
     provider1: LLMProvider, 
@@ -79,13 +81,15 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
     PROVIDER_DEFAULTS["anthropic"],
     PROVIDER_DEFAULTS["google"],
     PROVIDER_DEFAULTS["openai"],
-    PROVIDER_DEFAULTS["ollama"]
+    # PROVIDER_DEFAULTS["ollama"],
+    PROVIDER_DEFAULTS["nvidia"],
 ])
 @pytest.mark.parametrize("provider1, client_kwargs1, func_kwargs1", [
     PROVIDER_DEFAULTS["anthropic"],
     PROVIDER_DEFAULTS["google"],
     PROVIDER_DEFAULTS["openai"],
-    PROVIDER_DEFAULTS["ollama"]
+    # PROVIDER_DEFAULTS["ollama"],
+    PROVIDER_DEFAULTS["nvidia"],
 ])
 def test_switch_providers_tool_calls(
     provider1: LLMProvider, 
