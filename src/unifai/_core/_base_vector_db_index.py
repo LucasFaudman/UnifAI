@@ -1,21 +1,21 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_adapter import BaseAdapter, UnifAIExceptionConverter
+from ._base_adapter import UnifAIAdapter, UnifAIComponent
 from ._base_document_db import DocumentDB
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
 
 T = TypeVar("T")
 
-class VectorDBIndex(UnifAIExceptionConverter):
+class VectorDBIndex(UnifAIComponent):
     provider = "base_vector_db"
 
     def __init__(self,
                  wrapped: Any,
                  name: str,
                  embedding_function: Optional[Callable] = None,
-                 embedding_provider: Optional[LLMProvider] = None,
+                 embedding_provider: Optional[EmbeddingProvider] = None,
                  embedding_model: Optional[str] = None,
                  dimensions: Optional[int] = None,
                  distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -97,7 +97,7 @@ class VectorDBIndex(UnifAIExceptionConverter):
     def modify(self, 
                new_name: Optional[str]=None, 
                new_metadata: Optional[dict]=None,
-               embedding_provider: Optional[LLMProvider] = None,
+               embedding_provider: Optional[EmbeddingProvider] = None,
                embedding_model: Optional[str] = None,
                dimensions: Optional[int] = None,
                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,               

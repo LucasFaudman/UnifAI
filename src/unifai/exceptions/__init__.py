@@ -52,6 +52,17 @@ from .vector_db_errors import (
     IndexAlreadyExistsError,
     InvalidQueryError,
     DimensionsMismatchError,
+    DocumentDBError,
+    DocumentDBAPIError,
+    DocumentReadError,
+    DocumentWriteError,
+    DocumentDeleteError,
+    DocumentNotFoundError,    
+)
+
+from .eval_errors import (
+    EvalError,
+    OutputParserError,
 )
 
 __all__ = [
@@ -103,4 +114,14 @@ __all__ = [
     "IndexAlreadyExistsError",
     "InvalidQueryError",
     "DimensionsMismatchError",
+    "DocumentDBError",
+    "DocumentDBAPIError",
+    "DocumentReadError",
+    "DocumentWriteError",
+    "DocumentDeleteError",
+    "DocumentNotFoundError",
+
+    "EvalError",
+    "OutputParserError",
+    
 ]

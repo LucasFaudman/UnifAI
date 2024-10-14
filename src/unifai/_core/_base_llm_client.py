@@ -1,13 +1,14 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator, Iterable, Generator
 
-from ._base_adapter import BaseAdapter, convert_exceptions, convert_exceptions_generator
+from ._base_adapter import UnifAIAdapter
+from ._base_component import convert_exceptions, convert_exceptions_generator
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embeddings, Usage
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
 
 T = TypeVar("T")
 
-class LLMClient(BaseAdapter):
+class LLMClient(UnifAIAdapter):
     provider = "base_ai"
     default_model = "mistral:7b-instruct"
 
@@ -123,7 +124,7 @@ class LLMClient(BaseAdapter):
             response=response,
             **kwargs
         )        
-        return std_message, client_message    
+        return std_message, client_message
 
     # Convert Objects from UnifAI to AI Provider format        
         # Messages

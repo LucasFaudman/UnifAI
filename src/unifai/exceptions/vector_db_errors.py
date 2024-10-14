@@ -24,3 +24,34 @@ class InvalidQueryError(VectorDBAPIError):
 
 class DimensionsMismatchError(EmbeddingDimensionsError, VectorDBAPIError):
     """Raised when the dimensions of the input embeddings(s) do not match the dimensions of the index."""
+
+
+class DocumentDBError(VectorDBError):
+    """Base class for all DocumentDB errors"""
+
+
+class DocumentDBAPIError(VectorDBAPIError, DocumentDBError):
+    """Base class for all DocumentDB API errors"""
+
+
+class DocumentNotFoundError(DocumentDBAPIError):
+    """Raised when the specified document does not exist."""
+
+
+class DocumentReadError(DocumentDBAPIError):
+    """Raised when the document get operation fails."""
+
+
+class DocumentWriteError(DocumentDBAPIError):
+    """Raised when the document set operation fails."""
+
+
+class DocumentDeleteError(DocumentDBAPIError):
+    """Raised when the document get operation fails."""
+
+
+
+
+
+
+

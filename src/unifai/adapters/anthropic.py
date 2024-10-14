@@ -60,7 +60,7 @@ from unifai.exceptions import (
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
 from unifai.type_conversions import stringify_content
-from ._base_llm_client import LLMClient, convert_exceptions
+from .._core._base_llm_client import LLMClient, convert_exceptions
 
 class AnthropicAdapter(LLMClient):
     provider = "anthropic"

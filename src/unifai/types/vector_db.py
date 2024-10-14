@@ -2,6 +2,7 @@ from typing import Optional, Sequence, Literal, Self, Callable
 from pydantic import BaseModel, RootModel
 
 from .embeddings import Embeddings, Embedding
+from itertools import zip_longest
 
 class VectorDBGetResult(BaseModel):
     ids: list[str]
@@ -12,13 +13,17 @@ class VectorDBGetResult(BaseModel):
 
 
     def __iter__(self):
-        return iter(self.ids)
+        return iter(self.zip())
     
 
     def __len__(self):
         return len(self.ids)
     
+
+    def zip(self, *include: Literal["ids", "embeddings", "metadatas", "documents"]):
+        return zip(*(getattr(self, attr) for attr in include or self.included))
     
+
     def rerank(self, new_order: Sequence[int]) -> Self:
         old = {attr: value.copy() for attr in self.included if (value := getattr(self, attr)) is not None}
         for attr in self.included:
@@ -49,6 +54,7 @@ class VectorDBGetResult(BaseModel):
         new_order = [x[0] for x in sorted(enumerate(getattr(self, by)), key=_key, reverse=reverse)]
         return self.rerank(new_order)
         
+    
 
 class VectorDBQueryResult(VectorDBGetResult):
     distances: Optional[list[float]]

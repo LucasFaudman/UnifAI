@@ -1,13 +1,13 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator
 from typing import overload
 
-from unifai.adapters._base_adapter import BaseAdapter
-from unifai.adapters._base_llm_client import LLMClient
-from unifai.adapters._base_embedder import Embedder
-from unifai.adapters._base_reranker import Reranker
+from unifai._core._base_adapter import UnifAIAdapter
+from unifai._core._base_llm_client import LLMClient
+from unifai._core._base_embedder import Embedder
+from unifai._core._base_reranker import Reranker
+from unifai._core._base_document_db import DocumentDB
 
-
-from unifai.adapters._base_vector_db_client import (
+from unifai._core._base_vector_db_client import (
     VectorDBClient, 
     VectorDBIndex,
     VectorDBGetResult,
@@ -20,9 +20,6 @@ from unifai.types import (
     VectorDBProvider,
     RerankProvider,
     Provider, 
-    
-    EvalSpec,
-    EvaluateParametersInput, 
     Message,
     MessageChunk,
     MessageInput, 
@@ -31,12 +28,14 @@ from unifai.types import (
     Embeddings,
     Embedding,
 )
-from unifai.type_conversions import make_few_shot_prompt, standardize_eval_prameters, standardize_tools
+from unifai.type_conversions import make_few_shot_prompt, standardize_tools
 # from unifai.exceptions import EmbeddingDimensionsError
 
 from .chat import Chat
 from ..components.tool_caller import ToolCaller
-from ..components.rag_engine import RAGEngine, RAGSpec
+from .rag_engine import RAGEngine
+from .evaluator import AIEvaluator
+from .specs import RAGSpec, EvalSpec
 # from .chroma_emebedding import UnifAIChromaEmbeddingFunction, get_chroma_client
 from pathlib import Path
 
@@ -50,10 +49,10 @@ REQUIRED_BOUND_METHODS: dict[Provider, list[str]] = {
 }
 
 class UnifAIClient:
-    TOOLS: list[ToolInput] = []
+    EVAL_SPECS: list[EvalSpec|dict] = [] #  | dict[str, EvalSpec|dict] = []
+    RAG_SPECS: list[RAGSpec|dict] = [] # | dict[str, EvalSpec|dict] = []
+    TOOLS: list[Tool|dict] = [] # |dict[str, Tool|dict] = []
     TOOL_CALLABLES: dict[str, Callable] = {}
-    EVAL_PARAMETERS: list[EvaluateParametersInput] = []
-    RAG_SPECS: list[RAGSpec] = []
 
 
 
@@ -64,7 +63,7 @@ class UnifAIClient:
             provider_client_kwargs: Optional[dict[Provider, dict[str, Any]]] = None,
             tools: Optional[list[ToolInput]] = None,
             tool_callables: Optional[dict[str, Callable]] = None,
-            eval_prameters: Optional[list[EvaluateParametersInput]] = None,
+            eval_specs: Optional[list[EvalSpec|dict]] = None,
             rag_specs: Optional[list[RAGSpec]] = None,
             default_llm_provider: Optional[LLMProvider] = None,
             default_embedding_provider: Optional[EmbeddingProvider] = None,
@@ -81,12 +80,12 @@ class UnifAIClient:
         self._clients: dict[Provider, LLMClient|Embedder|VectorDBClient|Reranker] = {}
         self.tools: dict[str, Tool] = {}
         self.tool_callables: dict[str, Callable] = {}
-        self.eval_prameters: dict[str, EvalSpec] = {}
+        self.eval_specs: dict[str, EvalSpec] = {}
         self.rag_specs: dict[str, RAGSpec] = {}
         
         self.add_tools(tools or self.TOOLS)
         self.add_tool_callables(tool_callables)
-        self.add_eval_prameters(eval_prameters or self.EVAL_PARAMETERS)
+        self.add_eval_specs(eval_specs or self.EVAL_SPECS)
         self.add_rag_specs(rag_specs or self.RAG_SPECS)
         
 
@@ -157,12 +156,14 @@ class UnifAIClient:
         self.tool_callables.update(tool_callables)
 
 
-    def add_eval_prameters(self, eval_prameters: Optional[list[EvaluateParametersInput]]):
-        if not eval_prameters: return
-        self.eval_prameters.update(standardize_eval_prameters(eval_prameters))
+    def add_eval_specs(self, eval_specs: Optional[list[EvalSpec|dict]]):
+        if not eval_specs: return
+        
+
+        self.eval_specs.update({spec.name: spec for spec in eval_specs})
 
 
-    def add_rag_specs(self, rag_specs: Optional[list[RAGSpec]]):
+    def add_rag_specs(self, rag_specs: Optional[list[RAGSpec|dict]]):
         if not rag_specs: return
         self.rag_specs.update({spec.name: spec for spec in rag_specs})
 
@@ -267,35 +268,15 @@ class UnifAIClient:
             return ValueError(f"Invalid model_type: {model_type}. Must be one of: 'llm', 'embedding', 'rerank'")
 
 
+
+
+
+
+            
+
     # List Models
     def list_models(self, provider: Optional[LLMProvider] = None) -> list[str]:
         return self.get_llm_client(provider).list_models()
-
-
-    def make_tool_caller(
-            self,
-            tools: Optional[Sequence[ToolInput]] = None,
-            tool_callables: Optional[dict[str, Callable]] = None,
-            tool_caller_class_or_instance: Type[ToolCaller]|ToolCaller = ToolCaller,
-    ) -> ToolCaller:
-        tool_callables = {**self.tool_callables}
-        if tools:
-            for tool in tools:
-                if isinstance(tool, str):
-                    tool = self.tools.get(tool)
-
-                if isinstance(tool, Tool) and tool.callable:
-                    tool_callables[tool.name] = tool.callable
-
-        if tool_callables:
-            tool_callables.update(tool_callables)
-        
-        if isinstance(tool_caller_class_or_instance, ToolCaller):
-            tool_caller_class_or_instance.set_tool_callables(tool_callables)
-            return tool_caller_class_or_instance
-        
-        return tool_caller_class_or_instance(tool_callables=tool_callables)
-            
 
     def start_chat(
             self,
@@ -310,9 +291,9 @@ class UnifAIClient:
             tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
             enforce_tool_choice: bool = True,
             tool_choice_error_retries: int = 3,
-
             tool_callables: Optional[dict[str, Callable]] = None,
-            tool_caller_class_or_instance: Optional[Type[ToolCaller]] = ToolCaller,
+            tool_caller_class_or_instance: Optional[Type[ToolCaller]|ToolCaller] = ToolCaller,
+            tool_caller_kwargs: Optional[dict[str, Any]] = None,
 
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
@@ -326,7 +307,7 @@ class UnifAIClient:
     ) -> Chat:
 
         if tool_caller_class_or_instance:
-            tool_caller = self.make_tool_caller(tools, tool_callables, tool_caller_class_or_instance)
+            tool_caller = self.make_tool_caller(tools, tool_callables, tool_caller_class_or_instance, tool_caller_kwargs)
         else:
             tool_caller = None
 
@@ -371,11 +352,13 @@ class UnifAIClient:
             return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
             response_format: Optional[Union[str, dict[str, str]]] = None,
 
-            tools: Optional[Sequence[ToolInput]] = None,
-            tool_callables: Optional[dict[str, Callable]] = None,
+            tools: Optional[Sequence[ToolInput]] = None,            
             tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
             enforce_tool_choice: bool = True,
             tool_choice_error_retries: int = 3,
+            tool_callables: Optional[dict[str, Callable]] = None,
+            tool_caller_class_or_instance: Optional[Type[ToolCaller]|ToolCaller] = ToolCaller,
+            tool_caller_kwargs: Optional[dict[str, Any]] = None,
 
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
@@ -397,10 +380,12 @@ class UnifAIClient:
             response_format=response_format,
             
             tools=tools,
-            tool_callables=tool_callables,
             tool_choice=tool_choice,
             enforce_tool_choice=enforce_tool_choice,
             tool_choice_error_retries=tool_choice_error_retries,
+            tool_callables=tool_callables,
+            tool_caller_class_or_instance=tool_caller_class_or_instance,
+            tool_caller_kwargs=tool_caller_kwargs,
 
             max_tokens=max_tokens,
             frequency_penalty=frequency_penalty,
@@ -426,11 +411,13 @@ class UnifAIClient:
             return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
             response_format: Optional[Union[str, dict[str, str]]] = None,
 
-            tools: Optional[Sequence[ToolInput]] = None,
-            tool_callables: Optional[dict[str, Callable]] = None,
+            tools: Optional[Sequence[ToolInput]] = None,            
             tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
             enforce_tool_choice: bool = True,
             tool_choice_error_retries: int = 3,
+            tool_callables: Optional[dict[str, Callable]] = None,
+            tool_caller_class_or_instance: Optional[Type[ToolCaller]|ToolCaller] = ToolCaller,
+            tool_caller_kwargs: Optional[dict[str, Any]] = None,
 
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
@@ -453,10 +440,12 @@ class UnifAIClient:
             response_format=response_format,
             
             tools=tools,
-            tool_callables=tool_callables,
             tool_choice=tool_choice,
             enforce_tool_choice=enforce_tool_choice,
             tool_choice_error_retries=tool_choice_error_retries,
+            tool_callables=tool_callables,
+            tool_caller_class_or_instance=tool_caller_class_or_instance,
+            tool_caller_kwargs=tool_caller_kwargs,
 
             max_tokens=max_tokens,
             frequency_penalty=frequency_penalty,
@@ -472,62 +461,6 @@ class UnifAIClient:
             yield from chat.run_stream(**kwargs)
         return chat
     
-
-    def evaluate(self, 
-                 eval_type: str | EvalSpec, 
-                 content: Any, 
-                 provider: Optional[LLMProvider] = None,
-                 model: Optional[str] = None,
-                 **kwargs
-                 ) -> Any:
-        
-        # Get eval_parameters from eval_type
-        if isinstance(eval_type, str):
-            if (eval_parameters := self.eval_prameters.get(eval_type)) is None:
-                raise ValueError(f"Eval type '{eval_type}' not found in eval_prameters")
-        elif isinstance(eval_type, EvalSpec):
-            eval_parameters = eval_type
-        else:
-            raise ValueError(
-                f"Invalid eval_type: {eval_type}. Must be a string (eval_type of EvaluateParameters in self.EVAL_PARAMETERS) or an EvaluateParameters object")
-
-        # Determine return_on parameter from eval_parameters and tool_choice
-        if eval_parameters.return_on:
-            # Use the return_on parameter from eval_parameters if provided
-            return_on = eval_parameters.return_on
-        elif isinstance(eval_parameters.tool_choice, str):
-            # Use the tool_choice parameter from eval_parameters if its a string (single tool name)
-            return_on = eval_parameters.tool_choice
-        elif eval_parameters.tool_choice:
-            # Use the last tool choice if tool_choice is a non-empty sequence of tool names (tool_choice queue)
-            return_on = eval_parameters.tool_choice[-1]
-        else:
-            # Default to return on content if no return_on or tool_choice is provided
-            return_on = "content"
-
-        # Create input messages from system_prompt, few-shot examples, and content
-        input_messages = make_few_shot_prompt(
-            system_prompt=eval_parameters.system_prompt,
-            examples=eval_parameters.examples,
-            content=content
-        )
-
-        # Initialize and run chat
-        chat = self.chat(
-            messages=input_messages,
-            provider=provider,
-            model=model,
-            tools=eval_parameters.tools,
-            tool_choice=eval_parameters.tool_choice,
-            response_format=eval_parameters.response_format,
-            return_on=return_on,
-            **kwargs
-        )
-        
-        # Return the desired attribute of the chat object or the chat object itself based on eval_parameters.return_as
-        return getattr(chat, eval_parameters.return_as) if eval_parameters.return_as != "chat" else chat
-    
-
 
     def embed(
         self, 
@@ -563,6 +496,32 @@ class UnifAIClient:
         return self.get_embedding_client(provider).embed(
             input, model, dimensions, task_type, input_too_large, dimensions_too_large, task_type_not_supported, **kwargs)
 
+    def make_tool_caller(
+            self,
+            tools: Optional[Sequence[ToolInput]] = None,
+            tool_callables: Optional[dict[str, Callable]] = None,
+            tool_caller_class_or_instance: Type[ToolCaller]|ToolCaller = ToolCaller,
+            tool_caller_kwargs: Optional[dict[str, Any]] = None
+
+    ) -> ToolCaller:
+        tool_callables = {**self.tool_callables}
+        if tools:
+            for tool in tools:
+                if isinstance(tool, str):
+                    tool = self.tools.get(tool)
+
+                if isinstance(tool, Tool) and tool.callable:
+                    tool_callables[tool.name] = tool.callable
+
+        if tool_callables:
+            tool_callables.update(tool_callables)
+        
+        if isinstance(tool_caller_class_or_instance, ToolCaller):
+            tool_caller_class_or_instance.set_tool_callables(tool_callables)
+            return tool_caller_class_or_instance
+        
+        return tool_caller_class_or_instance(tool_callables=tool_callables, **(tool_caller_kwargs or {}))
+
 
     def get_rag_engine(
             self,
@@ -589,10 +548,9 @@ class UnifAIClient:
             raise ValueError(
                 f"Invalid rag_spec: {rag_spec}. Must be a RAGSpec object or a string (name of a RAGSpec in self.RAG_SPECS)")
         
-        if rag_spec.document_db_cls:
-            document_db = rag_spec.document_db_cls(**rag_spec.document_db_kwargs)
-        else:
-            document_db = None
+        if document_db := rag_spec.document_db_class_or_instance:
+            if isinstance(document_db, type):
+                document_db = document_db(**rag_spec.document_db_kwargs)
 
         index = self.get_or_create_index(
             name=rag_spec.index_name,
@@ -610,11 +568,25 @@ class UnifAIClient:
             reranker = None
         
         return RAGEngine(
-            rag_spec=rag_spec,
+            spec=rag_spec,
             retreiver=index,
             reranker=reranker
         )
+    
 
+    def get_evaluator(self, eval_spec: EvalSpec | str) -> AIEvaluator:
+        if isinstance(eval_spec, str):
+            if (spec := self.eval_specs.get(eval_spec)) is None:
+                raise ValueError(f"Eval spec '{eval_spec}' not found in eval_specs")
+            eval_spec = spec
+        if not isinstance(eval_spec, EvalSpec):
+            raise ValueError(
+                f"Invalid eval_spec: {eval_spec}. Must be a EvalSpec object or a string (name of a EvalSpec in self.EVAL_SPECS)")
+        return AIEvaluator(
+            spec=eval_spec, 
+            chat=self.start_chat(), 
+            rag_engine=self.get_rag_engine(eval_spec.rag_spec) if eval_spec.rag_spec else None
+        )
 
 
     def get_or_create_index(self, 
@@ -675,40 +647,7 @@ class UnifAIClient:
                 embeddings=embeddings
             )
     
-    @overload
-    def query_index(self, 
-                    name: str,
-                    query: str | Embedding,
-                    n_results: int = 10,
-                    where: Optional[dict] = None,
-                    where_document: Optional[dict] = None,
-                    include: list[Literal["metadatas", "documents", "distances"]] = ["metadatas", "documents", "distances"],
-                    vector_db_provider: Optional[VectorDBProvider] = None,                            
-                    embedding_provider: Optional[LLMProvider] = None,
-                    embedding_model: Optional[str] = None,
-                    dimensions: Optional[int] = None,
-                    distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 
-                    index_metadata: Optional[dict] = None                    
-              ) -> VectorDBQueryResult:      
-        ...
-
-    @overload
-    def query_index(self, 
-                    name: str,
-                    query: list[str] | list[Embedding] | Embeddings,
-                    n_results: int = 10,
-                    where: Optional[dict] = None,
-                    where_document: Optional[dict] = None,
-                    include: list[Literal["metadatas", "documents", "distances"]] = ["metadatas", "documents", "distances"],
-                    vector_db_provider: Optional[VectorDBProvider] = None,                            
-                    embedding_provider: Optional[LLMProvider] = None,
-                    embedding_model: Optional[str] = None,
-                    dimensions: Optional[int] = None,
-                    distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 
-                    index_metadata: Optional[dict] = None                    
-              ) -> list[VectorDBQueryResult]:  
-        ...        
-
+       
     def query_index(self, 
                     name: str,
                     query: str | list[str] | Embedding | list[Embedding] | Embeddings,
@@ -789,3 +728,58 @@ class UnifAIClient:
                        vector_db_provider: Optional[VectorDBProvider] = None,
                        ):
           return self.get_vector_db_client(vector_db_provider).delete_indexes(names)
+    
+
+    def evaluate(self, 
+                 eval_spec: str | EvalSpec, 
+                 *content: Any,
+                 provider: Optional[LLMProvider] = None,
+                 model: Optional[str] = None,
+                 **kwargs
+                 ) -> Any:
+        
+        # Get eval_parameters from eval_spec
+        if isinstance(eval_spec, str):
+            if (eval_parameters := self.eval_specs.get(eval_spec)) is None:
+                raise ValueError(f"Eval type '{eval_spec}' not found in eval_specs")
+        elif isinstance(eval_spec, EvalSpec):
+            eval_parameters = eval_spec
+        else:
+            raise ValueError(
+                f"Invalid eval_spec: {eval_spec}. Must be a string (eval_spec of EvalSpec in self.EVAL_SPECS) or an EvalSpec object")
+
+        # Determine return_on parameter from eval_parameters and tool_choice
+        if eval_parameters.return_on:
+            # Use the return_on parameter from eval_parameters if provided
+            return_on = eval_parameters.return_on
+        elif isinstance(eval_parameters.tool_choice, str):
+            # Use the tool_choice parameter from eval_parameters if its a string (single tool name)
+            return_on = eval_parameters.tool_choice
+        elif eval_parameters.tool_choice:
+            # Use the last tool choice if tool_choice is a non-empty sequence of tool names (tool_choice queue)
+            return_on = eval_parameters.tool_choice[-1]
+        else:
+            # Default to return on content if no return_on or tool_choice is provided
+            return_on = "content"
+
+        # Create input messages from system_prompt, few-shot examples, and content
+        input_messages = make_few_shot_prompt(
+            system_prompt=eval_parameters.system_prompt,
+            examples=eval_parameters.examples,
+            content=content
+        )
+
+        # Initialize and run chat
+        chat = self.chat(
+            messages=input_messages,
+            provider=provider,
+            model=model,
+            tools=eval_parameters.tools,
+            tool_choice=eval_parameters.tool_choice,
+            response_format=eval_parameters.response_format,
+            return_on=return_on,
+            **kwargs
+        )
+        
+        # Return the desired attribute of the chat object or the chat object itself based on eval_parameters.return_as
+        return getattr(chat, eval_parameters.return_as) if eval_parameters.return_as != "chat" else chat    

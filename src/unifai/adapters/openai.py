@@ -70,8 +70,8 @@ from unifai.exceptions import (
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings, EmbeddingTaskTypeInput
 from unifai.type_conversions import stringify_content
-from ._base_llm_client import LLMClient
-from ._base_embedder import Embedder
+from .._core._base_llm_client import LLMClient
+from .._core._base_embedder import Embedder
 
 class OpenAIAdapter(Embedder, LLMClient):
     provider = "openai"

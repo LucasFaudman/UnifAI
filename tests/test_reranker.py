@@ -2,8 +2,8 @@ import pytest
 from typing import Optional, Literal
 
 from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider, RerankProvider
-from unifai.adapters._base_vector_db_client import VectorDBClient, VectorDBIndex
-from unifai.adapters._base_reranker import Reranker
+from unifai._core._base_vector_db_client import VectorDBClient, VectorDBIndex
+from unifai._core._base_reranker import Reranker
 
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError

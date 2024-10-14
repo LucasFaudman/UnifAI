@@ -1,13 +1,13 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator, Iterable, Generator
 
-from ._base_adapter import BaseAdapter
+from ._base_adapter import UnifAIAdapter
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Usage, Embeddings, EmbeddingTaskTypeInput
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, EmbeddingDimensionsError
 
 T = TypeVar("T")
 
-class Embedder(BaseAdapter):
+class Embedder(UnifAIAdapter):
     provider = "base_embedding"
     default_embedding_model = "llama3.1:8b-instruct-q2_K"
 
@@ -58,7 +58,7 @@ class Embedder(BaseAdapter):
                 f"Or use 'raise_error' to handle truncation manually when the input is too large for {provider_title} {model}."
                 )                
 
-        # Add to kwargs for passing to both getter (all) and extractor (needed by some ie Google)
+        # Add to kwargs for passing to both getter (all) and extractor (needed by some ie Google, some Nvidia models)
         kwargs["input"] = [input] if isinstance(input, str) else input
         kwargs["model"] = (model := model or self.default_embedding_model)
         if dimensions is not None:

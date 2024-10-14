@@ -2,9 +2,9 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 
 from .._core._base_vector_db_index import VectorDBIndex
 from .._core._base_reranker import Reranker
-from ..types.rag_spec import RAGSpec, VectorDBQueryResult
+from ..types.vector_db import VectorDBQueryResult
 from ..components.prompt_template import PromptTemplate
-
+from .specs import RAGSpec
 
 class Retriever:
     def query(self, query_text: str, n_results: int, **kwargs) -> VectorDBQueryResult:
@@ -15,13 +15,13 @@ class RAGEngine:
 
     def __init__(
             self, 
-            rag_spec: RAGSpec,
+            spec: RAGSpec,
             retreiver: VectorDBIndex|Retriever,
             reranker: Optional[Reranker] = None,
         ):
         self.retreiver = retreiver
         self.reranker = reranker
-        self.rag_spec = rag_spec
+        self.spec = spec
 
 
     def retrieve(
@@ -33,10 +33,10 @@ class RAGEngine:
             **retreiver_kwargs
         ) -> VectorDBQueryResult:
 
-        n_results = top_k or self.rag_spec.top_k or self.rag_spec.top_n
-        where = where or self.rag_spec.where
-        where_document = where_document or self.rag_spec.where_document
-        retreiver_kwargs = {**self.rag_spec.retreiver_kwargs, **retreiver_kwargs}
+        n_results = top_k or self.spec.top_k or self.spec.top_n
+        where = where or self.spec.where
+        where_document = where_document or self.spec.where_document
+        retreiver_kwargs = {**self.spec.retreiver_kwargs, **retreiver_kwargs}
         return self.retreiver.query(
             query_text=query,
             n_results=n_results,
@@ -58,9 +58,9 @@ class RAGEngine:
             # No reranker just return query_result as is
             return query_result
         
-        model = model or self.rag_spec.rerank_model
-        top_n = top_n or self.rag_spec.top_n
-        reranker_kwargs = {**self.rag_spec.reranker_kwargs, **reranker_kwargs}
+        model = model or self.spec.rerank_model
+        top_n = top_n or self.spec.top_n
+        reranker_kwargs = {**self.spec.reranker_kwargs, **reranker_kwargs}
         return self.reranker.rerank(
             query=query,
             query_result=query_result,
@@ -90,8 +90,8 @@ class RAGEngine:
             **prompt_template_kwargs
             ) -> str:
         
-        prompt_template = prompt_template or self.rag_spec.prompt_template
-        prompt_template_kwargs = {**self.rag_spec.prompt_template_kwargs, **prompt_template_kwargs}
+        prompt_template = prompt_template or self.spec.prompt_template
+        prompt_template_kwargs = {**self.spec.prompt_template_kwargs, **prompt_template_kwargs}
         return prompt_template.format(query=query, query_result=query_result, **prompt_template_kwargs)
 
 

@@ -1,4 +1,3 @@
-from .eval_parameters import EvalSpec
 from .image import Image
 from .message import Message, MessageChunk
 from .embeddings import Embeddings, Embedding
@@ -27,7 +26,7 @@ from .valid_inputs import (
     RerankProvider,
     Provider,
     EmbeddingTaskTypeInput,
-    EvaluateParametersInput, 
+    # EvalSpecInput, 
     MessageInput, 
     ToolInput, 
     ToolChoiceInput, 
@@ -36,7 +35,6 @@ from .valid_inputs import (
 from .vector_db import VectorDBGetResult, VectorDBQueryResult
 
 __all__ = [
-    "EvalSpec", 
     "Image", 
     "Message", 
     "MessageChunk",
@@ -62,7 +60,7 @@ __all__ = [
     "RerankProvider",
     "Provider",
     "EmbeddingTaskTypeInput",
-    "EvaluateParametersInput",
+    # "EvalSpecInput",
     "MessageInput",
     "ToolInput",
     "ToolChoiceInput",

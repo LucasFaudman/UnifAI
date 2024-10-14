@@ -10,8 +10,8 @@ from unifai.types import (
     ToolCall,
     Usage,
 )
-from unifai.type_conversions import standardize_tools, standardize_messages, standardize_tool_choice, standardize_response_format
-from unifai.adapters._base_llm_client import LLMClient
+from unifai.type_conversions import standardize_tools, standardize_messages, standardize_message, standardize_tool_choice, standardize_response_format
+from unifai._core._base_llm_client import LLMClient
 from ..components.tool_caller import ToolCaller
 
 class Chat:
@@ -54,7 +54,7 @@ class Chat:
         self.provider = provider
         self.set_provider(provider)
         self.set_model(model)
-        self.set_system_prompt(system_prompt)
+        self.system_prompt = system_prompt
         self.set_messages(messages, system_prompt)
         
         self.return_on = return_on
@@ -77,7 +77,7 @@ class Chat:
         self.top_k = top_k
         self.top_p = top_p
 
-        self.rejected_messages = []
+        self.deleted_messages = []
         self.usage = Usage(input_tokens=0, output_tokens=0)
 
 
@@ -105,8 +105,9 @@ class Chat:
         return self
     
     def set_system_prompt(self, system_prompt: Optional[str]) -> Self:
-        self.system_prompt = system_prompt
-        return self    
+        if system_prompt != self.system_prompt:
+            self.set_messages(self.std_messages, system_prompt)
+        return self
     
     def set_messages(
             self, 
@@ -124,11 +125,28 @@ class Chat:
             self.std_messages, system_prompt or self.system_prompt)
         return self
     
+    def append_message(self, message: Union[Message, str, dict[str, Any]]) -> None:
+        std_message = standardize_message(message)
+        self.std_messages.append(std_message)
+        self.client_messages.append(self.client.prep_input_message(std_message))  
 
     def extend_messages(self, std_messages: Iterable[Message]) -> None:
         for std_message in std_messages:
             self.std_messages.append(std_message)
-            self.client_messages.append(self.client.prep_input_message(std_message))  
+            self.client_messages.append(self.client.prep_input_message(std_message))
+            
+
+    def clear_messages(self) -> Self:
+        self.deleted_messages.extend(self.std_messages)
+        self.std_messages = []
+        self.client_messages = []
+        return self
+    
+    def pop_message(self) -> Message:        
+        self.client_messages.pop()
+        std_message = self.std_messages.pop()
+        self.deleted_messages.append(std_message)
+        return std_message
 
     
     def set_tools(self, tools: Optional[Sequence[ToolInput]]) -> Self:
@@ -225,7 +243,7 @@ class Chat:
 
     def handle_tool_choice_not_obeyed(self, std_message: Message) -> None:
         self.tool_choice_error_retries -= 1
-        self.rejected_messages.append(std_message)
+        self.deleted_messages.append(std_message)
 
 
     def check_return_on_tool_call(self, tool_calls: list[ToolCall]) -> bool:
@@ -322,8 +340,6 @@ class Chat:
     
     def run_stream(self, **kwargs) -> Generator[MessageChunk, None, Self]:
         while True:
-            # print(f"{self.client_kwargs(stream=True, **kwargs)=}")
-            # print(f"{self.client_kwargs(kwargs)['tool_choice']=}")
             std_message, client_message = yield from self.client.chat_stream(
                **self.client_kwargs(override_kwargs=kwargs)
             )
@@ -369,15 +385,37 @@ class Chat:
 
         return self
 
+    # @property
+    # def chat(self) -> Self:
+    #     return self
 
-    def clear_messages(self) -> Self:
-        self.std_messages = []
-        self.client_messages = []
-        return self
-    
-    def pop_message(self) -> Message:        
-        self.client_messages.pop()
-        return self.std_messages.pop()
+    def copy(self, **kwargs) -> Self:
+        return self.__class__(
+        **{**dict(
+            get_client=self.get_client,
+            parent_tools=self.parent_tools,
+            provider=self.provider,
+            messages=self.std_messages.copy(),
+            model=self.model,
+            system_prompt=self.system_prompt,
+            return_on=self.return_on,
+            response_format=self.std_response_format,
+            tools=self.std_tools,
+            tool_choice=self.std_tool_choice,
+            tool_caller=self.tool_caller,
+            enforce_tool_choice=self.enforce_tool_choice,
+            tool_choice_error_retries=self.tool_choice_error_retries,
+            max_tokens=self.max_tokens,
+            frequency_penalty=self.frequency_penalty,
+            presence_penalty=self.presence_penalty,
+            seed=self.seed,
+            stop_sequences=self.stop_sequences,
+            temperature=self.temperature,
+            top_k=self.top_k,
+            top_p=self.top_p,
+            ),
+            **kwargs
+        })
 
     @property
     def messages(self) -> list[Message]:

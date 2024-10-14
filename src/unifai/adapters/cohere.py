@@ -1,9 +1,9 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_adapter import BaseAdapter, UnifAIExceptionConverter
-from ._base_embedder import Embedder, EmbeddingTaskTypeInput
-from ._base_llm_client import LLMClient
-from ._base_reranker import Reranker
+from .._core._base_adapter import UnifAIAdapter, UnifAIComponent
+from .._core._base_embedder import Embedder, EmbeddingTaskTypeInput
+from .._core._base_llm_client import LLMClient
+from .._core._base_reranker import Reranker
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, EmbeddingDimensionsError

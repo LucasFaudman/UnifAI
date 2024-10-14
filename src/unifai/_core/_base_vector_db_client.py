@@ -1,9 +1,9 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_adapter import BaseAdapter
+from ._base_adapter import UnifAIAdapter
 from ._base_vector_db_index import VectorDBIndex, DocumentDB
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, EmbeddingProvider, Usage, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, BadRequestError, NotFoundError
 
 
@@ -25,7 +25,7 @@ class VectorDBCompatibleEmbeddingFunction:
     def __init__(
             self,
             embed: Callable[..., Embeddings],
-            embedding_provider: Optional[str] = None,
+            embedding_provider: Optional[EmbeddingProvider] = None,
             model: Optional[str] = None,
             dimensions: Optional[int] = None,
             response_infos: Optional[list[ResponseInfo]] = None,
@@ -58,12 +58,12 @@ class VectorDBCompatibleEmbeddingFunction:
         return embed_result.list()
     
 
-class VectorDBClient(BaseAdapter):
+class VectorDBClient(UnifAIAdapter):
     provider = "base_vector_db"
 
     def __init__(self, 
                  embed: Callable[..., Embeddings],
-                 default_embedding_provider: Optional[LLMProvider] = None,
+                 default_embedding_provider: EmbeddingProvider,
                  default_embedding_model: Optional[str] = None,
                  default_dimensions: int = 1536,
                  default_distance_metric: Literal["cosine", "euclidean", "dotproduct"] = "cosine",
@@ -85,7 +85,7 @@ class VectorDBClient(BaseAdapter):
 
 
     def get_embedding_function(self,
-                               embedding_provider: Optional[str] = None,
+                               embedding_provider: Optional[EmbeddingProvider] = None,
                                embedding_model: Optional[str] = None,
                                dimensions: Optional[int] = None,
                                response_infos: Optional[list[ResponseInfo]] = None,
@@ -101,7 +101,7 @@ class VectorDBClient(BaseAdapter):
 
     def create_index(self, 
                      name: str,
-                     embedding_provider: Optional[LLMProvider] = None,
+                     embedding_provider: Optional[EmbeddingProvider] = None,
                      embedding_model: Optional[str] = None,
                      dimensions: Optional[int] = None,
                      distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -114,7 +114,7 @@ class VectorDBClient(BaseAdapter):
 
     def get_index(self, 
                   name: str,
-                  embedding_provider: Optional[LLMProvider] = None,
+                  embedding_provider: Optional[EmbeddingProvider] = None,
                   embedding_model: Optional[str] = None,
                   dimensions: Optional[int] = None,
                   distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -126,7 +126,7 @@ class VectorDBClient(BaseAdapter):
 
     def get_or_create_index(self, 
                             name: str,
-                            embedding_provider: Optional[LLMProvider] = None,
+                            embedding_provider: Optional[EmbeddingProvider] = None,
                             embedding_model: Optional[str] = None,
                             dimensions: Optional[int] = None,
                             distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,

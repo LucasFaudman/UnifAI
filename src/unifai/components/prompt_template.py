@@ -90,10 +90,13 @@ class PromptTemplate(BaseModel):
         resolved_value_formatters = {**self.value_formatters} if self.value_formatters else {}
         if value_formatters:
             resolved_value_formatters.update(value_formatters)
-
+        
+        global_formatter = resolved_value_formatters.get("*")
         for key, value in resolved_kwargs.items():       
             if formatter := resolved_value_formatters.get(key) or resolved_value_formatters.get(type(value)):
                 resolved_kwargs[key] = formatter(value)
+            elif global_formatter:
+                resolved_kwargs[key] = global_formatter(value)
         return resolved_kwargs
     
 
@@ -112,3 +115,7 @@ class PromptTemplate(BaseModel):
         resolved_kwargs = self.resolve_kwargs(nested_kwargs, **kwargs)
         resolved_kwargs = self.format_values(resolved_kwargs, value_formatters)
         return template_str.format(**resolved_kwargs)
+    
+
+    def __str__(self):
+        return self.format()

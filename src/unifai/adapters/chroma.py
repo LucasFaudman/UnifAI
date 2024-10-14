@@ -1,10 +1,10 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_vector_db_client import VectorDBIndex, VectorDBClient, DocumentDB
+from .._core._base_vector_db_client import VectorDBIndex, VectorDBClient, DocumentDB
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, BadRequestError
-from unifai.adapters._base_adapter import UnifAIExceptionConverter, convert_exceptions
+from unifai._core._base_adapter import UnifAIComponent, convert_exceptions
 
 # import chromadb
 from chromadb import Client as ChromaDefaultClient, PersistentClient as ChromaPersistentClient
@@ -23,7 +23,7 @@ from chromadb.errors import ChromaError
 from itertools import zip_longest
 
  
-class ChromaExceptionConverter(UnifAIExceptionConverter):
+class ChromaExceptionConverter(UnifAIComponent):
     def convert_exception(self, exception: ChromaError) -> UnifAIError:
         status_code=exception.code()
         unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)

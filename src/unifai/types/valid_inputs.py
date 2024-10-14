@@ -1,5 +1,5 @@
 from typing import Any, Literal, Union, Sequence
-from .eval_parameters import EvalSpec
+# from .specs import EvalSpec
 from .message import Message
 from .tool import Tool
 
@@ -32,7 +32,7 @@ ToolChoiceInput = Union[Literal["auto", "required", "none"], Tool, str, dict, Se
 ResponseFormatInput = Union[Literal["text", "json", "json_schema"], dict[Literal["type"], Literal["text", "json", "json_schema"]]]
 
 # Valid input types that can be converted to a EvaluateParameters object
-EvaluateParametersInput = Union[EvalSpec, dict[str, Any]]
+# EvalSpecInput = Union[EvalSpec, dict[str, Any]]
 
 # Valid task types for embeddings. Used to determine what the embeddings are used for to improve the quality of the embeddings
 EmbeddingTaskTypeInput = Literal[

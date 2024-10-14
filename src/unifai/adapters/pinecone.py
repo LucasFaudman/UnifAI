@@ -1,10 +1,10 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_vector_db_client import VectorDBIndex, VectorDBClient, DocumentDB
+from .._core._base_vector_db_client import VectorDBIndex, VectorDBClient, DocumentDB
 
-from unifai.types import ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
+from unifai.types import ResponseInfo, Embedding, Embeddings, Usage, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, BadRequestError
-from unifai.adapters._base_adapter import UnifAIExceptionConverter, convert_exceptions
+from unifai._core._base_adapter import UnifAIComponent, convert_exceptions
 
 from pinecone.grpc import PineconeGRPC as Pinecone, GRPCIndex  
 from pinecone import ServerlessSpec, PodSpec, Index
@@ -38,7 +38,7 @@ def add_default_namespace(kwargs: dict) -> dict:
         kwargs["namespace"] = ""
     return kwargs
  
-class PineconeExceptionConverter(UnifAIExceptionConverter):
+class PineconeExceptionConverter(UnifAIComponent):
     def convert_exception(self, exception: PineconeException) -> UnifAIError:
         if not isinstance(exception, PineconeApiException):
             return UnifAIError(
@@ -86,7 +86,7 @@ class PineconeIndex(VectorDBIndex, PineconeExceptionConverter):
     def modify(self, 
                new_name: Optional[str]=None, 
                new_metadata: Optional[dict]=None,
-               embedding_provider: Optional[LLMProvider] = None,
+               embedding_provider: Optional[EmbeddingProvider] = None,
                embedding_model: Optional[str] = None,
                dimensions: Optional[int] = None,
                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,               
@@ -359,12 +359,12 @@ class PineconeClient(VectorDBClient, PineconeExceptionConverter):
     @convert_exceptions                           
     def create_index(self, 
                      name: str,
-                     metadata: Optional[dict] = None,
-                     embedding_provider: Optional[LLMProvider] = None,
+                     embedding_provider: Optional[EmbeddingProvider] = None,
                      embedding_model: Optional[str] = None,
                      dimensions: Optional[int] = None,
                      distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
                      document_db: Optional[DocumentDB] = None,         
+                     metadata: Optional[dict] = None,
                      **kwargs
                      ) -> PineconeIndex:
         
@@ -372,9 +372,11 @@ class PineconeClient(VectorDBClient, PineconeExceptionConverter):
         embedding_model = embedding_model or self.default_embedding_model
         dimensions = dimensions or self.default_dimensions
         distance_metric = distance_metric or self.default_distance_metric
+        document_db = document_db or self.default_document_db
+        
 
-        if metadata is None:
-            metadata = {}
+        # if metadata is None:
+        #     metadata = {}
         # if "_unifai_embedding_config" not in metadata:
         #     metadata["_unifai_embedding_config"] = ",".join((
         #         str(embedding_provider),
@@ -414,13 +416,13 @@ class PineconeClient(VectorDBClient, PineconeExceptionConverter):
         index = PineconeIndex(
             wrapped=pinecone_index,
             name=name,
-            metadata=metadata,
             embedding_function=embedding_function,
             embedding_provider=embedding_provider,
             embedding_model=embedding_model,
             dimensions=dimensions,
             distance_metric=distance_metric,
             document_db=document_db,
+            metadata=metadata,
             **index_kwargs
         )
         self.indexes[name] = index
@@ -430,7 +432,7 @@ class PineconeClient(VectorDBClient, PineconeExceptionConverter):
     @convert_exceptions
     def get_index(self, 
                   name: str,
-                  embedding_provider: Optional[LLMProvider] = None,
+                  embedding_provider: Optional[EmbeddingProvider] = None,
                   embedding_model: Optional[str] = None,
                   dimensions: Optional[int] = None,
                   distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
@@ -440,6 +442,12 @@ class PineconeClient(VectorDBClient, PineconeExceptionConverter):
         if index := self.indexes.get(name):
             return index
         
+        embedding_provider = embedding_provider or self.default_embedding_provider
+        embedding_model = embedding_model or self.default_embedding_model
+        dimensions = dimensions or self.default_dimensions
+        distance_metric = distance_metric or self.default_distance_metric
+        document_db = document_db or self.default_document_db
+
         index_kwargs = {**self.default_index_kwargs, **kwargs}
         pinecone_index = self.client.Index(name=name)
         
