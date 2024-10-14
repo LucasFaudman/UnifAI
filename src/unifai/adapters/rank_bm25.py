@@ -39,6 +39,7 @@ class RankBM25Adapter(Reranker):
     
 
     def tokenize(self, text: str) -> list[str]:
+        # TODO - Add support for custom tokenization
         return text.split()
 
     

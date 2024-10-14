@@ -21,8 +21,10 @@ def standardize_message(message: MessageInput) -> Message:
         return Message(**message)
     raise ValueError(f"Invalid message type: {type(message)}")
 
+
 def standardize_messages(messages: Sequence[MessageInput]) -> list[Message]:
     return [standardize_message(message) for message in messages]
+
 
 def standardize_tool(tool: ToolInput, tool_dict: Optional[dict[str, Tool]] = None) -> Tool:
     if isinstance(tool, dict):
@@ -36,24 +38,10 @@ def standardize_tool(tool: ToolInput, tool_dict: Optional[dict[str, Tool]] = Non
         return tool_from_func(tool)
     elif is_not_tool:
         raise ValueError(f"Invalid tool type: {type(tool)}") 
-    
+
+
 def standardize_tools(tools: Sequence[ToolInput], tool_dict: Optional[dict[str, Tool]] = None) -> dict[str, Tool]:
     return {tool.name: tool for tool in (standardize_tool(tool, tool_dict) for tool in tools)}
-    # std_tools = {}
-    # for tool in tools:            
-    #     if isinstance(tool, dict):
-    #         tool = tool_from_dict(tool)                        
-    #     elif isinstance(tool, str):
-    #         if tool_dict and (std_tool := tool_dict.get(tool)):
-    #             tool = std_tool
-    #         else:
-    #             raise ValueError(f"Tool '{tool}' not found in tools")
-    #     elif (is_not_tool := not isinstance(tool, Tool)) and callable(tool):
-    #         tool = tool_from_func(tool)
-    #     elif is_not_tool:
-    #         raise ValueError(f"Invalid tool type: {type(tool)}")       
-    #     std_tools[tool.name] = tool    
-    # return std_tools
 
 
 def standardize_tool_choice(tool_choice: ToolChoiceInput) -> str|list[str]:
@@ -85,7 +73,7 @@ def standardize_response_format(response_format: ResponseFormatInput) -> str:
 
 
 def standardize_specs(
-        specs: list[type|dict], 
+        specs: list[T|dict], 
         spec_type: Type[T],
         key_attr: str = 'name'
         ) -> dict[str, T]:
@@ -98,40 +86,3 @@ def standardize_specs(
         else:
             raise ValueError(f"Invalid spec type: {type(spec)} must be {spec_type} or dict that can be converted to {spec_type}")
     return std_specs
-
-# def standardize_rag_specs(rag_specs: list[RAGSpec|dict]):
-#     std_rag_specs = {}
-#     for rag_spec in rag_specs:
-#         if isinstance(rag_spec, RAGSpec):
-#             std_rag_specs[rag_spec.spec_name] = rag_spec
-#         elif isinstance(rag_spec, dict):
-#             std_rag_specs[rag_spec['spec_name']] = RAGSpec(**rag_spec)
-#         else:
-#             raise ValueError(f"Invalid rag_spec type: {type(rag_spec)}")
-#     return std_rag_specs
-
-
-# def standardize_eval_specs(eval_specs: list[EvalSpec|dict]):
-#     std_eval_specs = {}
-#     for eval_spec in eval_specs:
-#         if isinstance(eval_spec, EvalSpec):
-#             std_eval_specs[eval_spec.spec_name] = eval_spec
-#         elif isinstance(eval_spec, dict):
-#             std_eval_specs[eval_spec['spec_name']] = EvalSpec(**eval_spec)
-#         else:
-#             raise ValueError(f"Invalid eval_spec type: {type(eval_spec)}")
-#     return std_eval_specs
-
-
-
-
-# def standardize_eval_prameters(eval_types: Sequence[EvalSpecInput]) -> dict[str, EvalSpec]:
-#     std_eval_types = {}
-#     for eval_type in eval_types:
-#         if isinstance(eval_type, EvalSpec):
-#             std_eval_types[eval_type.eval_type] = eval_type
-#         elif isinstance(eval_type, dict):
-#             std_eval_types[eval_type['eval_type']] = EvalSpec(**eval_type)
-#         else:
-#             raise ValueError(f"Invalid eval_type type: {type(eval_type)}")
-#     return std_eval_types

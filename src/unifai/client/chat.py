@@ -18,19 +18,16 @@ class Chat:
 
     def __init__(
             self, 
-
             get_client: Callable[[LLMProvider], LLMClient],
             parent_tools: dict[str, Tool],
-
-
             provider: LLMProvider,    
-            messages: Sequence[MessageInput],                         
+            
+            messages: Optional[Sequence[MessageInput]]=None,                         
             model: Optional[str] = None,
             system_prompt: Optional[str] = None,
 
             return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
             response_format: Optional[Union[Literal["text", "json", "json_schema"], dict[Literal["type"], Literal["text", "json", "json_schema"]]]] = None,
-
 
             tools: Optional[Sequence[ToolInput]] = None,
             tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,                 
@@ -55,7 +52,7 @@ class Chat:
         self.set_provider(provider)
         self.set_model(model)
         self.system_prompt = system_prompt
-        self.set_messages(messages, system_prompt)
+        self.set_messages(messages if messages is not None else [], system_prompt)
         
         self.return_on = return_on
         self.set_response_format(response_format)
@@ -290,6 +287,7 @@ class Chat:
                     **override_kwargs
             )
     
+
     def run(self, **kwargs) -> Self:
         while True:
             std_message, client_message = self.client.chat(

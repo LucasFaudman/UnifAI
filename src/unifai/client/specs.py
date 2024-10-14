@@ -10,7 +10,7 @@ from ..components import PromptTemplate, ToolCaller, DocumentDB
 
 class Spec(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    spec_name: str = "default_spec"
+    name: str = "default_spec"
 
     def with_spec(self, **kwargs):
         return self.model_copy(update=kwargs)
@@ -29,7 +29,7 @@ DEFAULT_RAG_PROMPT_TEMPLATE = PromptTemplate(
 )       
 
 class RAGSpec(Spec):
-    spec_name: str = "default_rag_spec"
+    name: str = "default_rag_spec"
     index_name: str = "default_index"
 
 
@@ -70,7 +70,7 @@ class RAGSpec(Spec):
         
 
 
-class EvalSpec(Spec):
+class FuncSpec(Spec):
     name: str = "default_eval_spec"
     provider: Optional[LLMProvider] = None           
     model: Optional[str] = None
@@ -83,9 +83,9 @@ class EvalSpec(Spec):
     system_prompt_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     examples: Optional[list[Union[Message, dict[Literal["input", "response"], Any]]]] = None   
-    response_format: Optional[Union[str, dict[str, str]]] = None
+    response_format: Optional[Literal["text", "json", "json_schema"]] = None
     return_on: Union[Literal["content", "tool_call", "message"], str, list[str|Tool]] = "content"
-    return_as: Literal["chat", 
+    return_as: Literal["self", 
                        "messages", 
                        "last_message", 
                        "last_content",
@@ -93,7 +93,7 @@ class EvalSpec(Spec):
                        "last_tool_call_args",
                        "last_tool_calls", 
                        "last_tool_calls_args"
-                       ] = "chat"
+                       ] = "self"
     reset_on_return: bool = False
     output_parser: Optional[Callable|Type[BaseModel]|BaseModel] = None
     output_parser_kwargs: dict[str, Any] = Field(default_factory=dict)
@@ -119,5 +119,5 @@ class EvalSpec(Spec):
 
 
 
-eval_spec = EvalSpec()
+eval_spec = FuncSpec()
 rag_spec = RAGSpec()

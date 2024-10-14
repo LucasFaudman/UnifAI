@@ -2,7 +2,7 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 
 from .._core._base_vector_db_index import VectorDBIndex
 from .._core._base_reranker import Reranker
-from ..client.specs import RAGSpec, EvalSpec
+from ..client.specs import RAGSpec, FuncSpec
 from ..components.prompt_template import PromptTemplate
 
 

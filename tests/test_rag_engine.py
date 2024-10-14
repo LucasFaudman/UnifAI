@@ -60,7 +60,7 @@ def test_rag_engine_simple(
     ]
     query = "Explain how Natural language processing techniques enhance keyword extraction efficiency."
 
-    vector_db = ai.get_vector_db_client(vector_db_provider)
+    vector_db = ai.get_vector_db(vector_db_provider)
     vector_db.delete_all_indexes() # Clear any existing indexes before testing in case previous tests failed to clean up
 
     if vector_db_provider == 'pinecone':

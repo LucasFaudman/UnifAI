@@ -1,8 +1,8 @@
 import pytest
 from unifai import UnifAIClient, LLMProvider
 from unifai.types import Message, Tool
-from unifai.client.specs import EvalSpec
-from basetest import base_test_llms_all
+from unifai.client.specs import FuncSpec
+from basetest import base_test_llms_all, PROVIDER_DEFAULTS
 
 from pydantic import BaseModel
 
@@ -31,8 +31,8 @@ TOOLS = {
 }
 
 
-EVAL_SPECS = [
-    EvalSpec(
+AI_FUNCS = [
+    FuncSpec(
         name="urlEval",
         system_prompt=
         "You review URLs and HTML text to flag elements that may contain spam, misinformation, or other malicious items. "
@@ -45,9 +45,9 @@ EVAL_SPECS = [
 ]
 
 @base_test_llms_all
-@pytest.mark.parametrize("tools, tool_callables, eval_specs, eval_name, content", [
-    ([TOOLS["return_flagged_and_reason"]], None, EVAL_SPECS, "urlEval", {"url": "https://google.com", "link_text": "Google"}),
-    ([TOOLS["return_flagged_and_reason"]], None, EVAL_SPECS, "urlEval", {"url": "https://g00gle.com", "link_text": "Google"}),
+@pytest.mark.parametrize("tools, tool_callables, func_specs, eval_name, content", [
+    ([TOOLS["return_flagged_and_reason"]], None, AI_FUNCS, "urlEval", {"url": "https://google.com", "link_text": "Google"}),
+    ([TOOLS["return_flagged_and_reason"]], None, AI_FUNCS, "urlEval", {"url": "https://g00gle.com", "link_text": "Google"}),
 ])
 def test_evaluate_simple(
     provider: LLMProvider, 
@@ -55,7 +55,7 @@ def test_evaluate_simple(
     func_kwargs: dict,
     tools: list,
     tool_callables: dict,
-    eval_specs: list,
+    func_specs: list,
     eval_name: str,
     content: str
     ):
@@ -64,7 +64,7 @@ def test_evaluate_simple(
         provider_client_kwargs={provider: client_kwargs},
         tools=tools,
         tool_callables=tool_callables,
-        eval_specs=eval_specs
+        func_specs=func_specs
     )
     ai.init_client(provider, **client_kwargs)
 
@@ -85,8 +85,8 @@ class FlaggedReason(BaseModel):
     def print_reason(self):
         print(f"Flagged: {self.flagged}\nReason: {self.reason}")
 
-BASE_MODEL_EVAL_SPECS = [
-    EvalSpec(
+BASE_MODEL_AI_FUNCS = [
+    FuncSpec(
         name="urlEval-BaseModel",
         system_prompt=
         "You review URLs and HTML text to flag elements that may contain spam, misinformation, or other malicious items. "
@@ -105,9 +105,9 @@ BASE_MODEL_EVAL_SPECS = [
 
 
 @base_test_llms_all
-@pytest.mark.parametrize("tools, tool_callables, eval_specs, eval_name, content, flagged", [
-    ([TOOLS["return_flagged_and_reason"]], None, BASE_MODEL_EVAL_SPECS, "urlEval", {"url": "https://google.com", "link_text": "Google"}, False),
-    ([TOOLS["return_flagged_and_reason"]], None, BASE_MODEL_EVAL_SPECS, "urlEval", {"url": "https://g00gle.com", "link_text": "Google"}, True),
+@pytest.mark.parametrize("tools, tool_callables, func_specs, eval_name, content, flagged", [
+    ([TOOLS["return_flagged_and_reason"]], None, BASE_MODEL_AI_FUNCS, "urlEval", {"url": "https://google.com", "link_text": "Google"}, False),
+    ([TOOLS["return_flagged_and_reason"]], None, BASE_MODEL_AI_FUNCS, "urlEval", {"url": "https://g00gle.com", "link_text": "Google"}, True),
 ])
 def test_evalutate_base_model(
     provider: LLMProvider, 
@@ -115,19 +115,23 @@ def test_evalutate_base_model(
     func_kwargs: dict,
     tools: list,
     tool_callables: dict,
-    eval_specs: list,
+    func_specs: list,
     eval_name: str,
     content: dict,
     flagged: bool
     ):
 
     ai = UnifAIClient(
-        provider_client_kwargs={provider: client_kwargs},
+        provider_client_kwargs={
+            provider: client_kwargs,
+            "openai": PROVIDER_DEFAULTS["openai"][1]
+            },
         tools=tools,
         tool_callables=tool_callables,
-        eval_specs=eval_specs
+        func_specs=func_specs
     )
-    response = ai.get_evaluator("urlEval-BaseModel").with_spec(provider="openai")(url=content["url"], link_text=content["link_text"])
+    url_eval = ai.get_function("urlEval-BaseModel")
+    response = url_eval(url=content["url"], link_text=content["link_text"])
     assert response.flagged == flagged
     assert response.reason if flagged else not response.reason
     assert isinstance(response, FlaggedReason)

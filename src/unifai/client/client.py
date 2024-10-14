@@ -1,7 +1,6 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator
 from typing import overload
 
-from unifai._core._base_adapter import UnifAIAdapter
 from unifai._core._base_llm_client import LLMClient
 from unifai._core._base_embedder import Embedder
 from unifai._core._base_reranker import Reranker
@@ -28,16 +27,15 @@ from unifai.types import (
     Embeddings,
     Embedding,
 )
-from unifai.type_conversions import make_few_shot_prompt, standardize_tools
-# from unifai.exceptions import EmbeddingDimensionsError
 
-from .chat import Chat
+from unifai.type_conversions import standardize_tools, standardize_specs
+
 from ..components.tool_caller import ToolCaller
+from .chat import Chat
 from .rag_engine import RAGEngine
-from .evaluator import AIEvaluator
-from .specs import RAGSpec, EvalSpec
-# from .chroma_emebedding import UnifAIChromaEmbeddingFunction, get_chroma_client
-from pathlib import Path
+from .ai_func import AIFunction
+from .specs import RAGSpec, FuncSpec
+
 
 LLM_PROVIDERS: frozenset[LLMProvider] = frozenset(("anthropic", "google", "openai", "ollama", "nvidia"))
 EMBEDDING_PROVIDERS: frozenset[EmbeddingProvider] = frozenset(("google", "openai", "ollama", "cohere", "nvidia"))
@@ -49,21 +47,17 @@ REQUIRED_BOUND_METHODS: dict[Provider, list[str]] = {
 }
 
 class UnifAIClient:
-    EVAL_SPECS: list[EvalSpec|dict] = [] #  | dict[str, EvalSpec|dict] = []
+    FUNC_SPECS: list[FuncSpec|dict] = [] #  | dict[str, EvalSpec|dict] = []
     RAG_SPECS: list[RAGSpec|dict] = [] # | dict[str, EvalSpec|dict] = []
     TOOLS: list[Tool|dict] = [] # |dict[str, Tool|dict] = []
     TOOL_CALLABLES: dict[str, Callable] = {}
-
-
-
-
     
     def __init__(
             self, 
             provider_client_kwargs: Optional[dict[Provider, dict[str, Any]]] = None,
             tools: Optional[list[ToolInput]] = None,
             tool_callables: Optional[dict[str, Callable]] = None,
-            eval_specs: Optional[list[EvalSpec|dict]] = None,
+            func_specs: Optional[list[FuncSpec|dict]] = None,
             rag_specs: Optional[list[RAGSpec]] = None,
             default_llm_provider: Optional[LLMProvider] = None,
             default_embedding_provider: Optional[EmbeddingProvider] = None,
@@ -80,12 +74,12 @@ class UnifAIClient:
         self._clients: dict[Provider, LLMClient|Embedder|VectorDBClient|Reranker] = {}
         self.tools: dict[str, Tool] = {}
         self.tool_callables: dict[str, Callable] = {}
-        self.eval_specs: dict[str, EvalSpec] = {}
+        self.func_specs: dict[str, FuncSpec] = {}
         self.rag_specs: dict[str, RAGSpec] = {}
         
         self.add_tools(tools or self.TOOLS)
-        self.add_tool_callables(tool_callables)
-        self.add_eval_specs(eval_specs or self.EVAL_SPECS)
+        self.add_tool_callables(tool_callables or self.TOOL_CALLABLES)
+        self.add_func_specs(func_specs or self.FUNC_SPECS)
         self.add_rag_specs(rag_specs or self.RAG_SPECS)
         
 
@@ -156,16 +150,14 @@ class UnifAIClient:
         self.tool_callables.update(tool_callables)
 
 
-    def add_eval_specs(self, eval_specs: Optional[list[EvalSpec|dict]]):
-        if not eval_specs: return
-        
-
-        self.eval_specs.update({spec.name: spec for spec in eval_specs})
+    def add_func_specs(self, func_specs: Optional[list[FuncSpec|dict]]):
+        if func_specs:
+            self.func_specs.update(standardize_specs(func_specs, FuncSpec))
 
 
     def add_rag_specs(self, rag_specs: Optional[list[RAGSpec|dict]]):
-        if not rag_specs: return
-        self.rag_specs.update({spec.name: spec for spec in rag_specs})
+        if rag_specs:
+            self.rag_specs.update(standardize_specs(rag_specs, RAGSpec))
 
 
     def import_adapter(self, provider: Provider) -> Type[LLMClient|Embedder|VectorDBClient|Reranker]:
@@ -210,13 +202,19 @@ class UnifAIClient:
             
     
     def init_client(self, provider: Provider, **client_kwargs) -> LLMClient|Embedder|VectorDBClient|Reranker:
-        client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
+        if (registered_kwargs := self.provider_client_kwargs.get(provider)) is not None:
+            client_kwargs = {**registered_kwargs, **client_kwargs}
+        else:
+            self.provider_client_kwargs[provider] = client_kwargs
+            client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
+           
         if required_bound_methods := REQUIRED_BOUND_METHODS.get(provider):
             for method in required_bound_methods:
                 if method not in client_kwargs:
                     client_kwargs[method] = getattr(self, method)
         self._clients[provider] = self.import_adapter(provider)(**client_kwargs)
-        return self._clients[provider]    
+        return self._clients[provider]  
+
 
     @overload
     def get_client(self, provider: LLMProvider, **client_kwargs) -> LLMClient:
@@ -240,44 +238,44 @@ class UnifAIClient:
             return self.init_client(provider, **client_kwargs)
         return self._clients[provider]
 
+
     def get_llm_client(self, provider: Optional[LLMProvider] = None, **client_kwargs) -> LLMClient:
         provider = provider or self.default_llm_provider
         return self.get_client(provider, **client_kwargs)
-    
-    def get_embedding_client(self, provider: Optional[EmbeddingProvider] = None, **client_kwargs) -> Embedder:
+
+
+    def get_embedder(self, provider: Optional[EmbeddingProvider] = None, **client_kwargs) -> Embedder:
         provider = provider or self.default_embedding_provider
         return self.get_client(provider, **client_kwargs)
 
-    def get_vector_db_client(self, provider: Optional[VectorDBProvider] = None, **client_kwargs) -> VectorDBClient:
-        provider = provider or self.default_vector_db_provider
-        return self.get_client(provider, **client_kwargs)
-    
-    def get_rerank_client(self, provider: Optional[RerankProvider] = None, **client_kwargs) -> Reranker:
+
+    def get_reranker(self, provider: Optional[RerankProvider] = None, **client_kwargs) -> Reranker:
         provider = provider or self.default_rerank_provider
         return self.get_client(provider, **client_kwargs)
-    
+
+
+    def get_vector_db(self, provider: Optional[VectorDBProvider] = None, **client_kwargs) -> VectorDBClient:
+        provider = provider or self.default_vector_db_provider
+        return self.get_client(provider, **client_kwargs)
+
 
     def get_default_model(self, provider: Provider, model_type: Literal["llm", "embedding", "rerank"]) -> str:        
         if model_type == "llm":
             return self.get_llm_client(provider).default_model
         elif model_type == "embedding":
-            return self.get_embedding_client(provider).default_embedding_model
+            return self.get_embedder(provider).default_embedding_model
         elif model_type == "rerank":
-            return self.get_rerank_client(provider).default_reranking_model
+            return self.get_reranker(provider).default_reranking_model
         else:
             return ValueError(f"Invalid model_type: {model_type}. Must be one of: 'llm', 'embedding', 'rerank'")
 
 
 
-
-
-
-            
-
     # List Models
     def list_models(self, provider: Optional[LLMProvider] = None) -> list[str]:
         return self.get_llm_client(provider).list_models()
-
+    
+    # Chat
     def start_chat(
             self,
             messages: Optional[Sequence[MessageInput]] = None,
@@ -307,7 +305,7 @@ class UnifAIClient:
     ) -> Chat:
 
         if tool_caller_class_or_instance:
-            tool_caller = self.make_tool_caller(tools, tool_callables, tool_caller_class_or_instance, tool_caller_kwargs)
+            tool_caller = self.get_tool_caller(tools, tool_callables, tool_caller_class_or_instance, tool_caller_kwargs)
         else:
             tool_caller = None
 
@@ -493,101 +491,11 @@ class UnifAIClient:
         **kwargs
               ) -> Embeddings:
         
-        return self.get_embedding_client(provider).embed(
+        return self.get_embedder(provider).embed(
             input, model, dimensions, task_type, input_too_large, dimensions_too_large, task_type_not_supported, **kwargs)
 
-    def make_tool_caller(
-            self,
-            tools: Optional[Sequence[ToolInput]] = None,
-            tool_callables: Optional[dict[str, Callable]] = None,
-            tool_caller_class_or_instance: Type[ToolCaller]|ToolCaller = ToolCaller,
-            tool_caller_kwargs: Optional[dict[str, Any]] = None
 
-    ) -> ToolCaller:
-        tool_callables = {**self.tool_callables}
-        if tools:
-            for tool in tools:
-                if isinstance(tool, str):
-                    tool = self.tools.get(tool)
-
-                if isinstance(tool, Tool) and tool.callable:
-                    tool_callables[tool.name] = tool.callable
-
-        if tool_callables:
-            tool_callables.update(tool_callables)
-        
-        if isinstance(tool_caller_class_or_instance, ToolCaller):
-            tool_caller_class_or_instance.set_tool_callables(tool_callables)
-            return tool_caller_class_or_instance
-        
-        return tool_caller_class_or_instance(tool_callables=tool_callables, **(tool_caller_kwargs or {}))
-
-
-    def get_rag_engine(
-            self,
-            rag_spec: RAGSpec | str,
-            # index_name: str,
-            # vector_db_provider: Optional[VectorDBProvider] = None,                            
-            # embedding_provider: Optional[LLMProvider] = None,
-            # embedding_model: Optional[str] = None,
-            # embedding_dimensions: Optional[int] = None,
-            # embedding_distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
-            # docloader: Optional[Callable[[list[str]],list[str]]] = None,
-            # rerank_provider: Optional[RerankProvider] = None,
-            # rerank_model: Optional[str] = None,
-            # retreiver_kwargs: Optional[dict] = None,
-            # reranker_kwargs: Optional[dict] = None,    
-            # prompt_template_kwargs: Optional[dict] = None,                       
-
-    ) -> RAGEngine:
-        if isinstance(rag_spec, str):
-            if (spec := self.rag_specs.get(rag_spec)) is None:
-                raise ValueError(f"RAG spec '{rag_spec}' not found in rag_specs")
-            rag_spec = spec
-        if not isinstance(rag_spec, RAGSpec):
-            raise ValueError(
-                f"Invalid rag_spec: {rag_spec}. Must be a RAGSpec object or a string (name of a RAGSpec in self.RAG_SPECS)")
-        
-        if document_db := rag_spec.document_db_class_or_instance:
-            if isinstance(document_db, type):
-                document_db = document_db(**rag_spec.document_db_kwargs)
-
-        index = self.get_or_create_index(
-            name=rag_spec.index_name,
-            vector_db_provider=rag_spec.vector_db_provider,
-            embedding_provider=rag_spec.embedding_provider,
-            embedding_model=rag_spec.embedding_model,
-            dimensions=rag_spec.embedding_dimensions,
-            distance_metric=rag_spec.embedding_distance_metric,
-            document_db=document_db
-        )
-
-        if rag_spec.rerank_provider:
-            reranker = self.get_rerank_client(rag_spec.rerank_provider)
-        else:
-            reranker = None
-        
-        return RAGEngine(
-            spec=rag_spec,
-            retreiver=index,
-            reranker=reranker
-        )
     
-
-    def get_evaluator(self, eval_spec: EvalSpec | str) -> AIEvaluator:
-        if isinstance(eval_spec, str):
-            if (spec := self.eval_specs.get(eval_spec)) is None:
-                raise ValueError(f"Eval spec '{eval_spec}' not found in eval_specs")
-            eval_spec = spec
-        if not isinstance(eval_spec, EvalSpec):
-            raise ValueError(
-                f"Invalid eval_spec: {eval_spec}. Must be a EvalSpec object or a string (name of a EvalSpec in self.EVAL_SPECS)")
-        return AIEvaluator(
-            spec=eval_spec, 
-            chat=self.start_chat(), 
-            rag_engine=self.get_rag_engine(eval_spec.rag_spec) if eval_spec.rag_spec else None
-        )
-
 
     def get_or_create_index(self, 
                             name: str,
@@ -599,7 +507,7 @@ class UnifAIClient:
                             index_metadata: Optional[dict] = None,
                             **kwargs
                             ) -> VectorDBIndex:
-        return self.get_vector_db_client(vector_db_provider).get_or_create_index(
+        return self.get_vector_db(vector_db_provider).get_or_create_index(
             name=name,
             embedding_provider=embedding_provider,
             embedding_model=embedding_model,
@@ -720,66 +628,136 @@ class UnifAIClient:
                      name: str,
                      vector_db_provider: Optional[VectorDBProvider] = None,
                      ):
-        return self.get_vector_db_client(vector_db_provider).delete_index(name)
+        return self.get_vector_db(vector_db_provider).delete_index(name)
     
     
     def delete_indexes(self,
                        names: list[str],
                        vector_db_provider: Optional[VectorDBProvider] = None,
                        ):
-          return self.get_vector_db_client(vector_db_provider).delete_indexes(names)
+          return self.get_vector_db(vector_db_provider).delete_indexes(names)
     
 
-    def evaluate(self, 
-                 eval_spec: str | EvalSpec, 
-                 *content: Any,
-                 provider: Optional[LLMProvider] = None,
-                 model: Optional[str] = None,
-                 **kwargs
-                 ) -> Any:
+    def get_tool_caller(
+            self,
+            tool_caller_class_or_instance: Type[ToolCaller]|ToolCaller = ToolCaller,
+            tools: Optional[Sequence[ToolInput]] = None,
+            tool_callables: Optional[dict[str, Callable]] = None,
+            tool_caller_kwargs: Optional[dict[str, Any]] = None
+
+    ) -> ToolCaller:
+        tool_callables = {**self.tool_callables}
+        if tools:
+            for tool in tools:
+                if isinstance(tool, str):
+                    tool = self.tools.get(tool)
+
+                if isinstance(tool, Tool) and tool.callable:
+                    tool_callables[tool.name] = tool.callable
+
+        if tool_callables:
+            tool_callables.update(tool_callables)
         
-        # Get eval_parameters from eval_spec
-        if isinstance(eval_spec, str):
-            if (eval_parameters := self.eval_specs.get(eval_spec)) is None:
-                raise ValueError(f"Eval type '{eval_spec}' not found in eval_specs")
-        elif isinstance(eval_spec, EvalSpec):
-            eval_parameters = eval_spec
+        if isinstance(tool_caller_class_or_instance, ToolCaller):
+            tool_caller_class_or_instance.set_tool_callables(tool_callables)
+            return tool_caller_class_or_instance
+        
+        return tool_caller_class_or_instance(tool_callables=tool_callables, **(tool_caller_kwargs or {}))
+
+
+    def get_rag_engine(
+            self,
+            spec_or_name: RAGSpec | str,
+            **kwargs
+    ) -> RAGEngine:
+        if isinstance(spec_or_name, str):
+            if (rag_spec := self.rag_specs.get(spec_or_name)) is None:
+                raise ValueError(f"RAG spec '{spec_or_name}' not found in self.rag_specs")
+        elif isinstance(spec_or_name, RAGSpec):
+            rag_spec = spec_or_name
+        elif spec_or_name is None:
+            rag_spec = RAGSpec(**kwargs)
         else:
             raise ValueError(
-                f"Invalid eval_spec: {eval_spec}. Must be a string (eval_spec of EvalSpec in self.EVAL_SPECS) or an EvalSpec object")
-
-        # Determine return_on parameter from eval_parameters and tool_choice
-        if eval_parameters.return_on:
-            # Use the return_on parameter from eval_parameters if provided
-            return_on = eval_parameters.return_on
-        elif isinstance(eval_parameters.tool_choice, str):
-            # Use the tool_choice parameter from eval_parameters if its a string (single tool name)
-            return_on = eval_parameters.tool_choice
-        elif eval_parameters.tool_choice:
-            # Use the last tool choice if tool_choice is a non-empty sequence of tool names (tool_choice queue)
-            return_on = eval_parameters.tool_choice[-1]
-        else:
-            # Default to return on content if no return_on or tool_choice is provided
-            return_on = "content"
-
-        # Create input messages from system_prompt, few-shot examples, and content
-        input_messages = make_few_shot_prompt(
-            system_prompt=eval_parameters.system_prompt,
-            examples=eval_parameters.examples,
-            content=content
-        )
-
-        # Initialize and run chat
-        chat = self.chat(
-            messages=input_messages,
-            provider=provider,
-            model=model,
-            tools=eval_parameters.tools,
-            tool_choice=eval_parameters.tool_choice,
-            response_format=eval_parameters.response_format,
-            return_on=return_on,
-            **kwargs
-        )
+                f"Invalid rag_spec: {spec_or_name}. Must be a RAGSpec object or a string (name of a RAGSpec in self.rag_specs)")
         
-        # Return the desired attribute of the chat object or the chat object itself based on eval_parameters.return_as
-        return getattr(chat, eval_parameters.return_as) if eval_parameters.return_as != "chat" else chat    
+        if document_db := rag_spec.document_db_class_or_instance:
+            if isinstance(document_db, type):
+                document_db = document_db(**rag_spec.document_db_kwargs)
+
+        index = self.get_or_create_index(
+            name=rag_spec.index_name,
+            vector_db_provider=rag_spec.vector_db_provider,
+            embedding_provider=rag_spec.embedding_provider,
+            embedding_model=rag_spec.embedding_model,
+            dimensions=rag_spec.embedding_dimensions,
+            distance_metric=rag_spec.embedding_distance_metric,
+            document_db=document_db
+        )
+
+        if rag_spec.rerank_provider:
+            reranker = self.get_reranker(rag_spec.rerank_provider)
+        else:
+            reranker = None
+        
+        return RAGEngine(
+            spec=rag_spec,
+            retreiver=index,
+            reranker=reranker
+        )  
+    
+
+    def get_function(
+            self, 
+            spec_or_name: Optional[FuncSpec|str] = None,
+            **kwargs
+            ) -> AIFunction:
+        
+        
+        if isinstance(spec_or_name, str):
+            if (spec := self.func_specs.get(spec_or_name)) is None:
+                raise ValueError(f"Function spec '{spec_or_name}' not found in self.func_specs")
+        elif isinstance(spec_or_name, FuncSpec):
+            spec = spec_or_name.model_copy(update=kwargs)
+        elif spec_or_name is None:
+            spec = FuncSpec(**kwargs)
+        else:
+            raise ValueError(
+                f"Invalid spec: {spec_or_name}. Must be a EvalSpec object or a string (name of a EvalSpec in self.FUNC_SPECS)")
+        
+        if not spec.provider:
+            spec.provider = self.default_llm_provider
+
+        # # Determine return_on parameter from eval_parameters and tool_choice
+        # if eval_parameters.return_on:
+        #     # Use the return_on parameter from eval_parameters if provided
+        #     return_on = eval_parameters.return_on
+        # elif isinstance(eval_parameters.tool_choice, str):
+        #     # Use the tool_choice parameter from eval_parameters if its a string (single tool name)
+        #     return_on = eval_parameters.tool_choice
+        # elif eval_parameters.tool_choice:
+        #     # Use the last tool choice if tool_choice is a non-empty sequence of tool names (tool_choice queue)
+        #     return_on = eval_parameters.tool_choice[-1]
+        # else:
+        #     # Default to return on content if no return_on or tool_choice is provided
+        #     return_on = "content"
+
+
+        if spec.tool_caller_class_or_instance:
+            tool_caller = self.get_tool_caller(
+                spec.tools, 
+                spec.tool_callables, 
+                spec.tool_caller_class_or_instance, 
+                spec.tool_caller_kwargs
+            )
+        else:
+            tool_caller = None
+
+        return AIFunction(
+            spec=spec, 
+            rag_engine=self.get_rag_engine(spec.rag_spec) if spec.rag_spec else None,
+            get_client=self.get_llm_client,
+            parent_tools=self.tools,
+            tool_caller=tool_caller,
+            provider=spec.provider,
+        ) 

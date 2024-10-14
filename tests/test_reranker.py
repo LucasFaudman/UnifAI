@@ -62,7 +62,7 @@ def test_rerank_simple(
     #     embedding_provider="openai",
     #     embedding_model="text-embedding-3-large",
     # )
-    vector_db = ai.get_vector_db_client("chroma")
+    vector_db = ai.get_vector_db("chroma")
     vector_db.delete_all_indexes() # Clear any existing indexes before testing in case previous tests failed to clean up
 
     index = vector_db.get_or_create_index(

@@ -54,5 +54,5 @@ def test_init_vector_db_clients(provider, client_kwargs):
     assert client
     assert ai._clients[provider] is client
     assert ai.get_client(provider) is client
-    assert ai.get_vector_db_client() is client 
-    assert ai.get_vector_db_client(provider) is client   
+    assert ai.get_vector_db() is client 
+    assert ai.get_vector_db(provider) is client   

@@ -1,5 +1,4 @@
 from typing import Any, Literal, Union, Sequence
-# from .specs import EvalSpec
 from .message import Message
 from .tool import Tool
 
