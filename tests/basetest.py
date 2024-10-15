@@ -77,9 +77,9 @@ PROVIDER_DEFAULTS = {
 }
 
 LLM_PROVIDER_DEFAULTS = [
-    # PROVIDER_DEFAULTS["anthropic"],
-    # PROVIDER_DEFAULTS["google"],
-    # PROVIDER_DEFAULTS["openai"],
+    PROVIDER_DEFAULTS["anthropic"],
+    PROVIDER_DEFAULTS["google"],
+    PROVIDER_DEFAULTS["openai"],
     # PROVIDER_DEFAULTS["ollama"],
     # PROVIDER_DEFAULTS["cohere"],
     PROVIDER_DEFAULTS["nvidia"]

@@ -43,7 +43,7 @@ class FlaggedReason(BaseModel):
 
 BASE_MODEL_AI_FUNCS = [
     FuncSpec(
-        name="urlEval-BaseModel",
+        name="urlEval",
         system_prompt=
         "You review URLs and HTML text to flag elements that may contain spam, misinformation, or other malicious items. "
         "You check the associated URLS for signs of typosquatting or spoofing. "
@@ -57,11 +57,11 @@ BASE_MODEL_AI_FUNCS = [
     ),
 ]
 
-@base_test_llms_all
 @pytest.mark.parametrize("tools, tool_callables, func_specs, eval_name, content, flagged", [
     ([TOOLS["return_flagged_and_reason"]], None, BASE_MODEL_AI_FUNCS, "urlEval", {"url": "https://google.com", "link_text": "Google"}, False),
     ([TOOLS["return_flagged_and_reason"]], None, BASE_MODEL_AI_FUNCS, "urlEval", {"url": "https://g00gle.com", "link_text": "Google"}, True),
 ])
+@base_test_llms_all
 def test_evalutate_flagged_reason(
     provider: LLMProvider, 
     client_kwargs: dict, 
@@ -77,13 +77,17 @@ def test_evalutate_flagged_reason(
     ai = UnifAIClient(
         provider_client_kwargs={
             provider: client_kwargs,
-            "openai": PROVIDER_DEFAULTS["openai"][1]
+            "openai": PROVIDER_DEFAULTS["openai"][1],
+            "anthropic": PROVIDER_DEFAULTS["anthropic"][1],
+            "google": PROVIDER_DEFAULTS["google"][1],
+            "nvidia": PROVIDER_DEFAULTS["nvidia"][1],
+            "ollama": PROVIDER_DEFAULTS["ollama"][1],
             },
         tools=tools,
         tool_callables=tool_callables,
         func_specs=func_specs
     )
-    url_eval = ai.get_function("urlEval-BaseModel")
+    url_eval = ai.get_function("urlEval")
     response = url_eval(url=content["url"], link_text=content["link_text"])
     assert response.flagged == flagged
     assert response.reason if flagged else not response.reason
@@ -283,10 +287,10 @@ contacts_input2 = """
 </html>
 """
 
-@base_test_llms_all
 @pytest.mark.parametrize("tools, func_spec, content", [
     ([return_contacts_list], extract_contacts_spec, contacts_input_1),
 ])
+@base_test_llms_all
 def test_evalutate_contacts(
     provider: LLMProvider, 
     client_kwargs: dict, 

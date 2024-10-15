@@ -19,15 +19,15 @@ from unifai.types import (
     Tool,
     PROVIDER_TOOLS
 )
-
+from unifai.client.specs import FuncSpec
 from basetest import base_test_llms_all
 
 from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
-from typing import Literal, get_args, get_origin, Any, Optional, Union, TypeVar, TypeAlias, Sequence, Mapping, List, Annotated, Union
+from typing import Literal, get_args, get_origin, Any, Optional, Union, TypeVar, TypeAlias, Sequence, Collection, Mapping, List, Annotated, Union
 
-from unifai.type_conversions.tool_from_pydantic import tool_from_pydantic_model, tool_parameter_from_pydantic, get_field_and_item_origin
-ai = UnifAIClient()
+from unifai.type_conversions.tool_from_pydantic import tool_from_pydantic_model, tool_parameter_from_pydantic_model, unpack_annotation
+
 
 class Contact(BaseModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
@@ -76,10 +76,7 @@ class Address(BaseModel):
 
 class User(BaseModel):
     model_config = ConfigDict(use_attribute_docstrings=True)
-    
-    favorite_num_or_word: int|str = 1
-    """The user's favorite number or word."""
-    
+        
     name: str
     """The user's full name."""
     
@@ -181,6 +178,8 @@ ListBoolAlias = list[bool]|bytes
 ListSubModelAlias = list[SubModel]|bytes
 
 class ModelWithAllAnnoCombos(BaseModel):
+    model_config = ConfigDict(use_attribute_docstrings=True)
+
     string: str
     integer: int
     number: float
@@ -276,19 +275,126 @@ class ModelWithAllAnnoCombos(BaseModel):
     list_list_enum_string: list[list[StringEnum]]
     op_list_list_enum_string: Optional[list[list[StringEnum]]]
 
-@pytest.mark.parametrize("model", [User, Address, Contact, ModelWithAllDescriptions, ModelWithAllAnnoCombos])
-def test_tool_from_base_model(model):
-    param = tool_parameter_from_pydantic(model)
-    assert isinstance(param, ObjectToolParameter)
-    print(param)
-    return_tool = tool_from_pydantic_model(model)
-    assert isinstance(return_tool, Tool)
-    print(return_tool)
+
+class ModelSequenceCollections(BaseModel):
+    model_config = ConfigDict(use_attribute_docstrings=True)
+    seq_str: Sequence[str]
+    seq_int: Sequence[int]
+    seq_float: Sequence[float]
+    seq_submodel: Sequence[SubModel]
+
+    op_seq_str: Optional[Sequence[str]]
+    op_seq_int: Optional[Sequence[int]]
+    op_seq_float: Optional[Sequence[float]]
+    op_seq_submodel: Optional[Sequence[SubModel]]
+    
+    seq_op_str: Sequence[Optional[str]]
+    seq_op_int: Sequence[Optional[int]]
+    seq_op_float: Sequence[Optional[float]]
+    seq_op_submodel: Sequence[Optional[SubModel]]
+
+    seq_seq_str: Sequence[Sequence[str]]
+    seq_seq_int: Sequence[Sequence[int]]
+    seq_seq_float: Sequence[Sequence[float]]
+    seq_seq_submodel: Sequence[Sequence[SubModel]]
+
+    op_seq_seq_str: Optional[Sequence[Sequence[str]]]
+    op_seq_seq_int: Optional[Sequence[Sequence[int]]]
+    op_seq_seq_float: Optional[Sequence[Sequence[float]]]
+    op_seq_seq_submodel: Optional[Sequence[Sequence[SubModel]]]
 
 
+    seq_literal_str: Sequence[Literal["a", "b", "c"]]
+    seq_literal_int: Sequence[Literal[1, 2, 3]]
+    seq_literal_bool: Sequence[Literal[True, False]]
 
     
+    seq_op_seq_literal_str: Sequence[Optional[Sequence[Literal["a", "b", "c"]]]]
+    seq_op_seq_literal_int: Sequence[Optional[Sequence[Literal[1, 2, 3]]]]
+    seq_op_seq_literal_bool: Sequence[Optional[Sequence[Literal[True, False]]]]
+    
 
+    seq_op_seq_literal_str: Sequence[Optional[Sequence[Literal["a", "b", "c"]]]]
+    """Sequence of optional sequences of literal string field"""
+
+    # list_string: list[str]
+    # list_int: list[int]
+    # list_float: list[float]
+    # list_bool: list[bool]
+    # list_submodel: list[SubModel]
+    # list_list_string: list[list[str]]
+    # list_list_int: list[list[int]]
+    # list_list_float: list[list[float]]
+    # list_list_bool: list[list[bool]]
+    # list_list_submodel: list[list[SubModel]]
+    # list_list_list_string: list[list[list[str]]]
+    # list_list_list_int: list[list[list[int]]]
+    # list_list_list_float: list[list[list[float]]]
+    # list_list_list_bool: list[list[list[bool]]]
+    # list_list_list_submodel: list[list[list[SubModel]]]
+    # list_list_list_list_string: list[list[list[list[str]]]]
+    # list_list_list_list_int: list[list[list[list[int]]]]
+    # list_list_list_list_float: list[list[list[list[float]]]]
+    # list_list_list_list_bool: list[list[list[list[bool]]]]
+    # list_list_list_list_submodel: list[list[list[list[SubModel]]]
+
+    # list_string_alias: ListStringAlias
+    # list_int_alias: ListIntAlias
+    # list_float_alias: ListFloatAlias
+    # list_bool_alias: ListBoolAlias
+    # list_submodel_alias: ListSubModelAlias
+    # list_list_string_alias: list[ListStringAlias]
+    # list_list_int_alias: list[ListIntAlias]
+    # list_list_float_alias: list[ListFloatAlias]
+    # list_list_bool_alias: list[ListBoolAlias]
+    # list_list_submodel_alias: list[ListSubModelAlias]
+    # list_list_list_string_alias: list[list[ListStringAlias]]
+    # list_list_list_int_alias: list[list[ListIntAlias]]
+    # list_list_list_float_alias: list[list[ListFloatAlias]]
+    # list_list_list_bool_alias: list[list[ListBoolAlias]]
+    # list_list_list_submodel_alias: list[list[ListSubModelAlias]]
+
+@base_test_llms_all
+@pytest.mark.parametrize("bmodel", [
+    User, 
+    Address, 
+    Contact, 
+    ModelWithAllDescriptions, 
+    ModelWithAllAnnoCombos,
+    ModelSequenceCollections
+])
+def test_tool_from_base_model(
+    provider: LLMProvider,
+    client_kwargs: dict,
+    func_kwargs: dict,    
+    bmodel: type[BaseModel],
+    ):
+    param = tool_parameter_from_pydantic_model(bmodel)
+    assert isinstance(param, ObjectToolParameter)
+    print(param)
+    return_tool = tool_from_pydantic_model(bmodel)
+    assert isinstance(return_tool, Tool)
+    print(return_tool)
+    model_fields = dict(bmodel.model_fields.items())
+    assert len(return_tool.parameters.properties) == len(model_fields)
+    assert all(param.name in model_fields for param in return_tool.parameters.properties)
+    param_names = [param.name for param in return_tool.parameters.properties]
+    assert all(field_name in param_names for field_name in model_fields)
+
+    ai = UnifAIClient({provider: client_kwargs})    
+    get_model = ai.get_function(
+        FuncSpec(
+            tools=[return_tool],
+            tool_choice=return_tool,
+            return_on='message', 
+            output_parser=bmodel
+        ))
+
+    model = get_model("Fill out the model to test the tool input types.")
+    assert model
+    assert isinstance(model, bmodel)
+    assert isinstance(model, BaseModel)
+    print(model)
 
 # for field_name, field_info in ModelWithAllAnnoCombos.model_fields.items():
 #     # print(field_name, field_info)

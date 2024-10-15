@@ -101,20 +101,41 @@ def parse_docstring_and_annotations(
     assert isinstance(parameters, ObjectToolParameter)
     return description, parameters
 
-    
-def tool_from_func(func: Callable) -> Tool:
-    tool_name = func.__name__
-    tool_description, tool_parameters = parse_docstring_and_annotations(
+
+def tool_from_func(
+        func: Callable,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        type: str = "function",
+        strict: bool = True,
+    ) -> Tool:
+    docstring_description, parameters = parse_docstring_and_annotations(
         docstring=func.__doc__ or "",
         annotations=func.__annotations__
         )
-
     return Tool(
-        name=tool_name,
-        description=tool_description,
-        parameters=tool_parameters,
+        name=name or func.__name__,
+        description=description or docstring_description,
+        parameters=parameters,
+        type=type,
+        strict=strict,
         callable=func
     )
 
-# alias for tool_from_func so functions can be decorated with @tool or @tool_from_func
-tool = tool_from_func
+
+# def tool_from_func(func: Callable) -> Tool:
+#     name = func.__name__
+#     description, parameters = parse_docstring_and_annotations(
+#         docstring=func.__doc__ or "",
+#         annotations=func.__annotations__
+#         )
+
+#     return Tool(
+#         name=name,
+#         description=description,
+#         parameters=parameters,
+#         callable=func
+#     )
+
+# # alias for tool_from_func so functions can be decorated with @tool or @tool_from_func
+# tool = tool_from_func

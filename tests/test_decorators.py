@@ -18,7 +18,9 @@ from unifai.types import (
 
 from basetest import base_test_llms_all
 
-from unifai.type_conversions.tool_from_func import parse_docstring_and_annotations, tool
+from unifai.type_conversions.tool_from_func import parse_docstring_and_annotations
+from unifai.type_conversions import tool
+from pydantic import BaseModel
 
 ai = UnifAIClient()
 
@@ -364,7 +366,8 @@ def test_decorators_get_current_weather():
 
 def test_decorators_calculator():
     # Test with type annotations in func signature NOT matching the docstring
-    @tool
+    
+    @tool()
     def calculator(operation: str, left_val: float, right_val: float) -> float:
         """Perform a basic arithmetic operation on two numbers.
         Args:
@@ -412,3 +415,68 @@ def test_decorators_calculator():
             )
         ]
     )
+
+def test_decorators_base_model():
+
+    @tool
+    class Customer(BaseModel):
+        """A customer object"""
+        name: str
+        age: int
+        email: str
+        phone: str
+        address: str
+
+    assert type(Customer) == Tool
+    assert Customer.name == "return_Customer"
+    assert Customer.description == "A customer object"
+    assert Customer.parameters == ObjectToolParameter(
+        type="object",
+        properties=[
+            StringToolParameter(name="name", required=True),
+            IntegerToolParameter(name="age", required=True),
+            StringToolParameter(name="email", required=True),
+            StringToolParameter(name="phone", required=True),
+            StringToolParameter(name="address", required=True),
+        ]
+    )
+    customer = Customer(name="John Doe", age=30, email="1", phone="2", address="3")
+    assert customer.name == "John Doe"
+    assert customer.age == 30
+    assert customer.email == "1"
+    assert customer.phone == "2"
+    assert customer.address == "3"
+    
+
+    @tool(name="create_customer", description="Create a new customer")
+    class Customer2(BaseModel):
+        """A customer object"""
+        name: str
+        age: int
+        email: str
+        phone: str
+        address: str
+
+    assert type(Customer2) == Tool
+    assert Customer2.name == "create_customer"
+    assert Customer2.description == "Create a new customer"
+    assert Customer2.parameters == ObjectToolParameter(
+        type="object",
+        properties=[
+            StringToolParameter(name="name", required=True),
+            IntegerToolParameter(name="age", required=True),
+            StringToolParameter(name="email", required=True),
+            StringToolParameter(name="phone", required=True),
+            StringToolParameter(name="address", required=True),
+        ]
+    )
+
+    customer2 = Customer2(name="John Doe", age=30, email="1", phone="2", address="3")
+    assert customer2.name == "John Doe"
+    assert customer2.age == 30
+    assert customer2.email == "1"
+    assert customer2.phone == "2"
+    assert customer2.address == "3"
+
+    assert Customer2 != Customer
+    assert customer2 != customer
