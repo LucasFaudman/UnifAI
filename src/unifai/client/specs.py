@@ -32,30 +32,27 @@ class RAGSpec(Spec):
     name: str = "default_rag_spec"
     index_name: str = "default_index"
 
-
+    vector_db_provider: Optional[VectorDBProvider] = None
+    retreiver_kwargs: dict[str, Any] = Field(default_factory=dict)
+    
     embedding_provider: Optional[EmbeddingProvider] = None
     embedding_model: Optional[str] = None
     embedding_dimensions: Optional[int] = None
     embedding_distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None
     
-    vector_db_provider: Optional[VectorDBProvider] = None
-    retreiver_kwargs: dict[str, Any] = Field(default_factory=dict)
-    # vector_db_query_kwargs: dict[str, Any] = Field(default_factory=dict)
-
     rerank_provider: Optional[RerankProvider] = None
     rerank_model: Optional[str] = None
     reranker_kwargs: dict[str, Any] = Field(default_factory=dict)
-    # rerank_kwargs: dict[str, Any] = Field(default_factory=dict)
 
-    top_n: int = 5
-    top_k: Optional[int] = 10
+    top_n: int = 10
+    top_k: Optional[int] = 30
     where: Optional[dict] = None
     where_document: Optional[dict] = None
     document_db_class_or_instance: Optional[Type[DocumentDB]|DocumentDB] = None
     document_db_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     prompt_template: PromptTemplate = PromptTemplate(
-    "{prompt_header}{query}{sep}{result_header}{query_result}{response_start}",
+        "{prompt_header}{query}{sep}{result_header}{query_result}{response_start}",
         value_formatters={
             VectorDBQueryResult: 
             lambda result: "\n".join(f"DOCUMENT: {id}\n{doc}" for id, doc in result.zip("ids", "documents"))
@@ -77,14 +74,14 @@ class FuncSpec(Spec):
 
     prompt_template: PromptTemplate|str = PromptTemplate("{content}", value_formatters={Message: lambda m: m.content})
     prompt_template_kwargs: dict[str, Any] = Field(default_factory=dict)
-    rag_spec: Optional[RAGSpec] = None
+    rag_spec: Optional[RAGSpec|str] = None
     
     system_prompt: Optional[str|PromptTemplate|Callable[...,str]] = None
     system_prompt_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     examples: Optional[list[Union[Message, dict[Literal["input", "response"], Any]]]] = None   
     response_format: Optional[Literal["text", "json", "json_schema"]] = None
-    return_on: Union[Literal["content", "tool_call", "message"], str, list[str|Tool]] = "content"
+    return_on: Union[Literal["content", "tool_call", "message"], str, Tool, list[str|Tool]] = "content"
     return_as: Literal["self", 
                        "messages", 
                        "last_message", 
@@ -106,6 +103,7 @@ class FuncSpec(Spec):
     tool_caller_class_or_instance: Optional[Type[ToolCaller]|ToolCaller] = ToolCaller
     tool_caller_kwargs: dict[str, Any] = Field(default_factory=dict)
 
+    max_messages_per_run: int = 10
     max_tokens: Optional[int] = None
     frequency_penalty: Optional[float] = None
     presence_penalty: Optional[float] = None
@@ -118,6 +116,9 @@ class FuncSpec(Spec):
     error_handlers: Optional[Mapping[Type[Exception], Callable[..., Any]]] = None
 
 
+class AgentSpec(Spec):
+    name: str = "default_agent_spec"
+    ai_functions: list[FuncSpec|str] = Field(default_factory=list)
 
 eval_spec = FuncSpec()
 rag_spec = RAGSpec()

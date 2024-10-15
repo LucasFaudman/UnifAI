@@ -27,7 +27,9 @@ def standardize_messages(messages: Sequence[MessageInput]) -> list[Message]:
 
 
 def standardize_tool(tool: ToolInput, tool_dict: Optional[dict[str, Tool]] = None) -> Tool:
-    if isinstance(tool, dict):
+    if isinstance(tool, Tool):
+        return tool
+    elif isinstance(tool, dict):
         return tool_from_dict(tool)                        
     elif isinstance(tool, str):
         if tool_dict and (std_tool := tool_dict.get(tool)):

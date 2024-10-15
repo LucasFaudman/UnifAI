@@ -7,9 +7,9 @@ from ..components.prompt_template import PromptTemplate
 from ..components.output_parser import pydantic_parse
 from ..exceptions import UnifAIError
 from ..types import Message, MessageChunk
-from ..type_conversions import make_few_shot_prompt, stringify_content
-from pydantic import BaseModel
+from ..type_conversions import stringify_content
 
+from pydantic import BaseModel
 
 class AIFunction(Chat):
     def __init__(
@@ -24,21 +24,29 @@ class AIFunction(Chat):
         self.reset()
         
 
+    @property
+    def name(self) -> str:
+        return self.spec.name
+
+
     def reset(self) -> Self:
         self.clear_messages()
+        
         spec = self.spec
-
         if spec.provider:
             self.set_provider(spec.provider, spec.model)
         elif spec.model:
             self.set_model(spec.model)
         
-        if isinstance((system_prompt := spec.system_prompt), PromptTemplate):
-            system_prompt = system_prompt.format(**spec.system_prompt_kwargs)
+        system_prompt_kwargs = spec.system_prompt_kwargs
+        if (isinstance((system_prompt := spec.system_prompt), PromptTemplate)
+            or (isinstance(system_prompt, str) and system_prompt_kwargs)
+            ):
+            system_prompt = system_prompt.format(**system_prompt_kwargs)
         elif callable(system_prompt):
-            system_prompt = system_prompt(**spec.system_prompt_kwargs)
+            system_prompt = system_prompt(**system_prompt_kwargs)
         else:
-            system_prompt = system_prompt # None or str
+            system_prompt = system_prompt # None or (str with no kwargs to format)
         
         example_messages = []
         if examples := spec.examples:
@@ -56,6 +64,7 @@ class AIFunction(Chat):
         self.set_tool_choice(spec.tool_choice)
         self.enforce_tool_choice = spec.enforce_tool_choice
         self.tool_choice_error_retries = spec.tool_choice_error_retries
+        self.max_messages_per_run = spec.max_messages_per_run
         self.max_tokens = spec.max_tokens
         self.frequency_penalty = spec.frequency_penalty
         self.presence_penalty = spec.presence_penalty
@@ -74,7 +83,10 @@ class AIFunction(Chat):
     
     
     def with_spec(self, **kwargs) -> "AIFunction":
-        return self.copy(spec=self.spec.model_copy(update=kwargs), rag_engine=self.rag_engine)
+        return self.copy(
+            spec=self.spec.model_copy(update=kwargs), 
+            rag_engine=self.rag_engine
+        )
 
     
     def handle_error(self, error: UnifAIError):
@@ -120,39 +132,36 @@ class AIFunction(Chat):
         return output               
 
 
-    def exec(
-            self,
-            *args,        
-            **kwargs,
-        ) -> Any:
-        rag_prompt = self.prepare_input(*args, **kwargs)
+    def __call__(self, *args, **kwargs) -> Any:
         try:
+            rag_prompt = self.prepare_input(*args, **kwargs)
             self.send_message(rag_prompt)
+            return self.parse_output()
         except UnifAIError as error:
             self.handle_error(error)
-        output = self.parse_output()
-        if self.spec.reset_on_return:
-            self.reset()
-        return output
+        finally:
+            if self.spec.reset_on_return:
+                self.reset()
     
-    
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return self.exec(*args, **kwargs)    
 
-
-    def exec_stream(
+    def stream(
             self,
             *args,        
             **kwargs,
         ) -> Generator[MessageChunk, None, Any]:
-        rag_prompt = self.prepare_input(*args, **kwargs)        
         try:
-           yield from self.send_message_stream(rag_prompt)
+            rag_prompt = self.prepare_input(*args, **kwargs)
+            yield from self.send_message_stream(rag_prompt)
+            return self.parse_output()
         except UnifAIError as error:
             self.handle_error(error)
-        output = self.parse_output()
-        if self.spec.reset_on_return:
-            self.reset()
-        return output        
+        finally:
+            if self.spec.reset_on_return:
+                self.reset()
+                    
+
+    # Aliases so func()==func.exec() and func.stream()==func.exec_stream()
+    exec = __call__
+    exec_stream = stream
     
 

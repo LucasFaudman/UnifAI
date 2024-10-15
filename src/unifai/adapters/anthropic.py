@@ -165,17 +165,17 @@ class AnthropicAdapter(LLMClient):
 
     # Convert Objects from UnifAI to AI Provider format            
         # Messages
-    def prep_input_user_message(self, message: Message) -> AnthropicMessageParam:
+    def format_user_message(self, message: Message) -> AnthropicMessageParam:
         content = []
         if message.images:
-            content.extend(map(self.prep_input_image, message.images))        
+            content.extend(map(self.format_image, message.images))        
         if message.content:
             content.append(AnthropicTextBlockParam(text=message.content, type="text"))
 
         return AnthropicMessageParam(role="user", content=content)
 
 
-    def prep_input_assistant_message(self, message: Message) -> AnthropicMessageParam:
+    def format_assistant_message(self, message: Message) -> AnthropicMessageParam:
         content = []
         if message.content:
             content.append(AnthropicTextBlockParam(text=message.content, type="text"))
@@ -189,7 +189,7 @@ class AnthropicAdapter(LLMClient):
                 )
                 content.append(tool_use_param)
         if message.images:
-            content.extend(map(self.prep_input_image, message.images))
+            content.extend(map(self.format_image, message.images))
         
         if not content:
             # Should not happen unless switching providers after a tool call
@@ -198,7 +198,7 @@ class AnthropicAdapter(LLMClient):
         return AnthropicMessageParam(role="assistant", content=content)
 
 
-    def prep_input_tool_message(self, message: Message) -> AnthropicMessageParam:
+    def format_tool_message(self, message: Message) -> AnthropicMessageParam:
         content = []
         # if message.content:
         #     content.append(AnthropicTextBlockParam(text=message.content, type="text"))
@@ -220,11 +220,11 @@ class AnthropicAdapter(LLMClient):
         raise ValueError("Tool messages must have tool calls")
 
 
-    def prep_input_system_message(self, message: Message) -> AnthropicMessageParam:
+    def format_system_message(self, message: Message) -> AnthropicMessageParam:
         raise ProviderUnsupportedFeatureError("Anthropic does not support system messages")
     
 
-    def prep_input_messages_and_system_prompt(self, 
+    def format_messages_and_system_prompt(self, 
                                               messages: list[Message], 
                                               system_prompt_arg: Optional[str] = None
                                               ) -> tuple[list, Optional[str]]:
@@ -236,12 +236,12 @@ class AnthropicAdapter(LLMClient):
             if not system_prompt:
                 system_prompt = system_message.content 
 
-        client_messages = [self.prep_input_message(message) for message in messages]
+        client_messages = [self.format_message(message) for message in messages]
         return client_messages, system_prompt        
 
 
         # Images
-    def prep_input_image(self, image: Image) -> AnthropicImageBlockParam:
+    def format_image(self, image: Image) -> AnthropicImageBlockParam:
         return AnthropicImageBlockParam(
             type="image",
             source=AnthropicImageSource(
@@ -253,7 +253,7 @@ class AnthropicAdapter(LLMClient):
 
 
         # Tools
-    def prep_input_tool(self, tool: Tool) -> AnthropicToolParam:
+    def format_tool(self, tool: Tool) -> AnthropicToolParam:
         return AnthropicToolParam(
             name=tool.name,
             description=tool.description,
@@ -261,7 +261,7 @@ class AnthropicAdapter(LLMClient):
         )    
 
 
-    def prep_input_tool_choice(self, tool_choice: str) -> dict:
+    def format_tool_choice(self, tool_choice: str) -> dict:
         if tool_choice == "required":
             tool_choice = "any"
         # if tool_choice in ("auto", "required", "none"):
@@ -272,7 +272,7 @@ class AnthropicAdapter(LLMClient):
 
 
         # Response Format
-    def prep_input_response_format(self, response_format: Union[str, dict]) -> None:
+    def format_response_format(self, response_format: Union[str, dict]) -> None:
         # Warn: response_format is not used by the Anthropic client
         if response_format: print("Warning: response_format is not used by the Anthropic client")
         return None
@@ -280,11 +280,11 @@ class AnthropicAdapter(LLMClient):
 
     # Convert Objects from AI Provider to UnifAI format    
         # Images
-    def extract_image(self, response_image: Any, **kwargs) -> Image:
+    def parse_image(self, response_image: Any, **kwargs) -> Image:
         raise NotImplementedError("This method must be implemented by the subclass")
 
         # Tool Calls
-    def extract_tool_call(self, response_tool_call: AnthropicToolUseBlock, **kwargs) -> ToolCall:
+    def parse_tool_call(self, response_tool_call: AnthropicToolUseBlock, **kwargs) -> ToolCall:
         return ToolCall(
                     id=response_tool_call.id,
                     tool_name=response_tool_call.name,
@@ -292,7 +292,7 @@ class AnthropicAdapter(LLMClient):
                 )
     
         # Response Info (Model, Usage, Done Reason, etc.)
-    def extract_done_reason(self, response_obj: AnthropicMessage, **kwargs) -> str|None:
+    def parse_done_reason(self, response_obj: AnthropicMessage, **kwargs) -> str|None:
         done_reason = response_obj.stop_reason
         if done_reason == "end_turn" or done_reason == "stop_sequence":
             return "stop"
@@ -301,22 +301,22 @@ class AnthropicAdapter(LLMClient):
         # "max_tokens" or None
         return done_reason
 
-    def extract_usage(self, response_obj: AnthropicMessage, **kwargs) -> Usage|None:
+    def parse_usage(self, response_obj: AnthropicMessage, **kwargs) -> Usage|None:
         if response_usage := response_obj.usage:
             return Usage(
                 input_tokens=response_usage.input_tokens, 
                 output_tokens=response_usage.output_tokens
             )
 
-    def extract_response_info(self, response: AnthropicMessage, **kwargs) -> ResponseInfo:
+    def parse_response_info(self, response: AnthropicMessage, **kwargs) -> ResponseInfo:
         model = response.model                     
-        done_reason = self.extract_done_reason(response)
-        usage = self.extract_usage(response)
+        done_reason = self.parse_done_reason(response)
+        usage = self.parse_usage(response)
         return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
 
 
     # Assistant Messages (Content, Images, Tool Calls, Response Info)
-    def extract_assistant_message_both_formats(self, response: AnthropicMessage, **kwargs) -> tuple[Message, AnthropicMessageParam]:
+    def parse_message(self, response: AnthropicMessage, **kwargs) -> tuple[Message, AnthropicMessageParam]:
         client_message = AnthropicMessageParam(role=response.role, content=response.content)
         content = ""
         tool_calls = []
@@ -324,10 +324,10 @@ class AnthropicAdapter(LLMClient):
             if block.type == "text":
                 content += block.text
             elif block.type == "tool_use":
-                tool_calls.append(self.extract_tool_call(block))
+                tool_calls.append(self.parse_tool_call(block))
 
         images = None # TODO: Implement image extraction  
-        response_info = self.extract_response_info(response)
+        response_info = self.parse_response_info(response)
 
         std_message = Message(
             role=response.role,
@@ -339,7 +339,7 @@ class AnthropicAdapter(LLMClient):
         return std_message, client_message 
 
     
-    def extract_stream_chunks(self, response: Stream[AnthropicRawMessageStreamEvent], **kwargs) -> Generator[MessageChunk, None, tuple[Message, AnthropicMessageParam]]:
+    def parse_stream(self, response: Stream[AnthropicRawMessageStreamEvent], **kwargs) -> Generator[MessageChunk, None, tuple[Message, AnthropicMessageParam]]:
         message = None
         pings = 0
         # content = []        
@@ -393,11 +393,11 @@ class AnthropicAdapter(LLMClient):
 
                 if content_block.type == "tool_use":
                     content_block.input = json_loads(content_block.input)
-                    tool_call = self.extract_tool_call(content_block)
+                    tool_call = self.parse_tool_call(content_block)
                     yield MessageChunk(role="assistant", tool_calls=[tool_call])
 
         if message is None:
             raise ValueError("No message found")
                     
-        return self.extract_assistant_message_both_formats(message, **kwargs)
+        return self.parse_message(message, **kwargs)
 

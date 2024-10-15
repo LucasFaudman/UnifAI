@@ -225,13 +225,13 @@ class OpenAIAdapter(Embedder, LLMClient):
     
     # Convert from UnifAI to AI Provider format        
         # Messages        
-    def prep_input_user_message(self, message: Message) -> dict:
+    def format_user_message(self, message: Message) -> dict:
         message_dict = {"role": "user"}        
         if message.images:
             content = []
             if message.content:
                 content.append({"type": "text", "text": message.content})                
-            content.extend(map(self.prep_input_image, message.images))
+            content.extend(map(self.format_image, message.images))
         else:
             content = message.content
         
@@ -239,7 +239,7 @@ class OpenAIAdapter(Embedder, LLMClient):
         return message_dict
     
 
-    def prep_input_assistant_message(self, message: Message) -> dict:
+    def format_assistant_message(self, message: Message) -> dict:
         message_dict = {"role": "assistant", "content": message.content or ""}
         if message.tool_calls:
             message_dict["tool_calls"] = [
@@ -254,12 +254,12 @@ class OpenAIAdapter(Embedder, LLMClient):
                 for tool_call in message.tool_calls
             ]
         if message.images:
-            message_dict["images"] = list(map(self.prep_input_image, message.images))
+            message_dict["images"] = list(map(self.format_image, message.images))
         
         return message_dict   
     
 
-    def prep_input_tool_message(self, message: Message) -> dict:
+    def format_tool_message(self, message: Message) -> dict:
         if message.tool_calls:
             tool_call = message.tool_calls[0]
             return {
@@ -278,11 +278,11 @@ class OpenAIAdapter(Embedder, LLMClient):
             yield Message(role="user", content=message.content) 
 
     
-    def prep_input_system_message(self, message: Message) -> dict:
+    def format_system_message(self, message: Message) -> dict:
         return {"role": "system", "content": message.content}
 
 
-    def prep_input_messages_and_system_prompt(self, 
+    def format_messages_and_system_prompt(self, 
                                               messages: list[Message], 
                                               system_prompt_arg: Optional[str] = None
                                               ) -> tuple[list, Optional[str]]:
@@ -300,26 +300,26 @@ class OpenAIAdapter(Embedder, LLMClient):
         client_messages = []
         for message in messages:
             if message.role != "tool":
-                client_messages.append(self.prep_input_message(message))
+                client_messages.append(self.format_message(message))
             else:
-                client_messages.extend(map(self.prep_input_message, self.split_tool_message(message)))
+                client_messages.extend(map(self.format_message, self.split_tool_message(message)))
 
         return client_messages, system_prompt
 
 
         # Images
-    def prep_input_image(self, image: Image) -> dict:
+    def format_image(self, image: Image) -> dict:
         if not (image_url := image.url):
             image_url = image.data_uri         
         return {"type": "image_url", "image_url": {"url": image_url, "detail": "auto"}}
 
 
         # Tools
-    def prep_input_tool(self, tool: Tool) -> dict:
+    def format_tool(self, tool: Tool) -> dict:
         return tool.to_dict()
     
     
-    def prep_input_tool_choice(self, tool_choice: str) -> Union[str, dict]:
+    def format_tool_choice(self, tool_choice: str) -> Union[str, dict]:
         if tool_choice in ("auto", "required", "none"):
             return tool_choice
 
@@ -328,7 +328,7 @@ class OpenAIAdapter(Embedder, LLMClient):
 
 
         # Response Format
-    def prep_input_response_format(self, response_format: Union[str, dict]) -> Union[str, dict]:
+    def format_response_format(self, response_format: Union[str, dict]) -> Union[str, dict]:
 
         if isinstance(response_format, dict) and (response_type := response_format.get("type")):
             if response_type == "json_schema" and (schema := response_format.get("json_schema")):
@@ -346,11 +346,12 @@ class OpenAIAdapter(Embedder, LLMClient):
     
     # Convert Objects from AI Provider to UnifAI format    
         # Images
-    def extract_image(self, response_image: Any, **kwargs) -> Image:
+    def parse_image(self, response_image: Any, **kwargs) -> Image:
         raise NotImplementedError("This method must be implemented by the subclass")
 
+
         # Tool Calls
-    def extract_tool_call(self, response_tool_call: ChatCompletionMessageToolCall|ChoiceDeltaToolCall) -> ToolCall:
+    def parse_tool_call(self, response_tool_call: ChatCompletionMessageToolCall|ChoiceDeltaToolCall) -> ToolCall:
         return ToolCall(
             id=response_tool_call.id,
             tool_name=response_tool_call.function.name,
@@ -358,7 +359,7 @@ class OpenAIAdapter(Embedder, LLMClient):
         )
     
 
-    def extract_done_reason(self, response_obj: CompletionChoice|ChunkChoice, **kwargs) -> str|None:
+    def parse_done_reason(self, response_obj: CompletionChoice|ChunkChoice, **kwargs) -> str|None:
         done_reason = response_obj.finish_reason
         if done_reason == "length":
             return "max_tokens"
@@ -369,34 +370,34 @@ class OpenAIAdapter(Embedder, LLMClient):
         return done_reason
     
     
-    def extract_usage(self, response_obj: Any, **kwargs) -> Usage|None:
+    def parse_usage(self, response_obj: Any, **kwargs) -> Usage|None:
         if response_usage := response_obj.usage:
             return Usage(input_tokens=response_usage.prompt_tokens, output_tokens=response_usage.completion_tokens)
 
 
         # Response Info (Model, Usage, Done Reason, etc.)
-    def extract_response_info(self, response: Any, **kwargs) -> ResponseInfo:
+    def parse_response_info(self, response: Any, **kwargs) -> ResponseInfo:
         model = response.model or kwargs.get("model")
-        done_reason = self.extract_done_reason(response.choices[0])
-        usage = self.extract_usage(response)
+        done_reason = self.parse_done_reason(response.choices[0])
+        usage = self.parse_usage(response)
         
         return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
     
     
         # Assistant Messages (Content, Images, Tool Calls, Response Info)
-    def extract_assistant_message_both_formats(self, response: ChatCompletion, **kwargs) -> tuple[Message, ChatCompletionMessage]:
+    def parse_message(self, response: ChatCompletion, **kwargs) -> tuple[Message, ChatCompletionMessage]:
         client_message = response.choices[0].message
 
         tool_calls = None
         if client_message.tool_calls:
-            tool_calls = list(map(self.extract_tool_call, client_message.tool_calls))
+            tool_calls = list(map(self.parse_tool_call, client_message.tool_calls))
 
         # if client_message.images:
         #     images = self.extract_images(client_message.images)
         images = None
 
         created_at = datetime.fromtimestamp(response.created) if response.created else datetime.now()
-        response_info = self.extract_response_info(response, **kwargs)       
+        response_info = self.parse_response_info(response, **kwargs)       
         
         std_message = Message(
             role=client_message.role,
@@ -409,7 +410,7 @@ class OpenAIAdapter(Embedder, LLMClient):
         return std_message, client_message
 
 
-    def extract_stream_chunks(self, response: Stream[ChatCompletionChunk], **kwargs) -> Generator[MessageChunk, None, tuple[Message, ChatCompletionMessage]]:        
+    def parse_stream(self, response: Stream[ChatCompletionChunk], **kwargs) -> Generator[MessageChunk, None, tuple[Message, ChatCompletionMessage]]:        
         content = ""
         tool_calls = []
         last_tool_call_yielded = -1
@@ -419,7 +420,7 @@ class OpenAIAdapter(Embedder, LLMClient):
         
         for chunk in response:
             if chunk.usage:
-                usage = self.extract_usage(chunk)
+                usage = self.parse_usage(chunk)
             if not chunk.choices:
                 continue
 
@@ -428,7 +429,7 @@ class OpenAIAdapter(Embedder, LLMClient):
             if not model:
                 model = chunk.model
             if choice.finish_reason:
-                done_reason = self.extract_done_reason(choice)
+                done_reason = self.parse_done_reason(choice)
             if delta_content := delta.content:
                 content += delta_content    
                 yield MessageChunk(
@@ -458,7 +459,7 @@ class OpenAIAdapter(Embedder, LLMClient):
                 
 
         for i, tool_call in enumerate(tool_calls[last_tool_call_yielded + 1:], start=last_tool_call_yielded + 1):
-            tool_call = self.extract_tool_call(tool_call)
+            tool_call = self.parse_tool_call(tool_call)
             tool_calls[i] = tool_call
             yield MessageChunk(
                 role="assistant", 
@@ -475,7 +476,7 @@ class OpenAIAdapter(Embedder, LLMClient):
             tool_calls=tool_calls,
             response_info=response_info
         )
-        return std_message, self.prep_input_message(std_message)
+        return std_message, self.format_message(std_message)
 
 
 

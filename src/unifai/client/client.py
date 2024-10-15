@@ -273,8 +273,9 @@ class UnifAIClient:
 
     # List Models
     def list_models(self, provider: Optional[LLMProvider] = None) -> list[str]:
-        return self.get_llm_client(provider).list_models()
+        return self.get_client(provider).list_models()
     
+
     # Chat
     def start_chat(
             self,
@@ -284,7 +285,6 @@ class UnifAIClient:
             system_prompt: Optional[str] = None,
             return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
             response_format: Optional[Union[str, dict[str, str]]] = None,
-
             tools: Optional[Sequence[ToolInput]] = None,            
             tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
             enforce_tool_choice: bool = True,
@@ -292,7 +292,7 @@ class UnifAIClient:
             tool_callables: Optional[dict[str, Callable]] = None,
             tool_caller_class_or_instance: Optional[Type[ToolCaller]|ToolCaller] = ToolCaller,
             tool_caller_kwargs: Optional[dict[str, Any]] = None,
-
+            max_messages_per_run: int = 10,
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
             presence_penalty: Optional[float] = None,
@@ -303,33 +303,26 @@ class UnifAIClient:
             top_p: Optional[float] = None,
 
     ) -> Chat:
-
-        if tool_caller_class_or_instance:
-            tool_caller = self.get_tool_caller(tools, tool_callables, tool_caller_class_or_instance, tool_caller_kwargs)
+        provider = provider or self.default_llm_provider
+        if tool_caller_class_or_instance is not None:
+            tool_caller = self.get_tool_caller(tool_caller_class_or_instance, tools, tool_callables, tool_caller_kwargs)
         else:
-            tool_caller = None
-
+            tool_caller = None               
         return Chat(
-            # parent=self,
             get_client=self.get_llm_client,
             parent_tools=self.tools,
-            # parent_tool_callables=self.tool_callables,
-
-            messages=messages if messages is not None else [],
-            provider=provider or self.default_llm_provider,
+            messages=messages,
+            provider=provider,
             model=model,
             system_prompt=system_prompt,
-            
             return_on=return_on,
             response_format=response_format,
-
             tools=tools,
-            # tool_callables=tool_callables,
             tool_choice=tool_choice,
             tool_caller=tool_caller,                
             enforce_tool_choice=enforce_tool_choice,
             tool_choice_error_retries=tool_choice_error_retries,
-
+            max_messages_per_run=max_messages_per_run,
             max_tokens=max_tokens,
             frequency_penalty=frequency_penalty,
             presence_penalty=presence_penalty,
@@ -349,7 +342,6 @@ class UnifAIClient:
             system_prompt: Optional[str] = None,             
             return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
             response_format: Optional[Union[str, dict[str, str]]] = None,
-
             tools: Optional[Sequence[ToolInput]] = None,            
             tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
             enforce_tool_choice: bool = True,
@@ -357,7 +349,7 @@ class UnifAIClient:
             tool_callables: Optional[dict[str, Callable]] = None,
             tool_caller_class_or_instance: Optional[Type[ToolCaller]|ToolCaller] = ToolCaller,
             tool_caller_kwargs: Optional[dict[str, Any]] = None,
-
+            max_messages_per_run: int = 10,
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
             presence_penalty: Optional[float] = None,
@@ -366,17 +358,15 @@ class UnifAIClient:
             temperature: Optional[float] = None,
             top_k: Optional[int] = None,
             top_p: Optional[float] = None,
-
             **kwargs
     ) -> Chat:
         chat = self.start_chat(
-            messages=messages if messages is not None else [],
+            messages=messages,
             provider=provider,
             model=model,
             system_prompt=system_prompt,
             return_on=return_on,
-            response_format=response_format,
-            
+            response_format=response_format,            
             tools=tools,
             tool_choice=tool_choice,
             enforce_tool_choice=enforce_tool_choice,
@@ -384,7 +374,7 @@ class UnifAIClient:
             tool_callables=tool_callables,
             tool_caller_class_or_instance=tool_caller_class_or_instance,
             tool_caller_kwargs=tool_caller_kwargs,
-
+            max_messages_per_run=max_messages_per_run,
             max_tokens=max_tokens,
             frequency_penalty=frequency_penalty,
             presence_penalty=presence_penalty,
@@ -394,7 +384,6 @@ class UnifAIClient:
             top_k=top_k,
             top_p=top_p,
         )
-
         if messages:
             chat.run(**kwargs)
         return chat
@@ -408,7 +397,6 @@ class UnifAIClient:
             system_prompt: Optional[str] = None,             
             return_on: Union[Literal["content", "tool_call", "message"], str, Collection[str]] = "content",
             response_format: Optional[Union[str, dict[str, str]]] = None,
-
             tools: Optional[Sequence[ToolInput]] = None,            
             tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None,
             enforce_tool_choice: bool = True,
@@ -416,7 +404,7 @@ class UnifAIClient:
             tool_callables: Optional[dict[str, Callable]] = None,
             tool_caller_class_or_instance: Optional[Type[ToolCaller]|ToolCaller] = ToolCaller,
             tool_caller_kwargs: Optional[dict[str, Any]] = None,
-
+            max_messages_per_run: int = 10,
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
             presence_penalty: Optional[float] = None,
@@ -425,18 +413,15 @@ class UnifAIClient:
             temperature: Optional[float] = None,
             top_k: Optional[int] = None,
             top_p: Optional[float] = None,
-
             **kwargs
     ) -> Generator[MessageChunk, None, Chat]:
-
         chat = self.start_chat(
-            messages=messages if messages is not None else [],
+            messages=messages,
             provider=provider,
             model=model,
             system_prompt=system_prompt,
             return_on=return_on,
             response_format=response_format,
-            
             tools=tools,
             tool_choice=tool_choice,
             enforce_tool_choice=enforce_tool_choice,
@@ -444,7 +429,7 @@ class UnifAIClient:
             tool_callables=tool_callables,
             tool_caller_class_or_instance=tool_caller_class_or_instance,
             tool_caller_kwargs=tool_caller_kwargs,
-
+            max_messages_per_run=max_messages_per_run,
             max_tokens=max_tokens,
             frequency_penalty=frequency_penalty,
             presence_penalty=presence_penalty,
@@ -454,7 +439,6 @@ class UnifAIClient:
             top_k=top_k,
             top_p=top_p,
         )
-
         if messages:
             yield from chat.run_stream(**kwargs)
         return chat
@@ -728,34 +712,20 @@ class UnifAIClient:
         if not spec.provider:
             spec.provider = self.default_llm_provider
 
-        # # Determine return_on parameter from eval_parameters and tool_choice
-        # if eval_parameters.return_on:
-        #     # Use the return_on parameter from eval_parameters if provided
-        #     return_on = eval_parameters.return_on
-        # elif isinstance(eval_parameters.tool_choice, str):
-        #     # Use the tool_choice parameter from eval_parameters if its a string (single tool name)
-        #     return_on = eval_parameters.tool_choice
-        # elif eval_parameters.tool_choice:
-        #     # Use the last tool choice if tool_choice is a non-empty sequence of tool names (tool_choice queue)
-        #     return_on = eval_parameters.tool_choice[-1]
-        # else:
-        #     # Default to return on content if no return_on or tool_choice is provided
-        #     return_on = "content"
-
-
         if spec.tool_caller_class_or_instance:
             tool_caller = self.get_tool_caller(
+                spec.tool_caller_class_or_instance, 
                 spec.tools, 
                 spec.tool_callables, 
-                spec.tool_caller_class_or_instance, 
                 spec.tool_caller_kwargs
             )
         else:
             tool_caller = None
 
+        rag_engine = self.get_rag_engine(spec.rag_spec) if spec.rag_spec else None
         return AIFunction(
             spec=spec, 
-            rag_engine=self.get_rag_engine(spec.rag_spec) if spec.rag_spec else None,
+            rag_engine=rag_engine,
             get_client=self.get_llm_client,
             parent_tools=self.tools,
             tool_caller=tool_caller,

@@ -1,5 +1,5 @@
 from typing import Optional, Literal, Self
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class Usage(BaseModel):
     input_tokens: int = 0
@@ -21,6 +21,7 @@ class Usage(BaseModel):
 class ResponseInfo(BaseModel):
     model: Optional[str] = None    
     done_reason: Optional[Literal["stop", "tool_calls", "max_tokens", "content_filter", "error"]] = None
-    usage: Optional[Usage] = None
+    usage: Usage = Field(default_factory=Usage)
+    # usage: Optional[Usage] = None
     # duration: Optional[int]
     # created_at: datetime = Field(default_factory=datetime.now)    

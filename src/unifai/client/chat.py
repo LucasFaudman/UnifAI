@@ -36,6 +36,7 @@ class Chat:
             enforce_tool_choice: bool = False,
             tool_choice_error_retries: int = 3,
 
+            max_messages_per_run: int = 10,
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
             presence_penalty: Optional[float] = None,
@@ -43,7 +44,7 @@ class Chat:
             stop_sequences: Optional[list[str]] = None, 
             temperature: Optional[float] = None,
             top_k: Optional[int] = None,
-            top_p: Optional[float] = None,                   
+            top_p: Optional[float] = None,
     ):
         self.get_client = get_client
         self.parent_tools = parent_tools
@@ -65,6 +66,7 @@ class Chat:
         self.enforce_tool_choice = enforce_tool_choice
         self.tool_choice_error_retries = tool_choice_error_retries
 
+        self.max_messages_per_run = max_messages_per_run
         self.max_tokens = max_tokens
         self.frequency_penalty = frequency_penalty
         self.presence_penalty = presence_penalty
@@ -81,31 +83,35 @@ class Chat:
     def set_provider(self, provider: LLMProvider, model: Optional[str]=None) -> Self:        
         self.client = self.get_client(provider)
         if provider != self.provider:
-            self.reformat_client_args()
+            self.reformat_client_inputs()
         self.provider = provider
         self.set_model(model)
         return self
     
-    def reformat_client_args(self) -> Self:
-        self.client_messages, self.system_prompt = self.client.prep_input_messages_and_system_prompt(
+
+    def reformat_client_inputs(self) -> Self:
+        self.client_messages, self.system_prompt = self.client.format_messages_and_system_prompt(
             self.std_messages,self.system_prompt)
         if self.std_tools:
-            self.client_tools = [self.client.prep_input_tool(tool) for tool in self.std_tools.values()]
+            self.client_tools = [self.client.format_tool(tool) for tool in self.std_tools.values()]
         if self.std_tool_choice:
-            self.client_tool_choice = self.client.prep_input_tool_choice(self.std_tool_choice)
+            self.client_tool_choice = self.client.format_tool_choice(self.std_tool_choice)
         if self.std_response_format:
-            self.client_response_format = self.client.prep_input_response_format(self.std_response_format)
+            self.client_response_format = self.client.format_response_format(self.std_response_format)
         return self
+
 
     def set_model(self, model: Optional[str]) -> Self:
         self.model = model or self.client.default_model
         return self
-    
+
+
     def set_system_prompt(self, system_prompt: Optional[str]) -> Self:
         if system_prompt != self.system_prompt:
             self.set_messages(self.std_messages, system_prompt)
         return self
-    
+
+
     def set_messages(
             self, 
             messages: Sequence[Union[Message, str, dict[str, Any]]],
@@ -118,19 +124,21 @@ class Chat:
         # and allow for easier debugging and error handling.
         # May revert back to optimizing for memory later if needed.)
         self.std_messages = standardize_messages(messages)
-        self.client_messages, self.system_prompt = self.client.prep_input_messages_and_system_prompt(
+        self.client_messages, self.system_prompt = self.client.format_messages_and_system_prompt(
             self.std_messages, system_prompt or self.system_prompt)
         return self
     
+
     def append_message(self, message: Union[Message, str, dict[str, Any]]) -> None:
         std_message = standardize_message(message)
         self.std_messages.append(std_message)
-        self.client_messages.append(self.client.prep_input_message(std_message))  
+        self.client_messages.append(self.client.format_message(std_message))  
+
 
     def extend_messages(self, std_messages: Iterable[Message]) -> None:
         for std_message in std_messages:
             self.std_messages.append(std_message)
-            self.client_messages.append(self.client.prep_input_message(std_message))
+            self.client_messages.append(self.client.format_message(std_message))
             
 
     def clear_messages(self) -> Self:
@@ -139,6 +147,7 @@ class Chat:
         self.client_messages = []
         return self
     
+
     def pop_message(self) -> Message:        
         self.client_messages.pop()
         std_message = self.std_messages.pop()
@@ -149,7 +158,7 @@ class Chat:
     def set_tools(self, tools: Optional[Sequence[ToolInput]]) -> Self:
         if tools:
             self.std_tools = standardize_tools(tools, tool_dict=self.parent_tools)
-            self.client_tools = [self.client.prep_input_tool(tool) for tool in self.std_tools.values()]
+            self.client_tools = [self.client.format_tool(tool) for tool in self.std_tools.values()]
         else:
             self.std_tools = self.client_tools = None
         return self
@@ -164,7 +173,7 @@ class Chat:
 
             self.std_tool_choice_index = 0
             self.std_tool_choice = self.std_tool_choice_queue[self.std_tool_choice_index]
-            self.client_tool_choice = self.client.prep_input_tool_choice(self.std_tool_choice)
+            self.client_tool_choice = self.client.format_tool_choice(self.std_tool_choice)
         else:
             self.std_tool_choice = self.std_tool_choice_queue = self.std_tool_choice_index = self.client_tool_choice = None
         return self
@@ -192,7 +201,7 @@ class Chat:
     def set_response_format(self, response_format: Optional[Union[Literal["text", "json", "json_schema"], dict[Literal["type"], Literal["text", "json", "json_schema"]]]]) -> Self:
         if response_format:
             self.std_response_format = standardize_response_format(response_format)
-            self.client_response_format = self.client.prep_input_response_format(self.std_response_format)
+            self.client_response_format = self.client.format_response_format(self.std_response_format)
         else:
             self.std_response_format = self.client_response_format = None
         return self
@@ -233,7 +242,7 @@ class Chat:
             else:
                 self.std_tool_choice_index = 0
             self.std_tool_choice = self.std_tool_choice_queue[self.std_tool_choice_index]
-            self.client_tool_choice = self.client.prep_input_tool_choice(self.std_tool_choice)
+            self.client_tool_choice = self.client.format_tool_choice(self.std_tool_choice)
         else:
             self.std_tool_choice = self.client_tool_choice = None
 
@@ -254,8 +263,7 @@ class Chat:
         # return on is a tool name. True if any tool call name is the same as the return_on tool name
         return any(tool_call.tool_name == self.return_on for tool_call in tool_calls)   
 
-
-                        
+          
     def extend_messages_with_tool_outputs(self, 
                                         tool_calls: list[ToolCall],
                                         # content: Optional[str] = None
@@ -264,7 +272,7 @@ class Chat:
         # tool_message = Message(role="tool", tool_calls=tool_calls, content=content)
         tool_message = Message(role="tool", tool_calls=tool_calls)
         self.std_messages.append(tool_message)
-        self.client_messages.extend(map(self.client.prep_input_message, self.client.split_tool_message(tool_message)))
+        self.client_messages.extend(map(self.client.format_message, self.client.split_tool_message(tool_message)))
         # self.extend_messages(self.client.split_tool_outputs_into_messages(tool_calls, content))
              
 
@@ -289,7 +297,9 @@ class Chat:
     
 
     def run(self, **kwargs) -> Self:
-        while True:
+        message_count_this_run = 0
+        while message_count_this_run < self.max_messages_per_run:
+            message_count_this_run += 1            
             std_message, client_message = self.client.chat(
                 **self.client_kwargs(override_kwargs=kwargs)
             )
@@ -337,12 +347,12 @@ class Chat:
     
     
     def run_stream(self, **kwargs) -> Generator[MessageChunk, None, Self]:
-        while True:
+        message_count_this_run = 0
+        while message_count_this_run < self.max_messages_per_run:
+            message_count_this_run += 1
             std_message, client_message = yield from self.client.chat_stream(
                **self.client_kwargs(override_kwargs=kwargs)
-            )
-            # TODO handle error messages
-            # print("\nstd_message:", std_message)
+            )            
 
             # Update usage for entire chat
             self.usage += std_message.response_info.usage

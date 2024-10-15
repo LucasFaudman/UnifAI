@@ -307,16 +307,16 @@ class GoogleAIAdapter(Embedder, LLMClient):
 
     # Convert Objects from UnifAI to AI Provider format        
         # Messages    
-    def prep_input_user_message(self, message: Message) -> Any:
+    def format_user_message(self, message: Message) -> Any:
         parts = []
         if message.content is not None:
             parts.append(Part(text=message.content))
         if message.images:
-            parts.extend(map(self.prep_input_image, message.images))
+            parts.extend(map(self.format_image, message.images))
         return {"role": "user", "parts": parts}
 
 
-    def prep_input_assistant_message(self, message: Message) -> Any:
+    def format_assistant_message(self, message: Message) -> Any:
         parts = []
         if message.content is not None:
             parts.append(Part(text=message.content))
@@ -331,11 +331,11 @@ class GoogleAIAdapter(Embedder, LLMClient):
                     )
                 )
         if message.images:
-            parts.extend(map(self.prep_input_image, message.images))
+            parts.extend(map(self.format_image, message.images))
         return {"role": "model", "parts": parts}
         
 
-    def prep_input_tool_message(self, message: Message) -> Any:
+    def format_tool_message(self, message: Message) -> Any:
         parts = []
         # if message.content:
         #     parts.append(Part(text=message.content))
@@ -350,15 +350,15 @@ class GoogleAIAdapter(Embedder, LLMClient):
                     )
                 )
         if message.images:
-            parts.extend(map(self.prep_input_image, message.images))
+            parts.extend(map(self.format_image, message.images))
         return {"role": "user", "parts": parts}
     
     
-    def prep_input_system_message(self, message: Message) -> Any:
+    def format_system_message(self, message: Message) -> Any:
         raise ValueError("GoogleAI does not support system messages")
     
 
-    def prep_input_messages_and_system_prompt(self, 
+    def format_messages_and_system_prompt(self, 
                                               messages: list[Message], 
                                               system_prompt_arg: Optional[str] = None
                                               ) -> tuple[list, Optional[str]]:
@@ -371,17 +371,17 @@ class GoogleAIAdapter(Embedder, LLMClient):
             if not system_prompt:
                 system_prompt = system_message.content 
 
-        client_messages = [self.prep_input_message(message) for message in messages]
+        client_messages = [self.format_message(message) for message in messages]
         return client_messages, system_prompt   
 
 
         # Images
-    def prep_input_image(self, image: Image) -> Any:
+    def format_image(self, image: Image) -> Any:
         return Blob(data=image.raw_bytes, mime_type=image.mime_type)
     
 
         # Tools
-    def prep_input_tool(self, tool: Tool) -> GoogleTool:
+    def format_tool(self, tool: Tool) -> GoogleTool:
 
         def tool_parameter_to_schema(tool_parameter: ToolParameter) -> Schema:        
             if isinstance(tool_parameter, (AnyOfToolParameter, RefToolParameter)):
@@ -420,7 +420,7 @@ class GoogleAIAdapter(Embedder, LLMClient):
         return GoogleTool(function_declarations=[function_declaration])
     
         
-    def prep_input_tool_choice(self, tool_choice: str) -> ToolConfig:
+    def format_tool_choice(self, tool_choice: str) -> ToolConfig:
         if tool_choice in ("auto", "required", "none"):
             mode = tool_choice.upper() if tool_choice != "required" else "ANY"
             allowed_function_names = []
@@ -437,7 +437,7 @@ class GoogleAIAdapter(Embedder, LLMClient):
 
 
         # Response Format
-    def prep_input_response_format(self, response_format: str) -> str:
+    def format_response_format(self, response_format: str) -> str:
         if 'json' in response_format:
             return "application/json"
         elif 'text' in response_format:
@@ -447,12 +447,12 @@ class GoogleAIAdapter(Embedder, LLMClient):
 
     # Convert Objects from AI Provider to UnifAI format    
         # Images
-    def extract_image(self, response_image: Any) -> Image:
+    def parse_image(self, response_image: Any) -> Image:
         raise NotImplementedError("This method must be implemented by the subclass")
 
 
         # Tool Calls
-    def extract_tool_call(self, response_tool_call: FunctionCall, **kwargs) -> ToolCall:
+    def parse_tool_call(self, response_tool_call: FunctionCall, **kwargs) -> ToolCall:
             return ToolCall(
                 id=f'call_{generate_random_id(24)}',
                 tool_name=response_tool_call.name,
@@ -461,7 +461,7 @@ class GoogleAIAdapter(Embedder, LLMClient):
     
 
         # Response Info (Model, Usage, Done Reason, etc.)
-    def extract_done_reason(self, response_obj: Any, **kwargs) -> str|None:
+    def parse_done_reason(self, response_obj: Any, **kwargs) -> str|None:
         done_reason = response_obj.finish_reason
         if not done_reason:
             return None
@@ -475,7 +475,7 @@ class GoogleAIAdapter(Embedder, LLMClient):
             return "content_filter"
     
 
-    def extract_usage(self, response_obj: GenerateContentResponse, **kwargs) -> Usage|None:
+    def parse_usage(self, response_obj: GenerateContentResponse, **kwargs) -> Usage|None:
         if response_obj.usage_metadata:
             return Usage(
                 input_tokens=response_obj.usage_metadata.prompt_token_count,
@@ -483,11 +483,11 @@ class GoogleAIAdapter(Embedder, LLMClient):
             )
 
 
-    def extract_response_info(self, response: GenerateContentResponse, **kwargs) -> ResponseInfo:        
+    def parse_response_info(self, response: GenerateContentResponse, **kwargs) -> ResponseInfo:        
         return ResponseInfo(
             model=kwargs.get("model"), 
-            done_reason=self.extract_done_reason(response.candidates[0], **kwargs), 
-            usage=self.extract_usage(response)
+            done_reason=self.parse_done_reason(response.candidates[0], **kwargs), 
+            usage=self.parse_usage(response)
         )
 
 
@@ -504,21 +504,21 @@ class GoogleAIAdapter(Embedder, LLMClient):
             elif part.function_call:
                 if tool_calls is None:
                     tool_calls = []
-                tool_calls.append(self.extract_tool_call(part.function_call))
+                tool_calls.append(self.parse_tool_call(part.function_call))
             elif part.inline_data:
                 if images is None:
                     images = []
-                images.append(self.extract_image(part.inline_data))
+                images.append(self.parse_image(part.inline_data))
             elif part.file_data or part.executable_code or part.code_execution_result:
                 raise NotImplementedError("file_data, executable_code, and code_execution_result are not yet supported by UnifAI")
         return content, tool_calls, images
 
 
         # Assistant Messages (Content, Images, Tool Calls, Response Info)
-    def extract_assistant_message_both_formats(self, response: GenerateContentResponse, **kwargs) -> tuple[Message, Content]:
+    def parse_message(self, response: GenerateContentResponse, **kwargs) -> tuple[Message, Content]:
         client_message = response.candidates[0].content
         content, tool_calls, images = self._extract_parts(client_message.parts)
-        response_info = self.extract_response_info(response, tools_called=bool(tool_calls), **kwargs)
+        response_info = self.parse_response_info(response, tools_called=bool(tool_calls), **kwargs)
         std_message = Message(
             role="assistant",
             content=content,
@@ -529,7 +529,7 @@ class GoogleAIAdapter(Embedder, LLMClient):
         return std_message, client_message
 
     
-    def extract_stream_chunks(self, response: GenerateContentResponse, **kwargs) -> Generator[MessageChunk, None, tuple[Message, Content]]:
+    def parse_stream(self, response: GenerateContentResponse, **kwargs) -> Generator[MessageChunk, None, tuple[Message, Content]]:
         parts = []
         for chunk in response:
             chunk_parts = list(chunk.parts)
@@ -545,6 +545,6 @@ class GoogleAIAdapter(Embedder, LLMClient):
 
         # response.parts.extend(parts)
         response.candidates[0].content.parts = parts
-        return self.extract_assistant_message_both_formats(response, **kwargs)
+        return self.parse_message(response, **kwargs)
 
 

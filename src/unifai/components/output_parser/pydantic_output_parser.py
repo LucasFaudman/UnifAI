@@ -3,24 +3,27 @@ from json import loads, JSONDecodeError
 
 from ...exceptions import OutputParserError
 from ...types import Message, ToolCall
-
+from ...client.chat import Chat
 from pydantic import BaseModel, ValidationError
 
 T = TypeVar("T", bound=BaseModel)
 
-def pydantic_parse_one(output: dict|ToolCall|str|Message|None, model: Type[T]|T) -> T:
+
+def pydantic_parse_one(output: Chat|dict|ToolCall|str|Message|None, model: Type[T]|T) -> T:
     if isinstance(model, BaseModel):
         model = model.__class__
     try:
         if isinstance(output, dict):
             return model.model_validate(output)
         if isinstance(output, ToolCall):
-            return model.model_validate(**output.arguments)
+            return model.model_validate(output.arguments)
+        if isinstance(output, Chat):
+            output = output.last_message        
         if isinstance(output, Message):
             if output.tool_calls:
-                return model.model_validate(**output.tool_calls[0].arguments)
+                return model.model_validate(output.tool_calls[0].arguments)
             else:
-                output = output.content        
+                output = output.content       
         if output:
             return model.model_validate_json(output)
     except ValidationError as e:
@@ -35,7 +38,7 @@ def pydantic_parse_many(outputs: list[dict|str|Message|None], model: Type[T]|T) 
     return [pydantic_parse_one(output, model) for output in outputs]
 
 
-def pydantic_parse(output: dict|ToolCall|str|Message|None|list[dict|ToolCall|str|Message], model: Type[T]|T) -> T|list[T]:
+def pydantic_parse(output: Chat|dict|ToolCall|str|Message|None|list[dict|ToolCall|str|Message], model: Type[T]|T) -> T|list[T]: 
     if isinstance(output, list):
         return pydantic_parse_many(output, model)
     return pydantic_parse_one(output, model)

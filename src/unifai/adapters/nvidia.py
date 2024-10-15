@@ -311,7 +311,7 @@ class NvidiaAdapter(OpenAIAdapter, Reranker):
             )
 
     
-    def prep_input_user_message(self, message: Message) -> dict:
+    def format_user_message(self, message: Message) -> dict:
         message_dict = {"role": "user"}
         content = message.content
              
@@ -320,11 +320,11 @@ class NvidiaAdapter(OpenAIAdapter, Reranker):
                 content = ""
             if content:
                 content += " "
-            content += " ".join(map(self.prep_input_image, message.images))
+            content += " ".join(map(self.format_image, message.images))
                     
         message_dict["content"] = content
         return message_dict    
     
 
-    def prep_input_image(self, image: Image) -> str:
+    def format_image(self, image: Image) -> str:
         return f"<img src=\"{image.data_uri}\" />"
