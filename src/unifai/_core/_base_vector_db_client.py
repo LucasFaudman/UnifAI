@@ -63,7 +63,7 @@ class VectorDBClient(UnifAIAdapter):
 
     def __init__(self, 
                  embed: Callable[..., Embeddings],
-                 default_embedding_provider: EmbeddingProvider,
+                 default_embedding_provider: EmbeddingProvider = "openai",
                  default_embedding_model: Optional[str] = None,
                  default_dimensions: int = 1536,
                  default_distance_metric: Literal["cosine", "euclidean", "dotproduct"] = "cosine",

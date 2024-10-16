@@ -166,6 +166,9 @@ class Contact(BaseModel):
     gender: str
     confidence: float
 
+    def get_name_and_email(self):
+        return f"{self.name} <{self.email}>"
+
 
 class ContactsList(BaseModel):
     contacts_list: list[Contact]
@@ -183,7 +186,8 @@ extract_contacts_spec = FuncSpec(
         reset_on_return=True,
         output_parser=ContactsList,
         return_as="last_message", 
-        return_on="message",       
+        return_on="message",
+        
 )
 
 
@@ -208,7 +212,7 @@ Finally, Mr. Liam Turner (liam.turner@stellarconnect.org, +61-2-5556-9876, 32 Ci
 
 """
 
-contacts_input2 = """
+contacts_input_2 = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -289,6 +293,8 @@ contacts_input2 = """
 
 @pytest.mark.parametrize("tools, func_spec, content", [
     ([return_contacts_list], extract_contacts_spec, contacts_input_1),
+    ([return_contacts_list], extract_contacts_spec, contacts_input_2),
+
 ])
 @base_test_llms_all
 def test_evalutate_contacts(
@@ -312,4 +318,8 @@ def test_evalutate_contacts(
     assert response
     assert isinstance(response, ContactsList)
     response.print_contacts()
+
+    print(response.contacts_list[0].get_name_and_email())
+
+
 

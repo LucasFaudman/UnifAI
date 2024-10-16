@@ -41,7 +41,7 @@ class ToolCallError(ToolError):
         super().__init__(message, original_exception)
 
 
-class ToolCallInvalidArgumentsError(ToolCallError):
+class ToolCallArgumentValidationError(ToolCallError):
     """Raised when the arguments for a tool call are invalid"""
 
 

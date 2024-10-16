@@ -1,7 +1,7 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
 from ...types import Tool, ToolCall
-from ...exceptions.tool_errors import ToolCallExecutionError, ToolCallableNotFoundError, ToolCallInvalidArgumentsError
+from ...exceptions.tool_errors import ToolCallExecutionError, ToolCallableNotFoundError, ToolCallArgumentValidationError
 from ..concurrent_executor import ConcurrentExecutor
 from .tool_caller import ToolCaller
 
@@ -30,6 +30,7 @@ class ConcurrentToolCaller(ToolCaller):
         )
         self.executor = ConcurrentExecutor(
             concurrency_type=concurrency_type,
+            results_order="submitted", # Preserve order of results as submitted tool calls
             max_workers=max_workers,
             chunksize=chunksize,
             timeout=timeout,
@@ -42,4 +43,7 @@ class ConcurrentToolCaller(ToolCaller):
 
 
     def call_tools(self, tool_calls: list[ToolCall]) -> list[ToolCall]:
+        # Validate all arguments before calling any tools
+        for i, validated_args in enumerate(self.executor.map(self.validate_arguments, tool_calls)):
+            tool_calls[i].arguments = validated_args # Validators can modify the arguments
         return list(self.executor.map(self.call_tool, tool_calls))

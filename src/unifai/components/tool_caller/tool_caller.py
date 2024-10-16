@@ -1,7 +1,7 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
 from ...types import Tool, ToolCall
-from ...exceptions.tool_errors import ToolCallExecutionError, ToolCallableNotFoundError, ToolCallInvalidArgumentsError
+from ...exceptions.tool_errors import ToolCallExecutionError, ToolCallableNotFoundError, ToolCallArgumentValidationError
 
 
 class ToolCaller:
@@ -30,19 +30,23 @@ class ToolCaller:
     def update_tool_argument_validators(self, tool_argument_validators: dict[str, Callable[..., Any]]):
         self.tool_argument_validators.update(tool_argument_validators)
 
+    def validate_arguments(self, tool_call: ToolCall) -> Any:
+        tool_name = tool_call.tool_name
+        if (tool_argument_validator := self.tool_argument_validators.get(tool_name)) is None:
+            return tool_call.arguments
+        try:
+            return tool_argument_validator(tool_call.arguments)
+        except Exception as e:
+            if isinstance(e, ToolCallArgumentValidationError):
+                raise e
+            raise ToolCallArgumentValidationError(
+                message=f"Invalid arguments for tool '{tool_call}'",
+                tool_call=tool_call,
+                original_exception=e,
+            )
+        
     def call_tool(self, tool_call: ToolCall) -> ToolCall:
         tool_name = tool_call.tool_name
-        arguments = tool_call.arguments
-
-        if (tool_argument_validator := self.tool_argument_validators.get(tool_name)) is not None:
-            try:
-                arguments = tool_argument_validator(arguments)
-            except Exception as e:
-                raise ToolCallInvalidArgumentsError(
-                    message=f"Invalid arguments for tool '{tool_name}'",
-                    tool_call=tool_call,
-                    original_exception=e,
-                )
         
         if (tool_callable := self.tool_callables.get(tool_name)) is None:
             raise ToolCallableNotFoundError(
@@ -67,6 +71,10 @@ class ToolCaller:
 
 
     def call_tools(self, tool_calls: list[ToolCall]) -> list[ToolCall]:
+        # Validate all arguments before calling any tools
         for tool_call in tool_calls:
-            self.call_tool(tool_call)                   
+            tool_call.arguments = self.validate_arguments(tool_call) # Validators can modify the arguments
+ 
+        for tool_call in tool_calls:
+            self.call_tool(tool_call)
         return tool_calls 

@@ -1,5 +1,5 @@
 from unifai import UnifAIClient, tool
-from unifai.types.rag_spec import RAGSpec, DEFAULT_RAG_PROMPT_TEMPLATE
+from unifai.client.specs import RAGSpec, DEFAULT_RAG_PROMPT_TEMPLATE
 from unifai.types import VectorDBQueryResult
 from _provider_defaults import PROVIDER_DEFAULTS
 

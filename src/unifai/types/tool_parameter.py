@@ -4,7 +4,6 @@ from pydantic import BaseModel
 
 ToolParameterType = Literal["object", "array", "string", "integer", "number", "boolean", "null"]
 ToolValPyTypes = Union[str, int, float, bool, None, list[Any], dict[str, Any]]
-# ToolDict = dict[str, ToolValPyTypes]
 
 
 class ToolParameter(BaseModel):

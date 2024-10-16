@@ -121,21 +121,3 @@ def tool_from_func(
         strict=strict,
         callable=func
     )
-
-
-# def tool_from_func(func: Callable) -> Tool:
-#     name = func.__name__
-#     description, parameters = parse_docstring_and_annotations(
-#         docstring=func.__doc__ or "",
-#         annotations=func.__annotations__
-#         )
-
-#     return Tool(
-#         name=name,
-#         description=description,
-#         parameters=parameters,
-#         callable=func
-#     )
-
-# # alias for tool_from_func so functions can be decorated with @tool or @tool_from_func
-# tool = tool_from_func

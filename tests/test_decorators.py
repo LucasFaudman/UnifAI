@@ -20,7 +20,7 @@ from basetest import base_test_llms_all
 
 from unifai.type_conversions.tool_from_func import parse_docstring_and_annotations
 from unifai.type_conversions import tool
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 ai = UnifAIClient()
 
@@ -425,7 +425,7 @@ def test_decorators_base_model():
         age: int
         email: str
         phone: str
-        address: str
+        address: str = Field(description="The customer's address")
 
     assert type(Customer) == Tool
     assert Customer.name == "return_Customer"
@@ -446,7 +446,7 @@ def test_decorators_base_model():
     assert customer.email == "1"
     assert customer.phone == "2"
     assert customer.address == "3"
-    
+
 
     @tool(name="create_customer", description="Create a new customer")
     class Customer2(BaseModel):
