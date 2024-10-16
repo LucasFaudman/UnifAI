@@ -13,7 +13,7 @@ def make_content_serializeable(content: Any, default: Callable[[Any], str]=str) 
     return default(content)
 
 
-def stringify_content(content: Any) -> str:
+def stringify_content(content: Any, separators: tuple[str, str]=(',', ':')) -> str:
     """Formats content for use a message content. If content is not a string, it is converted to a json string."""
     if isinstance(content, str):
         return content
@@ -21,4 +21,4 @@ def stringify_content(content: Any) -> str:
         return content.tobytes().decode()
     if isinstance(content, bytes):
         return content.decode()
-    return json_dumps(make_content_serializeable(content), separators=(',', ':'))
+    return json_dumps(make_content_serializeable(content), separators=separators)

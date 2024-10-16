@@ -92,14 +92,15 @@ class NvidiaAdapter(OpenAIAdapter, Reranker):
     provider = "nvidia"
     default_model = "meta/llama-3.1-405b-instruct"
     
-    # Nvidia API is OpenAI Compatible 
+    # Nvidia API is (kinda) OpenAI Compatible 
     # (with minor differences: 
     # - available models
+    # - base URLs for vary for different models (sometimes) or tasks (usually)
     # - image input format
     #   - (Nvidia uses HTML <img src=\"data:image/png;base64,iVBORw .../> 
     #      while OpenAI uses data_uri/url {'type':'image_url', 'image_url': {'url': 'data:image/png;base64,iVBORw ...'}})
     # - embedding parameters (truncate, input_type, etc)
-    # - with many more with tbd)
+    # - probably many with time)
     default_base_url = "https://integrate.api.nvidia.com/v1"
     retreival_base_url = "https://ai.api.nvidia.com/v1/retrieval/nvidia"
     vlm_base_url = "https://ai.api.nvidia.com/v1/vlm/"
@@ -213,7 +214,7 @@ class NvidiaAdapter(OpenAIAdapter, Reranker):
         """
         Entire point of this is to have a castable type subclassing OpenAI's BaseModel so it does not
         raise TypeError("Pydantic models must subclass our base model type, e.g. `from openai import BaseModel`")
-        and it is only created once and at runtime (not recreated every call and only created if needed)
+        and ensure it is only created once and at runtime (not recreated every call and only created if needed)
         """
         if self._openai_compatible_nvidia_rerank_response is None:
             from openai import BaseModel 
@@ -310,7 +311,8 @@ class NvidiaAdapter(OpenAIAdapter, Reranker):
                 stream_cls=Stream[ChatCompletionChunk],
             )
 
-    
+    # Convert from UnifAI to AI Provider format        
+        # Messages     
     def format_user_message(self, message: Message) -> dict:
         message_dict = {"role": "user"}
         content = message.content
@@ -325,6 +327,10 @@ class NvidiaAdapter(OpenAIAdapter, Reranker):
         message_dict["content"] = content
         return message_dict    
     
-
+        # Images
     def format_image(self, image: Image) -> str:
         return f"<img src=\"{image.data_uri}\" />"
+
+        # Tools
+    def format_tool(self, tool: Tool) -> dict:
+        return tool.to_dict(exclude=("strict", "additionalProperties"))

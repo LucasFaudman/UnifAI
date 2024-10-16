@@ -264,11 +264,9 @@ class AnthropicAdapter(LLMClient):
     def format_tool_choice(self, tool_choice: str) -> dict:
         if tool_choice == "required":
             tool_choice = "any"
-        # if tool_choice in ("auto", "required", "none"):
         if tool_choice in ("auto", "any", "none"):
-            return {"type": tool_choice}
-        
-        return {"type": "tool", "name": tool_choice}   
+            return {"type": tool_choice}        
+        return {"type": "tool", "name": tool_choice}
 
 
         # Response Format

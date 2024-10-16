@@ -3,7 +3,7 @@ from .message import Message, MessageChunk
 from .embeddings import Embeddings, Embedding
 from .response_info import ResponseInfo, Usage
 from .tool_call import ToolCall
-from .tool_parameter import (
+from .tool_parameters import (
     ToolParameter, 
     StringToolParameter,
     NumberToolParameter,
@@ -16,7 +16,7 @@ from .tool_parameter import (
     AnyOfToolParameter,
     ToolParameters,
     ToolParameterType,
-    ToolValPyTypes,
+    ToolParameterPyTypes,
 )
 from .tool import Tool, ProviderTool, PROVIDER_TOOLS
 from .valid_inputs import (

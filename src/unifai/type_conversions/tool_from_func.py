@@ -4,6 +4,9 @@ from ast import literal_eval as ast_literal_eval
 from unifai.types import Tool, ObjectToolParameter, ToolParameterType
 from .tool_from_dict import tool_parameter_from_dict
 
+from re import compile as re_compile
+TOOL_PARAMETER_REGEX = re_compile(r'(?P<indent>\s*)(?P<name>\w+)(?: *\(?(?P<type>\w+)\)?)?: *(?P<description>.+)?')
+
 PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP: dict[str|Type, ToolParameterType] = {
     "str": "string",
     "int": "integer",
@@ -26,8 +29,7 @@ def parse_docstring_and_annotations(
         annotations: Optional[dict]=None
         ) -> tuple[str, ObjectToolParameter]:
     
-    from re import compile as re_compile
-    param_pattern = re_compile(r'(?P<indent>\s*)(?P<name>\w+)(?: *\(?(?P<type>\w+)\)?)?: *(?P<description>.+)?')
+
 
     if "Returns:" in docstring:
         docstring, returns = docstring.rsplit("Returns:", 1)
@@ -50,7 +52,7 @@ def parse_docstring_and_annotations(
         if not (lstripped_line := line.lstrip()):
             continue
     
-        if param_match := param_pattern.match(line):
+        if param_match := TOOL_PARAMETER_REGEX.match(line):
             group_dict = param_match.groupdict()
             group_dict["indent"] = len(group_dict["indent"])
 

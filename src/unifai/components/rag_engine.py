@@ -2,8 +2,8 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 
 from .._core._base_vector_db_index import VectorDBIndex
 from .._core._base_reranker import Reranker
-from ..types.rag_spec import RAGSpec, VectorDBQueryResult
-from ..components.prompt_template import PromptTemplate
+from ...client.specs import RAGSpec, VectorDBQueryResult
+from .prompt_template import PromptTemplate
 
 
 class Retriever:

@@ -1,6 +1,6 @@
 
 from typing import Any
-from unifai import UnifAIClient, tool, Message, EvalSpec, Tool, NumberToolParameter, StringToolParameter, ArrayToolParameter, ObjectToolParameter
+from unifai import UnifAIClient, tool, Message, FuncSpec, Tool, NumberToolParameter, StringToolParameter, ArrayToolParameter, ObjectToolParameter
 from souperscraper import SouperScraper, Keys
 from pydantic import BaseModel
 
@@ -36,7 +36,7 @@ from _provider_defaults import PROVIDER_DEFAULTS
 #     }
 # )
 
-extract_leetcode_problem = EvalSpec(
+extract_leetcode_problem = Func(
     eval_type="extract_leetcode_problem",
     system_prompt="Your role is to extract leetcode problems from the leetcode website.",
     tools=[
@@ -304,7 +304,7 @@ class LeetScraper:
         test_cases = self.get_test_cases()
 
 
-        solve_leetcode_problem = EvalSpec(
+        solve_leetcode_problem = FuncSpec(
             eval_type="solve_leetcode_problem",
             system_prompt="Your role is to solve leetcode problems using the optimal solution. You can add/modify test cases and submit your solution.",
             tools=[

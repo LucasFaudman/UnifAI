@@ -219,16 +219,6 @@ class GoogleAIAdapter(Embedder, LLMClient):
             **kwargs
             ) -> Any:
         
-        # TODO - Preform this logic only when using Vertex AI models
-        # https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api#parameter-list
-        # if input_too_large == "truncate_start":
-        #     raise ProviderUnsupportedFeatureError(
-        #         "GoogleAI does not support truncating input at the start. "
-        #         "Use 'truncate_end' or 'raise_error' instead with GoogleAI. "
-        #         "If you require truncating at the start, use Nvidia or Cohere embedding models which support this directly. "
-        #         "Or use 'raise_error' to handle truncation manually when the input is too large for GoogleAI."
-        #         )
-        
         return self.client.embed_content(
             content=input,
             model=self.format_model_name(model),

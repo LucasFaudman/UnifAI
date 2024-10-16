@@ -480,3 +480,9 @@ def test_decorators_base_model():
 
     assert Customer2 != Customer
     assert customer2 != customer
+
+@tool
+def some_tool_with_no_docs(param1: str, param2: int, param3: float) -> dict:
+    return {"param1": param1, "param2": param2, "param3": param3}
+
+print(some_tool_with_no_docs)

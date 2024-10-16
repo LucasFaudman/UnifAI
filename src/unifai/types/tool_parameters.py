@@ -1,23 +1,24 @@
-from typing import Optional, Union, Sequence, Any, Literal, Mapping
+from typing import Optional, Union, Sequence, Any, Literal, Mapping, Collection
 from pydantic import BaseModel
 
 
 ToolParameterType = Literal["object", "array", "string", "integer", "number", "boolean", "null"]
-ToolValPyTypes = Union[str, int, float, bool, None, list[Any], dict[str, Any]]
-
+ToolParameterPyTypes = Union[str, int, float, bool, None, list[Any], dict[str, Any]]
+ToolParameterExcludableKeys = Literal["description", "enum", "required", "additionalProperties", "defs", "refs"]
+EXCLUDE_NONE = frozenset()
 
 class ToolParameter(BaseModel):
     type: ToolParameterType = "string"
     name: Optional[str] = None
     description: Optional[str] = None
-    enum: Optional[list[ToolValPyTypes]] = None
+    enum: Optional[list[ToolParameterPyTypes]] = None
     required: bool = True
         
-    def to_dict(self) -> dict:
+    def to_dict(self, exclude: Collection[ToolParameterExcludableKeys] = EXCLUDE_NONE) -> dict:
         param_dict: dict = {"type": self.type}
-        if self.description:
+        if self.description and "description" not in exclude:
             param_dict["description"] = self.description
-        if self.enum:
+        if self.enum and "enum" not in exclude:
             param_dict["enum"] = self.enum
         return param_dict
 
@@ -46,20 +47,18 @@ class RefToolParameter(ToolParameter):
     type: Literal["ref"] = "ref"
     ref: str
 
-    def to_dict(self) -> dict:
-        return {
-            "$ref": self.ref
-        }
+    def to_dict(self, exclude: Collection[ToolParameterExcludableKeys] = EXCLUDE_NONE) -> dict:
+        return {"$ref": self.ref} if "ref" not in exclude else {}
 
 
 class ArrayToolParameter(ToolParameter):
     type: Literal["array"] = "array"
     items: ToolParameter
     
-    def to_dict(self) -> dict:
+    def to_dict(self, exclude: Collection[ToolParameterExcludableKeys] = EXCLUDE_NONE) -> dict:
         return {
-            **ToolParameter.to_dict(self),
-            "items": self.items.to_dict() 
+            **ToolParameter.to_dict(self, exclude),
+            "items": self.items.to_dict(exclude) 
         }
     
 
@@ -69,34 +68,29 @@ class ObjectToolParameter(ToolParameter):
     additionalProperties: bool = False
     defs: Optional[Mapping[str, ToolParameter]] = None
     
-    def to_dict(self, include=("additionalProperties", "defs")) -> dict:
+    def to_dict(self, exclude: Collection[ToolParameterExcludableKeys] = EXCLUDE_NONE) -> dict:
         properties = {}
         required = []
         for prop in self.properties:
-            properties[prop.name] = prop.to_dict()
+            properties[prop.name] = prop.to_dict(exclude)
             if prop.required:
                 required.append(prop.name)
 
         self_dict = { 
-            **ToolParameter.to_dict(self),
+            **ToolParameter.to_dict(self, exclude),
             "properties": properties,
-            "required": required,
         }
-        # if "additionalProperties" in include:
-        #     self_dict["additionalProperties"] = self.additionalProperties
+        if "required" not in exclude:
+            self_dict["required"] = required
+        if "additionalProperties" not in exclude:
+            self_dict["additionalProperties"] = self.additionalProperties
 
-        if self.defs and "defs" in include:
-            self_dict["$defs"] = {name: prop.to_dict() for name, prop in self.defs.items()}
+        if self.defs and "defs" not in exclude:
+            self_dict["$defs"] = {name: prop.to_dict(exclude) for name, prop in self.defs.items()}
         
         return self_dict
-        # return { 
-        #     **ToolParameter.to_dict(self),
-        #     "properties": properties,
-        #     "required": required,
-        #     "additionalProperties": self.additionalProperties
-        # }
-    
 
+    
 class AnyOfToolParameter(ToolParameter):
     type: Literal["anyOf"] = "anyOf"
     anyOf: list[ToolParameter]
@@ -114,9 +108,9 @@ class AnyOfToolParameter(ToolParameter):
         
         BaseModel.__init__(self, name=name, description=description, required=required, anyOf=anyOf, **kwargs)
 
-    def to_dict(self) -> dict:
+    def to_dict(self, exclude: Collection[ToolParameterExcludableKeys] = EXCLUDE_NONE) -> dict:
         return {
-            "anyOf": [param.to_dict() for param in self.anyOf]
+            "anyOf": [param.to_dict(exclude) for param in self.anyOf]
         }
 
 

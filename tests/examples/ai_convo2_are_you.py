@@ -126,16 +126,16 @@ for round_num in range(rounds):
                 is_trait = last_args[is_trait_param_name]
                 reason = last_args["reason"]
                 if is_trait:
+                    wins[win_key1] += 1
                     print(f"{blue}{chat1.model} decided {chat2.model} IS {trait} {reset}")
                     print(f"Reason: {reason}")
                     print(f"{blue}{chat1.model}: WINS by correct return {is_trait_param_name} = {is_trait} !{reset}")
-                    wins[win_key1] += 1
                     play_speech(f"{chat1.model} WINS by correct return {is_trait_param_name} = {is_trait}! Reason: {reason}", voice="echo")
                 else:
+                    wins[win_key2] += 1
                     print(f"{red}{chat1.model} decided {chat2.model} is NOT {trait} {reset}")
                     print(f"Reason: {reason}")
                     print(f"{red}{chat1.model} LOSES by incorrect return {is_trait_param_name} = {is_trait} !{reset}")
-                    wins[win_key2] += 1
                     play_speech(f"{chat1.model} LOSES by incorrect return {is_trait_param_name} = {is_trait}! Reason: {reason}", voice="echo")
                 break
         else:

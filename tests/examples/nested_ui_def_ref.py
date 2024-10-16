@@ -1,4 +1,4 @@
-from unifai import UnifAIClient, tool, EvalSpec
+from unifai import UnifAIClient, tool, FuncSpec
 from _provider_defaults import PROVIDER_DEFAULTS
 
 import webbrowser
@@ -57,8 +57,8 @@ return_ui_component = {
 }
 
 
-get_ui_component = EvalSpec(
-    eval_type="return_ui_component",
+get_ui_component = FuncSpec(
+    name="return_ui_component",
     system_prompt="Your role is to return a UI component based on the description provided.",
     tools=["return_ui_component"],
     tool_choice="return_ui_component",
@@ -68,6 +68,8 @@ get_ui_component = EvalSpec(
 
 
 def get_html_from_result(ui_component):
+    if not isinstance(ui_component, dict):
+        return ui_component    
     html = ""
     html += f"<{ui_component['type']} "
     for attribute in ui_component['attributes']:
@@ -93,16 +95,18 @@ def render_html_in_browser(html_content):
     input("Press Enter to delete...")
     temp_file_path.unlink()
 
+
 if __name__ == "__main__":
     ai = UnifAIClient(
     provider_client_kwargs={
         "anthropic": PROVIDER_DEFAULTS["anthropic"][1],
         "google": PROVIDER_DEFAULTS["google"][1],
         "openai": PROVIDER_DEFAULTS["openai"][1],
-        "ollama": PROVIDER_DEFAULTS["ollama"][1]
+        "ollama": PROVIDER_DEFAULTS["ollama"][1],
+        "nvidia": PROVIDER_DEFAULTS["nvidia"][1],
     },
     tools=[return_ui_component],
-    eval_prameters=[get_ui_component]
+    func_specs=[get_ui_component]
     )
 
     # default_content = """Create a login form with a username and password entries, and a submit button. 
@@ -120,7 +124,8 @@ if __name__ == "__main__":
 
     content = input("Describe a UI element: ") or default_content
     print("Creating...\n", content)
-    result = ai.evaluate("return_ui_component", content=content, provider="anthropic")
+    func = ai.get_function("return_ui_component")
+    result = func.with_spec(provider="nvidia", model="nvidia/nemotron-4-340b-instruct")(content=content)
     print("Result: ", result)
     html = get_html_from_result(result)
     print("HTML: ", html)

@@ -407,7 +407,7 @@ def test_chat_enforce_tool_choice_sequence(
 
         input_tokens = 0
         output_tokens = 0
-        for message in new_messages + chat.rejected_messages:
+        for message in new_messages + chat.deleted_messages:
             if message.response_info and message.response_info.usage:
                 usage = message.response_info.usage
                 input_tokens += usage.input_tokens
@@ -498,7 +498,7 @@ def test_chat_send_message(
 
     input_tokens = 0
     output_tokens = 0
-    for message in chat.messages + chat.rejected_messages:
+    for message in chat.messages + chat.deleted_messages:
         if message.response_info and message.response_info.usage:
             usage = message.response_info.usage
             input_tokens += usage.input_tokens
