@@ -186,7 +186,7 @@ class GoogleAIAdapter(Embedder, LLMClient):
                             ) -> Optional[GoogleEmbeddingTaskType]:
         if task_type is None:
             return None
-        if "textembedding-gecko@001" in model:
+        if "@001" in model:
             raise ModelUnsupportedFeatureError(
                 f"Model {model} does not support task_type specification for embeddings. "
                 "See: https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/task-types"
@@ -322,6 +322,9 @@ class GoogleAIAdapter(Embedder, LLMClient):
                 )
         if message.images:
             parts.extend(map(self.format_image, message.images))
+        if not parts:
+            # Should not happen unless switching providers after a tool call
+            parts.append(Part(text="continue"))       
         return {"role": "model", "parts": parts}
         
 
