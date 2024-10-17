@@ -67,7 +67,7 @@ def resolve_annotation(annotation: Optional[type]) -> dict:
             raise ValueError(f"Collection type annotations must have at least one non-null arg. Got: {annotation}")        
         return {"type": origin, "items": resolve_annotation(arg)} # type=Collection, items=(resolved type of first non-null arg)
 
-    # Recursively unpack nested annotations until first concrete type, (and optional items) is found
+    # Recursively resolve nested annotations until first concrete type, (and optional items) is found
     return resolve_annotation(origin)
 
 
