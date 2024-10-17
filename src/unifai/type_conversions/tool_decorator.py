@@ -2,9 +2,9 @@ from typing import Callable, Type, Optional, Union, overload, Any
 from pydantic import BaseModel
 
 from ..types.tool import Tool
+from .construct_tool_parameter import construct_tool_parameter, is_type_and_subclass
+from .tool_from_pydantic import tool_from_pydantic_model
 from .tool_from_func import tool_from_func
-# from .tool_from_pydantic import tool_from_pydantic_model, is_type_and_subclass
-from .tool_from import tool_from_pydantic_model, is_type_and_subclass
 
 
 @overload

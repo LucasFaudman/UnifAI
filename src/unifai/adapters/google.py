@@ -92,6 +92,7 @@ from unifai.types import (
     ArrayToolParameter,
     ObjectToolParameter,
     AnyOfToolParameter,
+    OptionalToolParameter,
     RefToolParameter,
     Embeddings,
 )
@@ -377,6 +378,11 @@ class GoogleAIAdapter(Embedder, LLMClient):
     def format_tool(self, tool: Tool) -> GoogleTool:
 
         def tool_parameter_to_schema(tool_parameter: ToolParameter) -> Schema:        
+            if isinstance(tool_parameter, OptionalToolParameter):
+                tool_parameter = tool_parameter.anyOf[0]
+                nullable = True
+            else:
+                nullable = False            
             if isinstance(tool_parameter, (AnyOfToolParameter, RefToolParameter)):
                 raise ValueError(f"{tool_parameter.__class__.__name__} is not supported by GoogleAI")
 
@@ -388,8 +394,7 @@ class GoogleAIAdapter(Embedder, LLMClient):
                 required = []
                 for prop in tool_parameter.properties:
                     properties[prop.name] = tool_parameter_to_schema(prop)
-                    if prop.required:
-                        required.append(prop.name)
+                    required.append(prop.name)
             elif isinstance(tool_parameter, ArrayToolParameter):
                 items = tool_parameter_to_schema(tool_parameter.items)                         
 
@@ -397,7 +402,7 @@ class GoogleAIAdapter(Embedder, LLMClient):
                 type=tool_parameter.type.upper(),
                 # format=tool_parameter.format,
                 description=tool_parameter.description,
-                nullable=True if not tool_parameter.required else None, # not tool_parameter.required?
+                nullable=nullable, 
                 enum=tool_parameter.enum,
                 # maxItems=tool_parameter.maxItems,
                 properties=properties,

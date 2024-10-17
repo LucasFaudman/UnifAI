@@ -78,8 +78,19 @@ def construct_tool_parameter(
         exclude: Collection[str] = (),
         ) -> ToolParameter:
     
+    if (ref := param_dict.get('$ref')) is not None:
+        return RefToolParameter(name=param_name, ref=ref)
+
+    # Everything but RefToolParameter should have a 'type' key
     param_type = param_dict['type']
     
+    if (anyof_param_dicts := param_dict.get('anyOf')) is not None:
+        anyOf = [
+            construct_tool_parameter(param_dict=anyof_param_dict, param_name=param_name)
+            for anyof_param_dict in anyof_param_dicts
+        ]
+        return AnyOfToolParameter(name=param_name, anyOf=anyOf)
+        
     # if isinstance(param_type, BaseModel):
     #     param_type = param_type.__class__
     if is_type_and_subclass(param_type, BaseModel):
@@ -102,18 +113,6 @@ def construct_tool_parameter(
 
 
     param_name = param_dict.get('name', param_name)
-    
-    if (ref := param_dict.get('$ref')) is not None:
-        return RefToolParameter(name=param_name, ref=ref)
-
-    if (anyof_param_dicts := param_dict.get('anyOf')) is not None:
-        anyOf = [
-            construct_tool_parameter(param_dict=anyof_param_dict, param_name=param_name)
-            for anyof_param_dict in anyof_param_dicts
-        ]
-        return AnyOfToolParameter(name=param_name, anyOf=anyOf)
-
-
     param_description = param_dict.get('description', param_description)
     param_enum = param_dict.get('enum')
 
@@ -161,62 +160,6 @@ def construct_tool_parameter(
     raise ValueError(f"Invalid parameter type: {param_type}")
 
 
-def tool_from_dict(tool_dict: dict) -> Tool:
-    tool_type = tool_dict['type']
-    if provider_tool := PROVIDER_TOOLS.get(tool_type):
-        return provider_tool
-
-    tool_def = tool_dict.get(tool_type) or tool_dict.get("input_schema")
-    if tool_def is None:
-        raise ValueError("Invalid tool definition. "
-                         f"The input schema must be defined under the key '{tool_type}' or 'input_schema' when tool type='{tool_type}'.")
-
-    parameters = construct_tool_parameter(param_dict=tool_def['parameters'])
-    if not isinstance(parameters, ObjectToolParameter):
-        raise ValueError("Root parameter must be an object")
-    
-    # if isinstance(parameters, AnyOfToolParameter):
-    #     raise ValueError("Root parameter cannot be anyOf: See: https://platform.openai.com/docs/guides/structured-outputs/root-objects-must-not-be-anyof")
-
-    return Tool(
-        name=tool_def['name'], 
-        description=tool_def['description'], 
-        parameters=parameters,
-        strict=tool_def.get('strict', True)
-    )
 
 
-def tool_from_pydantic_model(
-        model: Type[BaseModel]|BaseModel, 
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        type: str = "function",
-        strict: bool = True,
-        exclude: Optional[list[str]] = None,
-        ) -> Tool:
-    
-    if isinstance(model, BaseModel):
-        model = model.__class__
 
-    parameters = construct_tool_parameter({"type": model}, exclude=exclude)
-    if isinstance(parameters, AnyOfToolParameter):
-        raise ValueError("Root parameter cannot be anyOf: See: https://platform.openai.com/docs/guides/structured-outputs/root-objects-must-not-be-anyof")
-    if not isinstance(parameters, ObjectToolParameter):
-        raise ValueError("Root parameter must be an object")
-    
-    name = name or f"return_{parameters.name}"
-    description = description or parameters.description or f"Return {parameters.name} object"
-    parameters.name = None
-    parameters.description = None
-
-    return Tool(
-        name=name,
-        description=description,
-        parameters=parameters,
-        type=type,
-        strict=strict,
-        callable=model
-    )
-
-# alias for tool_from_pydantic_model so models can be decorated with @tool or @tool_from_model or longform @tool_from_pydantic_model
-tool_from_model = tool_from_pydantic_model

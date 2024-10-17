@@ -3,8 +3,7 @@ from ast import literal_eval as ast_literal_eval
 from re import compile as re_compile
 
 from unifai.types import Tool, ObjectToolParameter, ToolParameterType
-from .tool_from_dict import tool_parameter_from_dict
-from .tool_from import resolve_annotation, construct_tool_parameter
+from .construct_tool_parameter import resolve_annotation, construct_tool_parameter
 
 PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP: dict[str|Type, ToolParameterType] = {
     "str": "string",
