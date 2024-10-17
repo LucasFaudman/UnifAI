@@ -48,6 +48,7 @@ def tool(
                 description=description,
                 type=type,
                 strict=strict,
+                exclude=exclude
             )
 
     if callable(name):

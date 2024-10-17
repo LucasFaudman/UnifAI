@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Type
+from typing import Callable, Optional, Type, Collection
 from ast import literal_eval as ast_literal_eval
 from re import compile as re_compile
 
@@ -27,7 +27,8 @@ TOOL_PARAMETER_REGEX = re_compile(r'(?P<indent>\s*)(?P<name>\w+)(?: *\(?(?P<type
 
 def parse_docstring_and_annotations(
         docstring: str, 
-        annotations: Optional[dict]=None
+        annotations: Optional[dict]=None,
+        exclude: Optional[Collection[str]] = None,
         ) -> tuple[str, ObjectToolParameter]:
     
 
@@ -42,7 +43,8 @@ def parse_docstring_and_annotations(
     elif "Parameters:" in docstring:
         docstring, args = docstring.rsplit("Parameters:", 1)       
     else:
-        return docstring.strip(), ObjectToolParameter(properties=[])
+        docstring, args = docstring, ""
+        # return docstring.strip(), ObjectToolParameter(properties=[])
     
     description = docstring.strip()
     args = args.rstrip()
@@ -68,7 +70,6 @@ def parse_docstring_and_annotations(
             param_lines.append(group_dict)
         else:
             param_lines[-1]["description"] += lstripped_line
-
 
 
     root = {"type": "object", "properties": {}}
@@ -104,7 +105,13 @@ def parse_docstring_and_annotations(
 
         stack.append(param)
 
-    # parameters = tool_parameter_from_dict(root)
+    if annotations:
+        for param_name, anno in annotations.items():
+            if param_name == "return" or (exclude and param_name in exclude):
+                continue
+            if param_name not in root["properties"]:
+                root["properties"][param_name] = resolve_annotation(anno)
+
     parameters = construct_tool_parameter(root)
     assert isinstance(parameters, ObjectToolParameter)
     return description, parameters
@@ -116,10 +123,12 @@ def tool_from_func(
         description: Optional[str] = None,
         type: str = "function",
         strict: bool = True,
+        exclude: Optional[Collection[str]] = None,
     ) -> Tool:
     docstring_description, parameters = parse_docstring_and_annotations(
         docstring=func.__doc__ or "",
-        annotations=func.__annotations__
+        annotations=func.__annotations__,
+        exclude=exclude
         )
     return Tool(
         name=name or func.__name__,

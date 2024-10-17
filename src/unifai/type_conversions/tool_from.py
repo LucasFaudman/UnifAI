@@ -1,4 +1,4 @@
-from typing import Optional, Type, TypeVar, Any, Union, Collection, Mapping, List, Tuple, Annotated, Callable, _SpecialForm, Literal, get_args, get_origin
+from typing import Optional, Type, TypeVar, Any, Union, Collection, Sequence, Mapping, List, Tuple, Annotated, Callable, _SpecialForm, Literal, get_args, get_origin
 from types import UnionType
 from enum import Enum
 from pydantic import BaseModel
@@ -20,7 +20,6 @@ from unifai.types import (
     
 )
 
-# from .tool_from_pydantic import resolve_annotation, tool_parameter_from_anno_dict, tool_from_pydantic_model
 
 def is_type_and_subclass(annotation: Any, _class_or_tuple: type|Tuple[type]) -> bool:
     """Checks that the annotation is a type before checking if it is a subclass of _class_or_tuple"""
@@ -128,15 +127,7 @@ def construct_tool_parameter(
         return IntegerToolParameter(name=param_name, description=param_description, enum=param_enum)
     if param_type == 'null':
         return NullToolParameter(name=param_name, description=param_description, enum=param_enum)
-    
-    if param_type == 'array' or is_type_and_subclass(param_type, Collection):
-        if not (param_items := param_dict.get('items')):
-            raise ValueError("Array parameters must have an 'items' key.")
-        
-        items = construct_tool_parameter(param_dict=param_items)
-        return ArrayToolParameter(name=param_name, description=param_description, 
-                                  enum=param_enum,
-                                  items=items)    
+
     if param_type == 'object':
         if not (param_properties := param_dict.get('properties')):
             raise ValueError("Object parameters must have a 'properties' key.")
@@ -156,6 +147,16 @@ def construct_tool_parameter(
         return ObjectToolParameter(name=param_name, description=param_description, enum=param_enum, 
                                    properties=properties, additionalProperties=additionalProperties,
                                    defs=defs)
+    
+    if param_type == 'array' or is_type_and_subclass(param_type, Collection):
+        if not (param_items := param_dict.get('items')):
+            raise ValueError("Array parameters must have an 'items' key.")
+        
+        items = construct_tool_parameter(param_dict=param_items)
+        return ArrayToolParameter(name=param_name, description=param_description, 
+                                  enum=param_enum,
+                                  items=items)    
+
     
     raise ValueError(f"Invalid parameter type: {param_type}")
 

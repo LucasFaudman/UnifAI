@@ -434,8 +434,107 @@ class Customer(BaseModel):
     phone: str
     address: str = Field(description="The customer's address")
 
-@tool
-def some_tool_with_no_docs(param1: str, param2: int, param3: float, customer: Customer) -> dict:
-    return {"param1": param1, "param2": param2, "param3": param3, "customer": customer.model_dump()}
+def test_decorators_base_model_annotations():
+    @tool
+    def tool_with_basemodel_arg(customer: Customer) -> dict:
+        return {"customer": customer.model_dump()}
 
-print(some_tool_with_no_docs)
+    assert tool_with_basemodel_arg.name == "tool_with_basemodel_arg"
+    assert tool_with_basemodel_arg.description == ''
+    assert tool_with_basemodel_arg.parameters == ObjectToolParameter(
+        type="object",
+        properties=[
+            ObjectToolParameter(
+                type="object",
+                name="customer",
+                description="A customer object",
+                properties=[
+                    StringToolParameter(name="name"),
+                    IntegerToolParameter(name="age"),
+                    StringToolParameter(name="email"),
+                    StringToolParameter(name="phone"),
+                    StringToolParameter(name="address", description="The customer's address"),
+                ]
+            )
+        ]
+    )
+    
+    @tool(description="A tool with no docs")
+    def tool_with_basemodel_arg2(customer: Customer) -> dict:
+        return {"customer": customer.model_dump()}
+
+    assert tool_with_basemodel_arg2.name == "tool_with_basemodel_arg2"
+    assert tool_with_basemodel_arg2.description == 'A tool with no docs'
+    assert tool_with_basemodel_arg2.parameters == ObjectToolParameter(
+        type="object",
+        properties=[
+            ObjectToolParameter(
+                type="object",
+                name="customer",
+                description="A customer object",
+                properties=[
+                    StringToolParameter(name="name"),
+                    IntegerToolParameter(name="age"),
+                    StringToolParameter(name="email"),
+                    StringToolParameter(name="phone"),
+                    StringToolParameter(name="address", description="The customer's address"),
+                ]
+            )
+        ]
+    )
+
+    @tool
+    def tool_with_partial_docs(customer: Customer) -> dict:
+        """A tool with partial docs"""
+        return {"customer": customer.model_dump()}
+    
+    assert tool_with_partial_docs.name == "tool_with_partial_docs"
+    assert tool_with_partial_docs.description == 'A tool with partial docs'
+    assert tool_with_partial_docs.parameters == ObjectToolParameter(
+        type="object",
+        properties=[
+            ObjectToolParameter(
+                type="object",
+                name="customer",
+                description="A customer object",
+                properties=[
+                    StringToolParameter(name="name"),
+                    IntegerToolParameter(name="age"),
+                    StringToolParameter(name="email"),
+                    StringToolParameter(name="phone"),
+                    StringToolParameter(name="address", description="The customer's address"),
+                ]
+            )
+        ]
+    )
+    
+    @tool
+    def tool_with_description_only_args(int1: int, int2: int) -> int:
+        """
+        A tool with description only
+        Args:
+            int1: The first integer
+            int2: The second integer
+        """
+        return int1 + int2
+    assert tool_with_description_only_args.name == "tool_with_description_only_args"
+    assert tool_with_description_only_args.description == 'A tool with description only'
+    assert tool_with_description_only_args.parameters == ObjectToolParameter(
+        type="object",
+        properties=[
+            IntegerToolParameter(name="int1", description="The first integer"),
+            IntegerToolParameter(name="int2", description="The second integer"),
+        ]
+    )
+
+    # @tool
+    # def some_tool_with_no_docs(param1: str, param2: int, param3: float, customer: Customer) -> dict:
+    #     return {"param1": param1, "param2": param2, "param3": param3, "customer": customer.model_dump()}
+
+    # @tool
+    # def tool_with_basemodel_arg2(customer: Customer) -> dict:
+    #     return {"customer": customer.model_dump()}
+
+    # print(some_tool_with_no_docs)
+
+    # print(tool_with_basemodel_arg)
