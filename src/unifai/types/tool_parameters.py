@@ -14,12 +14,12 @@ class ToolParameter(BaseModel):
     enum: Optional[list[ToolParameterPyTypes]] = None
         
     def to_dict(self, exclude: Collection[ToolParameterExcludableKeys] = EXCLUDE_NONE) -> dict:
-        param_dict: dict = {"type": self.type}
+        self_dict: dict = {"type": self.type}
         if self.description and "description" not in exclude:
-            param_dict["description"] = self.description
+            self_dict["description"] = self.description
         if self.enum and "enum" not in exclude:
-            param_dict["enum"] = self.enum
-        return param_dict
+            self_dict["enum"] = self.enum
+        return self_dict
 
 
 class StringToolParameter(ToolParameter):
@@ -66,30 +66,53 @@ class ArrayToolParameter(ToolParameter):
 
 class ObjectToolParameter(ToolParameter):
     type: Literal["object"] = "object"
-    properties: Sequence[ToolParameter]
+    properties: Mapping[str, ToolParameter]
     additionalProperties: bool = False
     defs: Optional[Mapping[str, ToolParameter]] = None
-    
-    def to_dict(self, exclude: Collection[ToolParameterExcludableKeys] = EXCLUDE_NONE) -> dict:
-        properties = {}
-        required = []
-        for prop in self.properties:
-            properties[prop.name] = prop.to_dict(exclude)
-            required.append(prop.name)
-            
 
+    def __init__(self, 
+                 properties: Mapping[str, ToolParameter]|Sequence[ToolParameter], 
+                 additionalProperties: bool = False,
+                 defs: Optional[Mapping[str, ToolParameter]|Sequence[ToolParameter]] = None, 
+                 **kwargs
+                 ):
+        kwargs["additionalProperties"] = additionalProperties
+        for kw in ("properties", "defs"):
+            passed_val = locals()[kw]
+            if isinstance(passed_val, Mapping):
+                kwargs[kw] = passed_val
+                continue
+            if passed_val is None:
+                continue
+            if isinstance(passed_val, Sequence):
+                kwargs[kw] = {}
+                for prop in passed_val:
+                    if not prop.name:
+                        raise ValueError(f"All {kw} must have a name when passed as a sequence")
+                    kwargs[kw][prop.name] = prop
+            else:
+                raise ValueError(f"Invalid {kw} type: {passed_val}")
+        
+        for prop_name, prop in kwargs["properties"].items():
+            if not prop.name:
+                prop.name = prop_name
+        
+        BaseModel.__init__(self, **kwargs)
+    
+
+    def to_dict(self, exclude: Collection[ToolParameterExcludableKeys] = EXCLUDE_NONE) -> dict:
+        properties = {prop_name: prop.to_dict(exclude) for prop_name, prop in self.properties.items()}
         self_dict = { 
             **ToolParameter.to_dict(self, exclude),
             "properties": properties,
         }
         if "required" not in exclude:
-            self_dict["required"] = required
+            self_dict["required"] = list(self.properties.keys())
         if "additionalProperties" not in exclude:
             self_dict["additionalProperties"] = self.additionalProperties
-
         if self.defs and "defs" not in exclude:
             self_dict["$defs"] = {name: prop.to_dict(exclude) for name, prop in self.defs.items()}
-        
+                    
         return self_dict
 
     

@@ -80,9 +80,6 @@ def construct_tool_parameter(
     
     if (ref := param_dict.get('$ref')) is not None:
         return RefToolParameter(name=param_name, ref=ref)
-
-    # Everything but RefToolParameter should have a 'type' key
-    param_type = param_dict['type']
     
     if (anyof_param_dicts := param_dict.get('anyOf')) is not None:
         anyOf = [
@@ -90,23 +87,24 @@ def construct_tool_parameter(
             for anyof_param_dict in anyof_param_dicts
         ]
         return AnyOfToolParameter(name=param_name, anyOf=anyOf)
+    
+    # Everything but AnyOfToolParameter and RefToolParameter should have a 'type' key
+    param_type = param_dict['type']    
         
-    # if isinstance(param_type, BaseModel):
-    #     param_type = param_type.__class__
     if is_type_and_subclass(param_type, BaseModel):
-        properties = []
+        properties = {}
         for field_name, field in param_type.model_fields.items():
             if exclude and field_name in exclude:
                 continue
 
             anno_dict = resolve_annotation(field.annotation)
             field_description = field.description
-            properties.append(construct_tool_parameter(
+            properties[field_name] = construct_tool_parameter(
                 param_dict=anno_dict,
                 param_name=field_name,
                 param_description=field_description,
                 exclude=exclude
-            ))            
+            )            
         name = param_name or param_type.__name__
         description = param_type.__doc__
         return ObjectToolParameter(name=name, description=description, properties=properties)        
@@ -130,10 +128,10 @@ def construct_tool_parameter(
     if param_type == 'object':
         if not (param_properties := param_dict.get('properties')):
             raise ValueError("Object parameters must have a 'properties' key.")
-        properties = [
-            construct_tool_parameter(param_dict=prop_dict, param_name=prop_name) 
+        properties = {
+            prop_name: construct_tool_parameter(param_dict=prop_dict, param_name=prop_name) 
             for prop_name, prop_dict in param_properties.items() if prop_name not in exclude
-        ]
+        }
         additionalProperties = param_dict.get('additionalProperties', False)
         if def_dicts := param_dict.get('$defs'): 
             defs = {

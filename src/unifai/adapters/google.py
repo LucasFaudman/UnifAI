@@ -392,7 +392,7 @@ class GoogleAIAdapter(Embedder, LLMClient):
             if isinstance(tool_parameter, ObjectToolParameter):
                 properties = {}
                 required = []
-                for prop in tool_parameter.properties:
+                for prop in tool_parameter.properties.values():
                     properties[prop.name] = tool_parameter_to_schema(prop)
                     required.append(prop.name)
             elif isinstance(tool_parameter, ArrayToolParameter):

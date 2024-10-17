@@ -29,12 +29,11 @@ def tool_from_dict(tool_dict: dict) -> Tool:
                          f"The input schema must be defined under the key '{tool_type}' or 'input_schema' when tool type='{tool_type}'.")
 
     parameters = construct_tool_parameter(param_dict=tool_def['parameters'])
+    if isinstance(parameters, AnyOfToolParameter):
+        raise ValueError("Root parameter cannot be anyOf: See: https://platform.openai.com/docs/guides/structured-outputs/root-objects-must-not-be-anyof")    
     if not isinstance(parameters, ObjectToolParameter):
         raise ValueError("Root parameter must be an object")
     
-    # if isinstance(parameters, AnyOfToolParameter):
-    #     raise ValueError("Root parameter cannot be anyOf: See: https://platform.openai.com/docs/guides/structured-outputs/root-objects-must-not-be-anyof")
-
     return Tool(
         name=tool_def['name'], 
         description=tool_def['description'], 

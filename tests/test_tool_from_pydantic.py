@@ -377,9 +377,9 @@ def test_tool_from_base_model(
     assert isinstance(return_tool, Tool)
     print(return_tool)
     model_fields = dict(bmodel.model_fields.items())
-    assert len(return_tool.parameters.properties) == len(model_fields)
-    assert all(param.name in model_fields for param in return_tool.parameters.properties)
-    param_names = [param.name for param in return_tool.parameters.properties]
+    assert len(return_tool.parameters.properties.values()) == len(model_fields)
+    assert all(param.name in model_fields for param in return_tool.parameters.properties.values())
+    param_names = [param.name for param in return_tool.parameters.properties.values()]
     assert all(field_name in param_names for field_name in model_fields)
 
     ai = UnifAIClient({provider: client_kwargs})    

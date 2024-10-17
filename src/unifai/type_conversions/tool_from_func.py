@@ -34,6 +34,7 @@ def parse_docstring_and_annotations(
     if "Returns:" in docstring:
         docstring, returns = docstring.rsplit("Returns:", 1)
         returns = returns.strip()
+        # TODO maybe add returns to description
     else:
         returns = ""
 
@@ -43,7 +44,6 @@ def parse_docstring_and_annotations(
         docstring, args = docstring.rsplit("Parameters:", 1)       
     else:
         docstring, args = docstring, ""
-        # return docstring.strip(), ObjectToolParameter(properties=[])
     
     description = docstring.strip()
     args = args.rstrip()
@@ -76,9 +76,7 @@ def parse_docstring_and_annotations(
     for param in param_lines:                    
         # Determine the depth (number of spaces) based on the "indent" field
         param_indent = param["indent"]
-        # param["properties"] = [] # Initialize properties list to store nested parameters
-        param["properties"] = {} # Initialize properties list to store nested parameters
-
+        param["properties"] = {} # Initialize properties dict to store nested parameters
 
         # If the current parameter is at the same or lower level than the last, backtrack
         while len(stack) > 1 and param_indent <= stack[-1]["indent"]:
@@ -88,17 +86,13 @@ def parse_docstring_and_annotations(
         if (param_name := param["name"]) == "enum":
             # If the parameter is an enum, add it to the current structure
             current_structure[param_name] = ast_literal_eval(param["description"])
-
         elif (current_type := current_structure.get("type")) == "array" and param_name == "items":
             current_structure["items"] = param
             param.pop("name") # TODO remove this line
-
         elif current_type == "object" and param_name == "properties":
             current_structure["properties"] = param["properties"]
-
         elif current_type == "anyOf" and param_name == "anyOf":
             current_structure["anyOf"] = param["properties"]            
-        
         else:
             current_structure["properties"][param_name] = param
 
