@@ -108,19 +108,15 @@ def construct_tool_parameter(
         return RefToolParameter(name=param_name, ref=ref)
 
     if (anyof_param_dicts := param_dict.get('anyOf')) is not None:
-        # param_name = param_dict.get('name', param_name)
         anyOf = [
             construct_tool_parameter(param_dict=anyof_param_dict, param_name=param_name)
             for anyof_param_dict in anyof_param_dicts
         ]
         return AnyOfToolParameter(name=param_name, anyOf=anyOf)
 
-    # param_type = param_dict['type']
-    # param_name = param_dict.get('name', param_name)
+
     param_description = param_dict.get('description', param_description)
-    param_enum = param_dict.get('enum')    
-    # param_description = param_dict.get('description')
-    # param_enum = param_dict.get('enum')
+    param_enum = param_dict.get('enum')
 
     if param_type == 'string' or param_type is None or is_type_and_subclass(param_type, str):
         return StringToolParameter(name=param_name, description=param_description, enum=param_enum)
@@ -144,16 +140,10 @@ def construct_tool_parameter(
     if param_type == 'object':
         if not (param_properties := param_dict.get('properties')):
             raise ValueError("Object parameters must have a 'properties' key.")
-        if isinstance(param_properties, dict):
-            properties = [
-                construct_tool_parameter(param_dict=prop_dict, param_name=prop_name) 
-                for prop_name, prop_dict in param_dict['properties'].items() if prop_name not in exclude
-            ]
-        # else:
-        #     properties = [
-        #         construct_tool_parameter(param_dict=prop_dict, param_required=prop_dict.get('required', True)) 
-        #         for prop_dict in param_properties
-        #     ]
+        properties = [
+            construct_tool_parameter(param_dict=prop_dict, param_name=prop_name) 
+            for prop_name, prop_dict in param_properties.items() if prop_name not in exclude
+        ]
         additionalProperties = param_dict.get('additionalProperties', False)
         if def_dicts := param_dict.get('$defs'): 
             defs = {
@@ -180,9 +170,7 @@ def tool_from_dict(tool_dict: dict) -> Tool:
         raise ValueError("Invalid tool definition. "
                          f"The input schema must be defined under the key '{tool_type}' or 'input_schema' when tool type='{tool_type}'.")
 
-    parameters = construct_tool_parameter(param_dict=tool_def['parameters'], 
-            # param_name='parameters',
-    )
+    parameters = construct_tool_parameter(param_dict=tool_def['parameters'])
     if not isinstance(parameters, ObjectToolParameter):
         raise ValueError("Root parameter must be an object")
     
