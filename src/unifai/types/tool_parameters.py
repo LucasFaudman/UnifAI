@@ -12,7 +12,6 @@ class ToolParameter(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     enum: Optional[list[ToolParameterPyTypes]] = None
-    required: bool = True
         
     def to_dict(self, exclude: Collection[ToolParameterExcludableKeys] = EXCLUDE_NONE) -> dict:
         param_dict: dict = {"type": self.type}
@@ -41,6 +40,9 @@ class BooleanToolParameter(ToolParameter):
 
 class NullToolParameter(ToolParameter):
     type: Literal["null"] = "null"
+
+    def to_dict(self, exclude: Collection[Literal['description'] | Literal['enum'] | Literal['required'] | Literal['additionalProperties'] | Literal['defs'] | Literal['refs']] = EXCLUDE_NONE) -> dict:
+        return {"type": "null"}
 
 
 class RefToolParameter(ToolParameter):
@@ -73,8 +75,8 @@ class ObjectToolParameter(ToolParameter):
         required = []
         for prop in self.properties:
             properties[prop.name] = prop.to_dict(exclude)
-            if prop.required:
-                required.append(prop.name)
+            required.append(prop.name)
+            
 
         self_dict = { 
             **ToolParameter.to_dict(self, exclude),
@@ -96,22 +98,27 @@ class AnyOfToolParameter(ToolParameter):
     anyOf: list[ToolParameter]
 
     def __init__(self, 
-                 name: str, 
+                 name: Optional[str], 
                  anyOf: list[ToolParameter], 
                  description: Optional[str] = None,
-                 required: bool = True, 
                  **kwargs):
         
         for tool_parameter in anyOf:
             if not tool_parameter.name:
                 tool_parameter.name = name
         
-        BaseModel.__init__(self, name=name, description=description, required=required, anyOf=anyOf, **kwargs)
+        BaseModel.__init__(self, name=name, description=description, anyOf=anyOf, **kwargs)
 
     def to_dict(self, exclude: Collection[ToolParameterExcludableKeys] = EXCLUDE_NONE) -> dict:
         return {
             "anyOf": [param.to_dict(exclude) for param in self.anyOf]
         }
+
+
+class OptionalToolParameter(AnyOfToolParameter):
+    def __init__(self, tool_parameter: ToolParameter):
+        super().__init__(name=tool_parameter.name, anyOf=[tool_parameter, NullToolParameter()])
+    
 
 
 class ToolParameters(ObjectToolParameter):

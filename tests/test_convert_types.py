@@ -270,8 +270,6 @@ TOOL_DICTS = {
                     },
                     "null_param": {
                         "type": "null",
-                        "description": "A null parameter",
-                        # "enum": [None]
                     },
                     "array_param": {
                         "type": "array",
@@ -308,8 +306,6 @@ TOOL_DICTS = {
                             },
                             "null_prop": {
                                 "type": "null",
-                                "description": "A null property",
-                                # "enum": [None]
                             },
                             "array_prop": {
                                 "type": "array",
@@ -346,7 +342,6 @@ TOOL_DICTS = {
                                     },
                                     "nested_null_prop": {
                                         "type": "null",
-                                        "description": "A null property in a nested object",
                                         # "enum": [None]
                                     },
                                     "nested_array_prop": {
@@ -519,7 +514,6 @@ TOOL_OBJECTS = {
                 ),
                 NullToolParameter(
                     name="null_param",
-                    description="A null parameter",
                     required=True,
                 ),
                 ArrayToolParameter(
@@ -562,7 +556,6 @@ TOOL_OBJECTS = {
                         ),
                         NullToolParameter(
                             name="null_prop",
-                            description="A null property",
                             required=True,
                         ),
                         ArrayToolParameter(
@@ -605,7 +598,6 @@ TOOL_OBJECTS = {
                                 ),
                                 NullToolParameter(
                                     name="nested_null_prop",
-                                    description="A null property in a nested object",
                                     required=True,
                                 ),
                                 ArrayToolParameter(

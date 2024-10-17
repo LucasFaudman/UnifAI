@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 from typing import Literal, get_args, get_origin, Any, Optional, Union, TypeVar, TypeAlias, Sequence, Collection, Mapping, List, Annotated, Union
 
-from unifai.type_conversions.tool_from_pydantic import tool_from_pydantic_model, tool_parameter_from_pydantic_model, unpack_annotation
+from unifai.type_conversions.tool_from_pydantic import tool_from_pydantic_model, tool_parameter_from_pydantic_model, resolve_annotation
 
 
 class Contact(BaseModel):

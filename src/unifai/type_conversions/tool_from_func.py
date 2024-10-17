@@ -1,11 +1,10 @@
 from typing import Callable, Optional, Type
 from ast import literal_eval as ast_literal_eval
+from re import compile as re_compile
 
 from unifai.types import Tool, ObjectToolParameter, ToolParameterType
 from .tool_from_dict import tool_parameter_from_dict
-
-from re import compile as re_compile
-TOOL_PARAMETER_REGEX = re_compile(r'(?P<indent>\s*)(?P<name>\w+)(?: *\(?(?P<type>\w+)\)?)?: *(?P<description>.+)?')
+from .tool_from import resolve_annotation, construct_tool_parameter
 
 PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP: dict[str|Type, ToolParameterType] = {
     "str": "string",
@@ -24,12 +23,13 @@ PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP: dict[str|Type, ToolParameterType] = {
     type(None): "null",
 }
 
+TOOL_PARAMETER_REGEX = re_compile(r'(?P<indent>\s*)(?P<name>\w+)(?: *\(?(?P<type>\w+)\)?)?: *(?P<description>.+)?')
+
 def parse_docstring_and_annotations(
         docstring: str, 
         annotations: Optional[dict]=None
         ) -> tuple[str, ObjectToolParameter]:
     
-
 
     if "Returns:" in docstring:
         docstring, returns = docstring.rsplit("Returns:", 1)
@@ -48,6 +48,7 @@ def parse_docstring_and_annotations(
     args = args.rstrip()
     
     param_lines = []
+    min_indent = 0
     for line in args.split("\n"):
         if not (lstripped_line := line.lstrip()):
             continue
@@ -55,12 +56,13 @@ def parse_docstring_and_annotations(
         if param_match := TOOL_PARAMETER_REGEX.match(line):
             group_dict = param_match.groupdict()
             group_dict["indent"] = len(group_dict["indent"])
+            min_indent = min(min_indent, group_dict["indent"])
 
             # Docstring type annotations override inferred types
             if type_str := group_dict.get("type"):
                 group_dict["type"] = PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP.get(type_str, type_str)
             elif annotations and (anno := annotations.get(group_dict["name"])):
-                group_dict["type"] = PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP.get(anno)
+                group_dict["type"] = PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP.get(anno, anno)
             # else:
             #     group_dict["type"] = "string"
             param_lines.append(group_dict)
@@ -68,20 +70,23 @@ def parse_docstring_and_annotations(
             param_lines[-1]["description"] += lstripped_line
 
 
-    root = {"type": "object", "properties": []}
+
+    root = {"type": "object", "properties": {}}
     stack = [root]
     for param in param_lines:                    
         # Determine the depth (number of spaces) based on the "indent" field
         param_indent = param["indent"]
-        param["properties"] = [] # Initialize properties list to store nested parameters
+        # param["properties"] = [] # Initialize properties list to store nested parameters
+        param["properties"] = {} # Initialize properties list to store nested parameters
+
 
         # If the current parameter is at the same or lower level than the last, backtrack
         while len(stack) > 1 and param_indent <= stack[-1]["indent"]:
             stack.pop()
         
         current_structure = stack[-1]
-        if (param_name := param["name"]) in ("enum", "required"):
-            # If the parameter is an enum or required field, add it to the current structure
+        if (param_name := param["name"]) == "enum":
+            # If the parameter is an enum, add it to the current structure
             current_structure[param_name] = ast_literal_eval(param["description"])
 
         elif (current_type := current_structure.get("type")) == "array" and param_name == "items":
@@ -95,11 +100,12 @@ def parse_docstring_and_annotations(
             current_structure["anyOf"] = param["properties"]            
         
         else:
-            current_structure["properties"].append(param)
+            current_structure["properties"][param_name] = param
 
         stack.append(param)
 
-    parameters = tool_parameter_from_dict(root)
+    # parameters = tool_parameter_from_dict(root)
+    parameters = construct_tool_parameter(root)
     assert isinstance(parameters, ObjectToolParameter)
     return description, parameters
 

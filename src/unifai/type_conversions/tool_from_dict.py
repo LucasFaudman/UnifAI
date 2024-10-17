@@ -16,6 +16,7 @@ from unifai.types import (
     
 )
 
+from .tool_from_pydantic import resolve_annotation, tool_parameter_from_anno_dict, tool_from_pydantic_model
 
 def tool_parameter_from_dict(
         param_dict: dict, 
@@ -39,7 +40,7 @@ def tool_parameter_from_dict(
         return AnyOfToolParameter(name=param_name, required=param_required, anyOf=anyOf)
 
     param_type = param_dict['type']
-    param_name = param_dict.get('name', param_name)
+    param_name = param_name or param_dict.get('name')
     param_description = param_dict.get('description')
     param_enum = param_dict.get('enum')
     # param_required = param_dict.get('required', param_required)
