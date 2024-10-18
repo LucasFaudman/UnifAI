@@ -114,7 +114,7 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
 def test_chat_simple(provider: LLMProvider, client_kwargs: dict, func_kwargs: dict):
 
     ai = UnifAIClient({provider: client_kwargs})
-    ai.init_client(provider, **client_kwargs)
+    ai.init_component(provider, **client_kwargs)
     chat = ai.chat(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,
@@ -174,7 +174,7 @@ def test_chat_tools_simple(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
-    ai.init_client(provider, **client_kwargs)
+    ai.init_component(provider, **client_kwargs)
     chat = ai.chat(
         messages=messages,
         provider=provider,
@@ -222,7 +222,7 @@ def test_chat_return_on(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
-    ai.init_client(provider, **client_kwargs)
+    ai.init_component(provider, **client_kwargs)
 
     return_ons = ["content"]
     if tool_names := [tool["function"]["name"] for tool in tools]:
@@ -304,7 +304,7 @@ def test_chat_enforce_tool_choice(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
-    ai.init_client(provider, **client_kwargs)
+    ai.init_component(provider, **client_kwargs)
 
     for _ in range(1):
         chat = ai.chat(
@@ -373,7 +373,7 @@ def test_chat_enforce_tool_choice_sequence(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
-    ai.init_client(provider, **client_kwargs)
+    ai.init_component(provider, **client_kwargs)
 
     for _ in range(1):
         chat = ai.chat(
@@ -463,7 +463,7 @@ def test_chat_send_message(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
-    ai.init_client(provider, **client_kwargs)
+    ai.init_component(provider, **client_kwargs)
     chat = ai.chat(
         messages=message_lists[0],
         provider=provider,
@@ -535,7 +535,7 @@ def test_chat_options(
     ):
 
     ai = UnifAIClient({provider: client_kwargs})
-    ai.init_client(provider, **client_kwargs)
+    ai.init_component(provider, **client_kwargs)
     chat = ai.chat(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,

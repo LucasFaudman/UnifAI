@@ -9,7 +9,7 @@ from sqlite3 import connect as sqlite_connect, Error as SQLiteError
 
 T = TypeVar("T")
 
-class SQLITEDocumentDB(DocumentDB):
+class SQLiteDocumentDB(DocumentDB):
     provider = "sqlite"
     
     def __init__(self, db_path: str = ":memory:", table_name: str = "documents", **connection_kwargs):

@@ -3,6 +3,9 @@ from .message import Message
 from .tool import Tool
 from pydantic import BaseModel
 
+# UnifAI Component Types
+ComponentType = Literal["llm", "embedder", "vector_db", "reranker", "document_db", "document_chunker", "output_parser", "tool_caller"]
+
 # Supported AI providers
 LLMProvider = Literal["anthropic", "google", "openai", "ollama", "cohere", "nvidia"]
 

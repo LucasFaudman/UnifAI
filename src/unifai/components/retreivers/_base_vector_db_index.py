@@ -1,14 +1,10 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ..base_adapters._base_adapter import UnifAIAdapter, UnifAIComponent
+from ...types import Embedding, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult
 from ..document_dbs._base_document_db import DocumentDB
+from ._base_retreiver import Retreiver
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult
-from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
-
-T = TypeVar("T")
-
-class VectorDBIndex(UnifAIComponent):
+class VectorDBIndex(Retreiver):
     provider = "base_vector_db"
 
     def __init__(self,

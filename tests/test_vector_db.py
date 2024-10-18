@@ -22,11 +22,11 @@ def test_init_vector_db_init_clients(provider, client_kwargs, func_kwargs):
     assert ai._clients == {}
     assert ai.default_vector_db_provider == provider
 
-    client = ai.init_client(provider)    
+    client = ai.init_component(provider)    
 
     assert client
     assert ai._clients[provider] is client
-    assert ai.get_client(provider) is client
+    assert ai.get_component(provider) is client
     assert ai.get_vector_db() is client 
     assert ai.get_vector_db(provider) is client 
 
@@ -121,7 +121,7 @@ def test_vector_db_create_index(provider: Provider,
         "ollama": PROVIDER_DEFAULTS["ollama"][1],        
     })
 
-    client = ai.get_client(provider)
+    client = ai.get_component(provider)
     assert client
     assert isinstance(client, VectorDBClient)
     client.delete_all_indexes() # Reset for each test
@@ -248,7 +248,7 @@ def test_vector_db_add(provider: Provider,
         "ollama": PROVIDER_DEFAULTS["ollama"][1],        
     })
 
-    client = ai.get_client(provider)
+    client = ai.get_component(provider)
     assert client
     assert isinstance(client, VectorDBClient)
     client.delete_all_indexes() # Reset for each test
@@ -462,7 +462,7 @@ def test_vector_db_query_simple(provider: Provider,
         "ollama": PROVIDER_DEFAULTS["ollama"][1],        
     })
 
-    client = ai.get_client(provider)
+    client = ai.get_component(provider)
     assert client
     assert isinstance(client, VectorDBClient)
     client.delete_all_indexes() # Reset for each test

@@ -22,14 +22,14 @@ def test_init_ai_clients(provider, client_kwargs):
     wrapper_name = provider.capitalize().replace("ai", "AI") + "Wrapper"
     # assert wrapper_name not in globals()
 
-    client = ai.init_client(provider)    
+    client = ai.init_component(provider)    
     # assert wrapper_name in globals()
     # wrapper = globals()[wrapper_name]
 
     assert client
     # assert isinstance(client, wrapper)    
     assert ai._clients[provider] is client
-    assert ai.get_client(provider) is client
+    assert ai.get_component(provider) is client
     assert ai.get_ai_client() is client
     assert ai.get_ai_client(provider) is client
 
@@ -49,10 +49,10 @@ def test_init_vector_db_clients(provider, client_kwargs):
     assert ai._clients == {}
     assert ai.default_vector_db_provider == provider
 
-    client = ai.init_client(provider)    
+    client = ai.init_component(provider)    
 
     assert client
     assert ai._clients[provider] is client
-    assert ai.get_client(provider) is client
+    assert ai.get_component(provider) is client
     assert ai.get_vector_db() is client 
     assert ai.get_vector_db(provider) is client   

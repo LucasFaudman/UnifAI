@@ -21,6 +21,7 @@ from .tool_parameters import (
 )
 from .tool import Tool, ProviderTool, PROVIDER_TOOLS
 from .valid_inputs import (
+    ComponentType,
     LLMProvider, 
     VectorDBProvider, 
     EmbeddingProvider,
