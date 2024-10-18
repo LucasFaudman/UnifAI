@@ -1,91 +1,50 @@
 
-from typing import Any
+from typing import Any, Literal
 from unifai import UnifAIClient, tool, Message, FuncSpec, Tool, NumberToolParameter, StringToolParameter, ArrayToolParameter, ObjectToolParameter
 from souperscraper import SouperScraper, Keys
 from pydantic import BaseModel
 
 from _provider_defaults import PROVIDER_DEFAULTS
 
-# class LeetCodeProblem(BaseModel):
-#     number: int
-#     title: str
-#     difficulty: str
-#     description: str
-#     constraints: str
-#     examples: list[str]
-#     test_cases: list[dict[str, str]]
+class TestCaseValue(BaseModel):
+    type: Literal["int", "float", "str", "list", "dict"]
+    """The type of the value."""
+    value: str
+    """The value of the input as a string to be converted to the correct type."""
 
-# extract_leetcode_problem = Tool(
-#     name="extract_leetcode_problem",
-#     description="Return a leetcode problem from unstuctured text.",
-#     parameters={
-#         "number" : NumberToolParameter(description="The problem number."),
-#         "title" : StringToolParameter(description="The problem title."),
-#         "difficulty" : StringToolParameter(description="The problem difficulty.", enum=["easy", "medium", "hard"]),
-#         "description" : StringToolParameter(description="The problem description."),
-#         "constraints" : StringToolParameter(description="The problem constraints."),
-#         "examples" : ArrayToolParameter(items=StringToolParameter(description="The problem examples.")),
-#         "test_case_inputs" : ArrayToolParameter(
-#             items=ObjectToolParameter(
-#                 name="keyword_type_pair",
-#                 properties=[
-#                     StringToolParameter(name="keyword", description="The keyword."),
-#                     StringToolParameter(name="type", description="The type.", enum=["int", "float", "str", "list", "dict"])
-#                 ]
-#             )),            
-#     }
-# )
+class TestCaseInput(BaseModel):
+    keyword: str
+    value: TestCaseValue
 
-extract_leetcode_problem = FuncSpec(
-    name="extract_leetcode_problem",
-    system_prompt="Your role is to extract leetcode problems from the leetcode website.",
-    tools=[
-        Tool(
-            name="extract_leetcode_problem",
-            description="Extract a leetcode problem from unstuctured text.",
-            parameters={
-                "number" : NumberToolParameter(description="The problem number."),
-                "title" : StringToolParameter(description="The problem title."),
-                "difficulty" : StringToolParameter(description="The problem difficulty.", enum=["easy", "medium", "hard"]),
-                "description" : StringToolParameter(description="The problem description."),
-                "constraints" : StringToolParameter(description="The problem constraints."),
-                "examples" : ArrayToolParameter(items=StringToolParameter(description="The problem examples.")),
-                "test_case_inputs" : ArrayToolParameter(
-                    items=ObjectToolParameter(
-                        name="keyword_type_pair",
-                        properties=[
-                            StringToolParameter(name="keyword", description="The keyword."),
-                            StringToolParameter(name="type", description="The type.", enum=["int", "float", "str", "list", "dict"])
-                        ]
-                    )),            
-            }
-        )
-    ],
-    tool_choice="extract_leetcode_problem",
-    return_as="last_tool_call_args"
+class TestCase(BaseModel):
+    number: int
+    inputs: list[TestCaseInput]
+    output: TestCaseValue
+
+class ExampleTestCase(TestCase):
+    explaination: str
+
+@tool
+class TestCases(BaseModel):
+    test_cases: list[TestCase]
+
+@tool
+class LeetCodeProblem(BaseModel):
+    number: int
+    title: str
+    difficulty: Literal["easy", "medium", "hard"]
+    description: str
+    constraints: str
+    examples: list[ExampleTestCase]
+
+extract_problem = FuncSpec(
+    name="extract_problem",
+    system_prompt="Extract the problem from the leetcode page.",
+    tools=[LeetCodeProblem],
+    tool_choice=LeetCodeProblem,
+    output_parser=LeetCodeProblem,
+    return_on=LeetCodeProblem
 )
-
-# solve_leetcode_problem = EvaluateParameters(
-#     eval_type="solve_leetcode_problem",
-#     system_prompt="Your role is to solve leetcode problems using the optimal solution. You can add/modify test cases and submit your solution.",
-#     tools=[
-
-#     ],
-#     tool_choice="required",
-#     return_as="last_tool_call_args"
-# )
-
-# extract_and_summarize_solution = Tool(
-#     name="extract_and_summarize_solution",
-#     description="Extract and summarize the final solution including its runtime and memory usage.",
-#     parameters={
-#         "final_solution" : StringToolParameter(description="The final solution."),
-#         "runtime_ms" : NumberToolParameter(description="The runtime in milliseconds."),
-#         "runtime_percentile" : NumberToolParameter(description="The runtime percentile."),
-#         "memory_mb" : NumberToolParameter(description="The memory in megabytes."),
-#         "memory_percentile" : NumberToolParameter(description="The memory percentile."),
-#     }
-# )
 
 
 class LeetScraper:
@@ -94,8 +53,7 @@ class LeetScraper:
     def __init__(self, 
                  ai: UnifAIClient,
                  chromedriver_path: str = WEBDRIVER_PATH
-                 ):
-        self.ai = ai
+                 ):        
         self.scraper = SouperScraper(
             executable_path=chromedriver_path, 
             # user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
@@ -107,6 +65,9 @@ class LeetScraper:
                 ]
         
         )
+
+        self.ai = ai
+        self.extract_problem = ai.get_function(extract_problem)
 
     def login(self):
         self.scraper.goto("https://www.google.com/search?q=leetcode login")
@@ -126,13 +87,6 @@ class LeetScraper:
         input("Press enter to continue after selecting language.")
         # self.scraper.wait_for_visibility_of_element_located_by_id("headlessui-popover-button-:r1g:").click()
         # self.scraper.find_element_by_text(language).click()
-
-    def extract_problem(self):
-        problem_dict = self.ai.evaluate(
-            eval_type="extract_leetcode_problem",
-            content=self.scraper.soup.text
-        )
-        return problem_dict
 
     def get_current_solution(self):
         return self.scraper.find_element_by_class_name("editor-scrollable").text
@@ -201,10 +155,6 @@ class LeetScraper:
         input_area.send_keys(200 * Keys.BACKSPACE)
         input_area.send_keys(200 * Keys.DELETE)
 
-        # for line in solution.splitlines():
-        #     input_area.send_keys(line)
-        #     input_area.send_keys(Keys.RETURN)
-        # input_area.send_keys(solution)
         for char in solution:
             input_area.send_keys(char + Keys.DELETE)
         input_area.send_keys(Keys.RETURN)
@@ -305,7 +255,7 @@ class LeetScraper:
 
 
         solve_leetcode_problem = FuncSpec(
-            name="solve_leetcode_problem",
+            eval_type="solve_leetcode_problem",
             system_prompt="Your role is to solve leetcode problems using the optimal solution. You can add/modify test cases and submit your solution.",
             tools=[
                 self.update_solution,
@@ -366,7 +316,7 @@ if __name__ == "__main__":
             "openai": PROVIDER_DEFAULTS["openai"][1],
             "ollama": PROVIDER_DEFAULTS["ollama"][1]
         },
-        func_specs=[extract_leetcode_problem]
+        eval_prameters=[extract_leetcode_problem]
     )
     
     leet_scraper = LeetScraper(ai=ai)

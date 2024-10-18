@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 from typing import Literal, get_args, get_origin, Any, Optional, Union, TypeVar, TypeAlias, Sequence, Collection, Mapping, List, Annotated, Union
 
-from unifai.type_conversions.tool_from_pydantic import tool_from_pydantic_model, construct_tool_parameter
+from unifai.type_conversions.tool_from_pydantic import tool_from_pydantic, construct_tool_parameter
 
 
 
@@ -373,7 +373,7 @@ def test_tool_from_base_model(
     param = construct_tool_parameter({'type': bmodel})
     assert isinstance(param, ObjectToolParameter)
     print(param)
-    return_tool = tool_from_pydantic_model(bmodel)
+    return_tool = tool_from_pydantic(bmodel)
     assert isinstance(return_tool, Tool)
     print(return_tool)
     model_fields = dict(bmodel.model_fields.items())
