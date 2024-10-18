@@ -1,6 +1,7 @@
-from typing import Any, Literal, Union, Sequence
+from typing import Any, Literal, Union, Sequence, Callable
 from .message import Message
 from .tool import Tool
+from pydantic import BaseModel
 
 # Supported AI providers
 LLMProvider = Literal["anthropic", "google", "openai", "ollama", "cohere", "nvidia"]
@@ -21,7 +22,7 @@ Provider = Union[LLMProvider, EmbeddingProvider, VectorDBProvider, RerankProvide
 MessageInput = Union[Message,  dict[str, Any], str]
 
 # Valid input types that can be converted to a Tool object
-ToolInput = Union[Tool, dict[str, Any], str]
+ToolInput = Union[Tool, BaseModel, Callable, dict[str, Any], str]
 
 # Valid input types that can be converted to a ToolChoice object
 ToolChoiceInput = Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]

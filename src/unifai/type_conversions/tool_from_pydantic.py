@@ -18,7 +18,7 @@ from unifai.types import (
 
 from .construct_tool_parameter import construct_tool_parameter
 
-def tool_from_pydantic_model(
+def tool_from_pydantic(
         model: Type[BaseModel]|BaseModel, 
         name: Optional[str] = None,
         description: Optional[str] = None,
@@ -51,4 +51,4 @@ def tool_from_pydantic_model(
     )
 
 # alias for tool_from_pydantic_model so models can be decorated with @tool or @tool_from_model or longform @tool_from_pydantic_model
-tool_from_model = tool_from_pydantic_model
+tool_from_model = tool_from_pydantic

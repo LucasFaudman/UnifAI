@@ -9,6 +9,7 @@ from unifai.types import (
 )
 from .tool_from_dict import tool_from_dict
 from .tool_from_func import tool_from_func
+from .tool_from_pydantic import tool_from_pydantic, BaseModel
 
 T = TypeVar("T")
 
@@ -29,6 +30,10 @@ def standardize_messages(messages: Sequence[MessageInput]) -> list[Message]:
 def standardize_tool(tool: ToolInput, tool_dict: Optional[dict[str, Tool]] = None) -> Tool:
     if isinstance(tool, Tool):
         return tool
+    elif isinstance(tool, BaseModel):
+        return tool_from_pydantic(tool)
+    elif callable(tool):
+        return tool_from_func(tool)
     elif isinstance(tool, dict):
         return tool_from_dict(tool)                        
     elif isinstance(tool, str):
@@ -36,9 +41,7 @@ def standardize_tool(tool: ToolInput, tool_dict: Optional[dict[str, Tool]] = Non
             return std_tool
         else:
             raise ValueError(f"Tool '{tool}' not found in tools")
-    elif (is_not_tool := not isinstance(tool, Tool)) and callable(tool):
-        return tool_from_func(tool)
-    elif is_not_tool:
+    else:    
         raise ValueError(f"Invalid tool type: {type(tool)}") 
 
 

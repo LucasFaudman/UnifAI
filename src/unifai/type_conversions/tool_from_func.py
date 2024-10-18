@@ -49,7 +49,6 @@ def parse_docstring_and_annotations(
     args = args.rstrip()
     
     param_lines = []
-    min_indent = 0
     for line in args.split("\n"):
         if not (lstripped_line := line.lstrip()):
             continue
@@ -57,9 +56,7 @@ def parse_docstring_and_annotations(
         if param_match := TOOL_PARAMETER_REGEX.match(line):
             group_dict = param_match.groupdict()
             group_dict["indent"] = len(group_dict["indent"])
-            min_indent = min(min_indent, group_dict["indent"])
 
-            # Docstring type annotations override inferred types
             if type_str := group_dict.get("type"):
                 group_dict["type"] = PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP.get(type_str, type_str)
             elif annotations and (anno := annotations.get(group_dict["name"])):
@@ -98,6 +95,7 @@ def parse_docstring_and_annotations(
 
         stack.append(param)
 
+    # Annotations override docstring
     if annotations:
         for param_name, anno in annotations.items():
             if param_name == "return" or (exclude and param_name in exclude):
