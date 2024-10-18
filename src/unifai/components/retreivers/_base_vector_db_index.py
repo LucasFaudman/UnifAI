@@ -1,7 +1,7 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_adapter import UnifAIAdapter, UnifAIComponent
-from ._base_document_db import DocumentDB
+from ..base_adapters._base_adapter import UnifAIAdapter, UnifAIComponent
+from ..document_dbs._base_document_db import DocumentDB
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError

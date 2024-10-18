@@ -1,7 +1,7 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
-from .._core._base_vector_db_index import VectorDBIndex
-from .._core._base_reranker import Reranker
+from ..components.retreivers._base_vector_db_index import VectorDBIndex
+from ..components.rerankers._base_reranker import Reranker
 from ..types.vector_db import VectorDBQueryResult
 from ..components.prompt_template import PromptTemplate
 from .specs import RAGSpec

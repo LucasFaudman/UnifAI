@@ -1,3 +1,3 @@
 from .prompt_template import PromptTemplate
-from .tool_caller import ToolCaller, ConcurrentToolCaller
-from .document_db import DocumentDB, DictDocumentDB
+from .tool_callers import ToolCaller, ConcurrentToolCaller
+from .document_dbs import DocumentDB, DictDocumentDB

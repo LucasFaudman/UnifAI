@@ -1,6 +1,6 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator, Iterable, Generator
 
-from ._base_adapter import UnifAIAdapter
+from ..base_adapters._base_adapter import UnifAIAdapter
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Usage, Embeddings, EmbeddingTaskTypeInput
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, EmbeddingDimensionsError

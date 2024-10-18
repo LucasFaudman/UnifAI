@@ -3,7 +3,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Colle
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, DocumentDBAPIError, DocumentNotFoundError, DocumentReadError, DocumentWriteError, DocumentDeleteError
-from ..._core._base_document_db import DocumentDB
+from ._base_document_db import DocumentDB
 
 from sqlite3 import connect as sqlite_connect, Error as SQLiteError
 

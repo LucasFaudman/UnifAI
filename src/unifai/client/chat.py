@@ -11,8 +11,8 @@ from unifai.types import (
     Usage,
 )
 from unifai.type_conversions import standardize_tools, standardize_messages, standardize_message, standardize_tool_choice, standardize_response_format
-from unifai._core._base_llm_client import LLMClient
-from ..components.tool_caller import ToolCaller
+from unifai.components.llms._base_llm_client import LLMClient
+from ..components.tool_callers import ToolCaller
 
 class Chat:
 

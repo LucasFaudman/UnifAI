@@ -1,8 +1,8 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator, Iterable, Generator
 
-from ..types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embeddings, Usage
-from ..exceptions import UnifAIError, ProviderUnsupportedFeatureError
-from ._base_component import UnifAIComponent
+from ...types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embeddings, Usage
+from ...exceptions import UnifAIError, ProviderUnsupportedFeatureError
+from .._base_component import UnifAIComponent
 
 
 class UnifAIAdapter(UnifAIComponent):

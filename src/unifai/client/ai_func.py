@@ -4,7 +4,7 @@ from .chat import Chat
 from .specs import FuncSpec
 from .rag_engine import RAGEngine
 from ..components.prompt_template import PromptTemplate
-from ..components.output_parser import pydantic_parse
+from ..components.output_parsers import pydantic_parse
 from ..exceptions import UnifAIError
 from ..types import Message, MessageChunk
 from ..type_conversions import stringify_content

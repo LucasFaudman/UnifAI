@@ -1,7 +1,7 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
 from unifai.exceptions import DocumentNotFoundError, DocumentWriteError, DocumentDeleteError
-from ..._core._base_document_db import DocumentDB
+from ._base_document_db import DocumentDB
 
 T = TypeVar("T")
 

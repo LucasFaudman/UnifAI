@@ -1,6 +1,6 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ._base_adapter import UnifAIAdapter
+from ..base_adapters._base_adapter import UnifAIAdapter
 from ._base_vector_db_index import VectorDBIndex, DocumentDB
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, EmbeddingProvider, Usage, VectorDBGetResult, VectorDBQueryResult

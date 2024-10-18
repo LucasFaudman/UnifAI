@@ -3,7 +3,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Colle
 
 # from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
 # from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
-from ._base_component import UnifAIComponent
+from .._base_component import UnifAIComponent
 
 T = TypeVar("T")
 

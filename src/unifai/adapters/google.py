@@ -97,8 +97,8 @@ from unifai.types import (
     Embeddings,
 )
 from unifai.type_conversions import stringify_content
-from .._core._base_llm_client import LLMClient
-from .._core._base_embedder import Embedder, EmbeddingTaskTypeInput
+from ..components.llms._base_llm_client import LLMClient
+from ..components.embedders._base_embedder import Embedder, EmbeddingTaskTypeInput
 
 from random import choices as random_choices
 from string import ascii_letters, digits

@@ -1,10 +1,10 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from .._core._base_vector_db_client import VectorDBIndex, VectorDBClient, DocumentDB
+from ..components.retreivers._base_vector_db_client import VectorDBIndex, VectorDBClient, DocumentDB
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, BadRequestError
-from unifai._core._base_component import UnifAIComponent, convert_exceptions
+from unifai.components._base_component import UnifAIComponent, convert_exceptions
 
 # import chromadb
 from chromadb import Client as ChromaDefaultClient, PersistentClient as ChromaPersistentClient

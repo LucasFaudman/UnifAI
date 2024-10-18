@@ -1,12 +1,12 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator
 from typing import overload
 
-from unifai._core._base_llm_client import LLMClient
-from unifai._core._base_embedder import Embedder
-from unifai._core._base_reranker import Reranker
-from unifai._core._base_document_db import DocumentDB
+from unifai.components.llms._base_llm_client import LLMClient
+from unifai.components.embedders._base_embedder import Embedder
+from unifai.components.rerankers._base_reranker import Reranker
+from unifai.components.document_dbs._base_document_db import DocumentDB
 
-from unifai._core._base_vector_db_client import (
+from unifai.components.retreivers._base_vector_db_client import (
     VectorDBClient, 
     VectorDBIndex,
     VectorDBGetResult,
@@ -30,7 +30,7 @@ from unifai.types import (
 
 from unifai.type_conversions import standardize_tools, standardize_specs
 
-from ..components.tool_caller import ToolCaller
+from ..components.tool_callers import ToolCaller
 from .chat import Chat
 from .rag_engine import RAGEngine
 from .ai_func import AIFunction

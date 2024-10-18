@@ -1,7 +1,7 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Callable, Iterator, Iterable, Generator
 
-from ._base_adapter import UnifAIAdapter
-from ._base_component import convert_exceptions, convert_exceptions_generator
+from ..base_adapters._base_adapter import UnifAIAdapter
+from .._base_component import convert_exceptions, convert_exceptions_generator
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embeddings, Usage
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError

@@ -51,7 +51,7 @@ from openai.types.chat.completion_create_params import CompletionCreateParams
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings, EmbeddingTaskTypeInput, VectorDBQueryResult
 from unifai.type_conversions import stringify_content
-from .._core._base_reranker import Reranker
+from ..components.rerankers._base_reranker import Reranker
 from .openai import OpenAIAdapter
 
 

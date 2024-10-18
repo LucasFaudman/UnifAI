@@ -41,8 +41,8 @@ from unifai.exceptions import (
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
 from unifai.type_conversions import stringify_content
-from .._core._base_llm_client import LLMClient
-from .._core._base_embedder import Embedder
+from ..components.llms._base_llm_client import LLMClient
+from ..components.embedders._base_embedder import Embedder
 
 from random import choices as random_choices
 from string import ascii_letters, digits
