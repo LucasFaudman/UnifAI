@@ -34,7 +34,7 @@ def pydantic_parse_one(output: Chat|dict|ToolCall|str|Message|None, model: Type[
     raise OutputParserError(message=f"Error No output to parse as {model.__class__.__name__} output: {output}")
     
 
-def pydantic_parse_many(outputs: list[dict|str|Message|None], model: Type[T]|T) -> list[T]:
+def pydantic_parse_many(outputs: list[Chat|dict|ToolCall|str|Message|None], model: Type[T]|T) -> list[T]:
     return [pydantic_parse_one(output, model) for output in outputs]
 
 
