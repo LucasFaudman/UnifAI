@@ -20,7 +20,7 @@ class NvidiaRerankResponse(BaseModel):
 
 class NvidiaReranker(NvidiaAdapter, Reranker):
     provider = "nvidia"    
-    default_reranking_model = "nvidia/nv-rerankqa-mistral-4b-v3"
+    default_reranking_model = "nv-rerank-qa-mistral-4b:1"
   
     reranking_models = {
         "nvidia/nv-rerankqa-mistral-4b-v3",

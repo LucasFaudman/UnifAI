@@ -25,7 +25,6 @@ def test_embeddings_simple(
     ):
 
     ai = UnifAIClient({provider: client_kwargs})
-    ai.init_component(provider, **client_kwargs)
 
     if provider == "anthropic":
         with pytest.raises((ProviderUnsupportedFeatureError, AttributeError)):
@@ -96,7 +95,6 @@ def test_embeddings_dimensions(
     ):
 
     ai = UnifAIClient({provider: client_kwargs})
-    ai.init_component(provider, **client_kwargs)
 
     result = ai.embed(input, 
                       provider=provider, 

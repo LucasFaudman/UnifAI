@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Optional, Any, ClassVar, TYPE_CHECKING
 from itertools import product
 

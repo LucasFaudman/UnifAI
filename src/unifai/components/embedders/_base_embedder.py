@@ -10,13 +10,18 @@ T = TypeVar("T")
 class Embedder(UnifAIAdapter):
     provider = "base_embedding"
     default_embedding_model = "llama3.1:8b-instruct-q2_K"
-
+    
     model_embedding_dimensions: dict[str, int] = {}
+    default_dimensions = 768
 
     # List Models
     def list_models(self) -> list[str]:
         raise NotImplementedError("This method must be implemented by the subclass")    
 
+    def get_model_dimensions(self, model: Optional[str] = None) -> int:
+        if model is None:
+            model = self.default_embedding_model
+        return self.model_embedding_dimensions.get(model) or self.default_dimensions 
 
     # Embeddings    
     def embed(

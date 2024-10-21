@@ -9,7 +9,12 @@ from ._base_embedder import Embedder
 
 class OpenAIEmbedder(OpenAIAdapter, Embedder):
     provider = "openai"
-    default_model = "gpt-4o"
+    default_embedding_model = "text-embedding-3-large"
+    model_embedding_dimensions = {
+        "text-embedding-3-large": 3072,
+        "text-embedding-3-small": 1536,
+        "text-embedding-ada-002": 1536,
+    }
 
     # Embeddings
     def _get_embed_response(

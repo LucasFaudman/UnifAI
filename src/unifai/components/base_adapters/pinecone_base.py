@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Callable
 from json import loads as json_loads, JSONDecodeError
 

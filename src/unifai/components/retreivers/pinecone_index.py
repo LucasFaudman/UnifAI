@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Literal, Self
 from itertools import zip_longest, chain
 
@@ -198,7 +199,7 @@ class PineconeIndex(PineconeExceptionConverter, VectorDBIndex):
             raise ProviderUnsupportedFeatureError("where_document is not supported by Pinecone directly. A DocumentDB subclass must be provided to support this feature")
 
         if query_text is not None and self.embedding_function:
-            query_embedding = self.embedding_function(query_text)[0]            
+            query_embedding = self.embedding_function([query_text])[0]        
         elif query_embedding is None:
             raise ValueError("Either (query_text and embedding_function) or query_embedding must be provided")
 

@@ -104,7 +104,7 @@ def test_rag_engine_simple(
         rerank_model=rerank_model,
         top_k=5,
         top_n=3,
-        document_db_cls=DictDocumentDB if document_db else None,
+        document_db_class_or_instance=DictDocumentDB if document_db else None,
         document_db_kwargs={"documents": document_db.documents if document_db else None},
     )
 

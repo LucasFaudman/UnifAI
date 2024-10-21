@@ -39,7 +39,7 @@ from .ai_func import AIFunction
 from .specs import RAGSpec, FuncSpec
 
 
-LLMS: frozenset[LLMProvider] = frozenset(("anthropic", "cohere", "google", "nvidia", ))
+LLMS: frozenset[LLMProvider] = frozenset(("anthropic", "cohere", "google", "ollama", "nvidia"))
 EMBEDDERS: frozenset[EmbeddingProvider] = frozenset(("cohere", "google", "nvidia", "ollama", "openai"  ,"sentence_transformers"))
 VECTOR_DBS: frozenset[VectorDBProvider] = frozenset(("chroma", "pinecone"))
 RERANKERS: frozenset[RerankProvider] = frozenset(("cohere", "nvidia", "rank_bm25", "sentence_transformers"))
@@ -290,7 +290,7 @@ class UnifAIClient:
         ...        
 
     @overload
-    def get_component(self, provider: VectorDBProvider, component_type: ComponentType = "document_db", **client_kwargs) -> VectorDBClient:
+    def get_component(self, provider: VectorDBProvider, component_type: ComponentType = "vector_db", **client_kwargs) -> VectorDBClient:
         ...        
 
     @overload
@@ -309,22 +309,22 @@ class UnifAIClient:
 
     def get_llm_client(self, provider: Optional[LLMProvider] = None, **client_kwargs) -> LLMClient:
         provider = provider or self.default_llm_provider
-        return self.get_component(provider, **client_kwargs)
+        return self.get_component(provider, component_type="llm", **client_kwargs)
 
 
     def get_embedder(self, provider: Optional[EmbeddingProvider] = None, **client_kwargs) -> Embedder:
         provider = provider or self.default_embedding_provider
-        return self.get_component(provider, **client_kwargs)
+        return self.get_component(provider, component_type="embedder", **client_kwargs)
 
 
     def get_reranker(self, provider: Optional[RerankProvider] = None, **client_kwargs) -> Reranker:
         provider = provider or self.default_rerank_provider
-        return self.get_component(provider, **client_kwargs)
+        return self.get_component(provider, component_type="reranker", **client_kwargs)
 
 
     def get_vector_db(self, provider: Optional[VectorDBProvider] = None, **client_kwargs) -> VectorDBClient:
         provider = provider or self.default_vector_db_provider
-        return self.get_component(provider, **client_kwargs)
+        return self.get_component(provider, component_type="vector_db", **client_kwargs)
 
 
     def get_default_model(self, provider: Provider, model_type: Literal["llm", "embedding", "rerank"]) -> str:        
@@ -341,7 +341,7 @@ class UnifAIClient:
 
     # List Models
     def list_models(self, provider: Optional[LLMProvider] = None) -> list[str]:
-        return self.get_component(provider, "llm").list_models()
+        return self.get_llm_client(provider).list_models()
     
 
     # Chat
@@ -548,7 +548,6 @@ class UnifAIClient:
 
 
     
-
     def get_or_create_index(self, 
                             name: str,
                             vector_db_provider: Optional[VectorDBProvider] = None,                            
@@ -559,6 +558,8 @@ class UnifAIClient:
                             index_metadata: Optional[dict] = None,
                             **kwargs
                             ) -> VectorDBIndex:
+        if dimensions is None:
+            dimensions = self.get_embedder(embedding_provider).get_model_dimensions(embedding_model)
         return self.get_vector_db(vector_db_provider).get_or_create_index(
             name=name,
             embedding_provider=embedding_provider,
@@ -568,17 +569,8 @@ class UnifAIClient:
             metadata=index_metadata,
             **kwargs
         )        
-        # return self.get_vector_db_client(vector_db_provider).get_or_create_index(
-        #     name=name,
-        #     embedding_provider=embedding_provider,
-        #     embedding_model=embedding_model,
-        #     dimensions=dimensions,
-        #     distance_metric=distance_metric,
-        #     metadata=index_metadata,
-        #     **kwargs
-        # )
-    
 
+    
     def upsert_index(self,
                      name: str,
                      ids: list[str],
@@ -737,6 +729,7 @@ class UnifAIClient:
             if isinstance(document_db, type):
                 document_db = document_db(**rag_spec.document_db_kwargs)
 
+        
         index = self.get_or_create_index(
             name=rag_spec.index_name,
             vector_db_provider=rag_spec.vector_db_provider,

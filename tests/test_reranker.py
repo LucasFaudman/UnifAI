@@ -18,7 +18,7 @@ def test_init_rerankers(
     ):
     ai = UnifAIClient({provider: client_kwargs})
     assert ai.provider_client_kwargs == {provider: client_kwargs}
-    reranker = ai.get_component(provider, **client_kwargs)
+    reranker = ai.get_component(provider, "reranker", **client_kwargs)
     assert isinstance(reranker, Reranker)
     assert reranker.provider == provider
     assert reranker.client_kwargs == client_kwargs
@@ -38,7 +38,7 @@ def test_rerank_simple(
         "chroma": PROVIDER_DEFAULTS["chroma"][1],
     })
 
-    reranker = ai.get_component(provider, **client_kwargs)
+    reranker = ai.get_component(provider, "reranker", **client_kwargs)
     assert isinstance(reranker, Reranker)
     assert reranker.provider == provider
     assert reranker.client_kwargs == client_kwargs    

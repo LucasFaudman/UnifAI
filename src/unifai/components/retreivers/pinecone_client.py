@@ -29,8 +29,6 @@ def limit_offest_slice(limit: Optional[int], offset: Optional[int]) -> slice:
 
 
 class PineconeClient(PineconeAdapter, VectorDBClient):
-
-
                                        
     @convert_exceptions                           
     def create_index(self, 

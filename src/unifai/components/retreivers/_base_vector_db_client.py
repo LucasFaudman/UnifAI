@@ -65,7 +65,7 @@ class VectorDBClient(UnifAIAdapter):
                  embed: Callable[..., Embeddings],
                  default_embedding_provider: EmbeddingProvider = "openai",
                  default_embedding_model: Optional[str] = None,
-                 default_dimensions: int = 1536,
+                 default_dimensions: int = 768,
                  default_distance_metric: Literal["cosine", "euclidean", "dotproduct"] = "cosine",
                  default_index_kwargs: Optional[dict] = None,
                  default_document_db: Optional[DocumentDB] = None,

@@ -35,7 +35,7 @@ class GoogleEmbedder(GoogleAdapter, Embedder):
         "textembedding-gecko-multilingual@001": 768,
         "textembedding-gecko@003": 768,
         "text-multilingual-embedding-002": 768,
-        "text-embedding-004	": 768,
+        "text-embedding-004": 768,
         "text-embedding-preview-0815": 768,
     }
 
