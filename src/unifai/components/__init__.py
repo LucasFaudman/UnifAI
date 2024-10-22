@@ -6,7 +6,7 @@ from .embedders._base_embedder import Embedder
 from .prompt_template import PromptTemplate
 from .llms._base_llm_client import LLMClient
 from .rerankers._base_reranker import Reranker
-from .retreivers._base_retreiver import Retreiver
+from .retreivers._base_retriever import Retriever
 from .retreivers._base_vector_db_client import VectorDBClient
 from .retreivers._base_vector_db_index import VectorDBIndex
 from .tool_callers import ToolCaller, ConcurrentToolCaller

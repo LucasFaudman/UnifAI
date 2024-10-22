@@ -1,14 +1,10 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
-from ..components.retreivers._base_vector_db_index import VectorDBIndex
+from ..components.retreivers._base_retriever import Retriever
 from ..components.rerankers._base_reranker import Reranker
 from ..types.vector_db import VectorDBQueryResult
 from ..components.prompt_template import PromptTemplate
 from .specs import RAGSpec
-
-class Retriever:
-    def query(self, query_text: str, n_results: int, **kwargs) -> VectorDBQueryResult:
-        raise NotImplementedError
 
 
 class RAGEngine:
@@ -16,7 +12,7 @@ class RAGEngine:
     def __init__(
             self, 
             spec: RAGSpec,
-            retreiver: VectorDBIndex|Retriever,
+            retreiver: Retriever,
             reranker: Optional[Reranker] = None,
         ):
         self.retreiver = retreiver

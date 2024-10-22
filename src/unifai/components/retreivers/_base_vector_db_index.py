@@ -2,9 +2,9 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Colle
 
 from ...types import Embedding, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult
 from ..document_dbs._base_document_db import DocumentDB
-from ._base_retreiver import Retreiver
+from ._base_retriever import Retriever
 
-class VectorDBIndex(Retreiver):
+class VectorDBIndex(Retriever):
     provider = "base_vector_db"
 
     def __init__(self,
