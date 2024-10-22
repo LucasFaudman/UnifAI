@@ -162,10 +162,6 @@ class UnifAIClient:
             self.provider_client_kwargs[provider] = client_kwargs
             client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
            
-        # if required_bound_methods := REQUIRED_BOUND_METHODS.get(provider):
-        #     for method in required_bound_methods:
-        #         if method not in client_kwargs:
-        #             client_kwargs[method] = getattr(self, method)
         if component_type not in self._components:
             self._components[component_type] = {}
         self._components[component_type][provider] = import_component(provider, component_type)(**client_kwargs)
@@ -467,117 +463,7 @@ class UnifAIClient:
         )        
 
     
-    def upsert_index(self,
-                     name: str,
-                     ids: list[str],
-                     metadatas: Optional[list[dict]] = None,
-                     documents: Optional[list[str]] = None,
-                     embeddings: Optional[list[Embedding]] = None,
-                     vector_db_provider: Optional[VectorDBProvider] = None,                            
-                     embedding_provider: Optional[LLMProvider] = None,
-                     embedding_model: Optional[str] = None,
-                     dimensions: Optional[int] = None,
-                     distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 
-                     index_metadata: Optional[dict] = None
-                     ) -> VectorDBIndex:
-        return self.get_or_create_index(
-              name=name,
-              vector_db_provider=vector_db_provider,
-              embedding_provider=embedding_provider,
-              embedding_model=embedding_model,
-              dimensions=dimensions,
-              distance_metric=distance_metric,
-              index_metadata=index_metadata
-            ).upsert(
-                ids=ids,
-                metadatas=metadatas,
-                documents=documents,
-                embeddings=embeddings
-            )
     
-       
-    def query_index(self, 
-                    name: str,
-                    query: str | list[str] | Embedding | list[Embedding] | Embeddings,
-                    n_results: int = 10,
-                    where: Optional[dict] = None,
-                    where_document: Optional[dict] = None,
-                    include: list[Literal["metadatas", "documents", "distances"]] = ["metadatas", "documents", "distances"],
-                    vector_db_provider: Optional[VectorDBProvider] = None,                            
-                    embedding_provider: Optional[LLMProvider] = None,
-                    embedding_model: Optional[str] = None,
-                    dimensions: Optional[int] = None,
-                    distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 
-                    index_metadata: Optional[dict] = None                    
-              ) -> VectorDBQueryResult|list[VectorDBQueryResult]:                     
-        
-        if not query:
-            raise ValueError("Query cannot be empty")
-        
-        index = self.get_or_create_index(
-            name=name,
-            vector_db_provider=vector_db_provider,
-            embedding_provider=embedding_provider,
-            embedding_model=embedding_model,
-            dimensions=dimensions,
-            distance_metric=distance_metric,
-            index_metadata=index_metadata
-        )        
-
-                          
-        if (is_str_query := isinstance(query, str)) or (isinstance(query, list) and isinstance(query[0], float)):
-            if is_str_query:
-                query_text = query # Single string
-                query_embedding = None
-            else:
-                query_text = None
-                query_embedding = query # Single Embedding (list of floats)
-            return index.query(
-                query_text=query_text,
-                query_embedding=query_embedding,
-                n_results=n_results,
-                where=where,
-                where_document=where_document,
-                include=include
-            )
-
-        query_texts = None
-        query_embeddings = None
-        if isinstance(query, Embeddings):
-            query_embeddings = query.list() # List of Embeddings (RootModel) (list of lists of floats)
-        elif isinstance(query, list):
-            if isinstance((item_0 := query[0]), list) and isinstance(item_0[0], float):
-                query_embeddings = query # List of Embeddings (list of lists of floats)            
-            elif isinstance(item_0, str):
-                query_texts = query # List of strings
-        else:
-            raise ValueError(f"Invalid query type: {type(query)}. Must be a str, list of str, Embedding (list[float]), list of Embedding list[list[float]] or Embeddings object returned by embed()")
-
-                    
-        return index.query_many(
-                    query_texts=query_texts,
-                    query_embeddings=query_embeddings,
-                    n_results=n_results,
-                    where=where,
-                    where_document=where_document,
-                    include=include
-                )
-    
-    
-    def delete_index(self,
-                     name: str,
-                     vector_db_provider: Optional[VectorDBProvider] = None,
-                     ):
-        return self.get_vector_db(vector_db_provider).delete_index(name)
-    
-    
-    def delete_indexes(self,
-                       names: list[str],
-                       vector_db_provider: Optional[VectorDBProvider] = None,
-                       ):
-          return self.get_vector_db(vector_db_provider).delete_indexes(names)
-    
-
     def get_tool_caller(
             self,
             tool_caller_class_or_instance: Type[ToolCaller]|ToolCaller = ToolCaller,
