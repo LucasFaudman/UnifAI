@@ -113,7 +113,7 @@ class AIFunction(Chat):
             rag_spec = spec.rag_spec
             prompt = self.rag_engine.ragify(
                 query=prompt,
-                retreiver_kwargs=rag_spec.retreiver_kwargs if rag_spec else None, # To all standalone use with RAGEngine no RAGSpec
+                retriever_kwargs=rag_spec.retriever_kwargs if rag_spec else None, # To all standalone use with RAGEngine no RAGSpec
                 reranker_kwargs=rag_spec.reranker_kwargs if rag_spec else None,
             )        
         return prompt

@@ -1,4 +1,3 @@
-from .make_few_shot_prompt import make_few_shot_prompt
 from .standardize import (
     standardize_message,
     standardize_messages,
@@ -15,7 +14,6 @@ from .tool_from_pydantic import tool_from_pydantic, tool_from_model
 from .tool_decorator import tool
 
 __all__ = [
-    "make_few_shot_prompt",
     "standardize_message",
     "standardize_messages",
     "standardize_tool",

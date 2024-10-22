@@ -33,7 +33,7 @@ class RAGSpec(Spec):
     index_name: str = "default_index"
 
     vector_db_provider: Optional[VectorDBProvider] = None
-    retreiver_kwargs: dict[str, Any] = Field(default_factory=dict)
+    retriever_kwargs: dict[str, Any] = Field(default_factory=dict)
     
     embedding_provider: Optional[EmbeddingProvider] = None
     embedding_model: Optional[str] = None

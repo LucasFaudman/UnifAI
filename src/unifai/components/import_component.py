@@ -59,10 +59,10 @@ def import_component(provider: Provider, component_type: ComponentType) -> Type|
 
             case "vector_db":
                 if provider == "chroma":
-                    from .retreivers.chroma_client import ChromaClient
+                    from .retrievers.chroma_client import ChromaClient
                     return ChromaClient
                 elif provider == "pinecone":
-                    from .retreivers.pinecone_client import PineconeClient
+                    from .retrievers.pinecone_client import PineconeClient
                     return PineconeClient
             
 

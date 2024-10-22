@@ -2,7 +2,7 @@ import pytest
 from typing import Optional, Literal
 
 from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider
-from unifai.components.retreivers._base_vector_db_client import VectorDBClient, VectorDBIndex, DocumentDB
+from unifai.components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex, DocumentDB
 from unifai.components import DictDocumentDB
 
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
