@@ -217,6 +217,9 @@ class UnifAIClient:
         provider = provider or self.default_vector_db_provider
         if "embed" not in client_kwargs:
             client_kwargs["embed"] = self.embed
+        if "default_dimensions" not in client_kwargs:
+            default_embedding_provider = client_kwargs.get("default_embedding_provider") or self.default_embedding_provider
+            client_kwargs["default_dimensions"] = self.get_embedder(default_embedding_provider).get_model_dimensions(client_kwargs.get("default_embedding_model"))
         return self.get_component(provider, component_type="vector_db", **client_kwargs)
 
 

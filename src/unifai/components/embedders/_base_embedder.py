@@ -69,6 +69,8 @@ class Embedder(UnifAIAdapter):
         if dimensions is not None:
             # Validate and set dimensions. Raises error if dimensions are invalid or too large for the model
             dimensions = self.validate_dimensions(model, dimensions, dimensions_too_large)
+        else:
+            dimensions = self.get_model_dimensions(model)
         kwargs["dimensions"] = dimensions
         # Validate and set task type. Raises error if task type is not supported by the provider
         kwargs["task_type"] = self.validate_task_type(model, task_type, task_type_not_supported)
