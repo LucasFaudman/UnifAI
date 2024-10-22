@@ -320,6 +320,7 @@ class GoogleLLM(GoogleAdapter, LLMClient):
     def parse_response_info(self, response: GenerateContentResponse, **kwargs) -> ResponseInfo:        
         return ResponseInfo(
             model=kwargs.get("model"), 
+            provider=self.provider,
             done_reason=self.parse_done_reason(response.candidates[0], **kwargs), 
             usage=self.parse_usage(response)
         )

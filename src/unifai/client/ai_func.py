@@ -110,12 +110,7 @@ class AIFunction(Chat):
         spec = self.spec
         prompt = self.spec.prompt_template.format(**{**spec.prompt_template_kwargs, **kwargs})
         if self.rag_engine:
-            rag_spec = spec.rag_spec
-            prompt = self.rag_engine.ragify(
-                query=prompt,
-                retriever_kwargs=rag_spec.retriever_kwargs if rag_spec else None, # To all standalone use with RAGEngine no RAGSpec
-                reranker_kwargs=rag_spec.reranker_kwargs if rag_spec else None,
-            )        
+            prompt = self.rag_engine.ragify(query=prompt)
         return prompt
     
 

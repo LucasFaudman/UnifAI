@@ -247,7 +247,7 @@ class OllamaLLM(OllamaAdapter, LLMClient):
         model = response["model"]
         done_reason = self.parse_done_reason(response)
         usage = self.parse_usage(response)
-        return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
+        return ResponseInfo(model=model, provider=self.provider, done_reason=done_reason, usage=usage) 
     
     
         # Assistant Messages (Content, Images, Tool Calls, Response Info)

@@ -238,7 +238,7 @@ class OpenAILLM(OpenAIAdapter, LLMClient):
         done_reason = self.parse_done_reason(response.choices[0])
         usage = self.parse_usage(response)
         
-        return ResponseInfo(model=model, done_reason=done_reason, usage=usage) 
+        return ResponseInfo(model=model, provider=self.provider, done_reason=done_reason, usage=usage) 
     
     
         # Assistant Messages (Content, Images, Tool Calls, Response Info)
@@ -292,7 +292,7 @@ class OpenAILLM(OpenAIAdapter, LLMClient):
                 yield MessageChunk(
                     role="assistant", 
                     content=delta_content, 
-                    response_info=ResponseInfo(model=chunk.model, done_reason=done_reason), 
+                    response_info=ResponseInfo(model=chunk.model, provider=self.provider, done_reason=done_reason), 
                     created_at=datetime.fromtimestamp(chunk.created)
                 )                               
             
@@ -321,7 +321,7 @@ class OpenAILLM(OpenAIAdapter, LLMClient):
             yield MessageChunk(
                 role="assistant", 
                 tool_calls=[tool_call], 
-                response_info=ResponseInfo(model=chunk.model, done_reason=done_reason), 
+                response_info=ResponseInfo(model=chunk.model, provider=self.provider, done_reason=done_reason), 
                 created_at=datetime.fromtimestamp(chunk.created)
             )
                     

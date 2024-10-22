@@ -68,7 +68,7 @@ class RAGSpec(Spec):
 
 
 class FuncSpec(Spec):
-    name: str = "default_eval_spec"
+    name: str = "default_func_spec"
     provider: Optional[LLMProvider] = None           
     model: Optional[str] = None
 
@@ -120,5 +120,5 @@ class AgentSpec(Spec):
     name: str = "default_agent_spec"
     ai_functions: list[FuncSpec|str] = Field(default_factory=list)
 
-eval_spec = FuncSpec()
-rag_spec = RAGSpec()
+# eval_spec = FuncSpec()
+# rag_spec = RAGSpec()
