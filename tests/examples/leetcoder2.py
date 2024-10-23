@@ -1,8 +1,9 @@
 
-from typing import Any, Literal
+from typing import Any, Literal, Iterable
 from unifai import UnifAIClient, tool, Message, FuncSpec, Tool, NumberToolParameter, StringToolParameter, ArrayToolParameter, ObjectToolParameter
 from souperscraper import SouperScraper, Keys
 from pydantic import BaseModel
+from time import sleep
 
 from _provider_defaults import PROVIDER_DEFAULTS
 
@@ -21,14 +22,23 @@ class TestCase(BaseModel):
     inputs: list[TestCaseInput]
     output: TestCaseValue
 
+    def __str__(self):
+        s = f"Case {self.number}"
+        s += "\nInputs:\n"
+        for input in self.inputs:
+            s += f"{input.keyword}: {input.value.value}\n"
+        s += f"Output: {self.output.value}"
+        return s
+
 class ExampleTestCase(TestCase):
     explaination: str
 
-@tool
+    def __str__(self):
+        return super().__str__() + f"\nExplanation: {self.explaination}"
+
 class TestCases(BaseModel):
     test_cases: list[TestCase]
 
-@tool
 class LeetCodeProblem(BaseModel):
     number: int
     title: str
@@ -40,10 +50,7 @@ class LeetCodeProblem(BaseModel):
 extract_problem = FuncSpec(
     name="extract_problem",
     system_prompt="Extract the problem from the leetcode page.",
-    tools=[LeetCodeProblem],
-    tool_choice=LeetCodeProblem,
-    output_parser=LeetCodeProblem,
-    return_on=LeetCodeProblem
+    response_format=LeetCodeProblem
 )
 
 
@@ -68,9 +75,12 @@ class LeetScraper:
 
         self.ai = ai
         self.extract_problem = ai.get_function(extract_problem)
+        self.problem: LeetCodeProblem = None
+        self.test_cases = {}
+        self.current_solution = ""
 
     def login(self):
-        self.scraper.goto("https://www.google.com/search?q=leetcode login")
+        self.scraper.goto("https://leetcode.com/accounts/google/login/?next=%2F")
         input("Press enter to continue after logging in.")
         self.scraper.goto("https://leetcode.com/problemset/")
 
@@ -98,9 +108,6 @@ class LeetScraper:
             test_container.find_elements("css selector", "button")[1].click()
 
     def get_test_cases(self):
-        # test_container = self.scraper.find_element_by_id('testcase_tabbar_outer')
-        # test_container.click()
-        # test_container.find_elements("css selector", "button")[1].click()
         self.show_testcase_container()
         test_case_container = self.scraper.find_element_by_css_selector("div[data-layout-path='/c1/ts1/t0']")
         test_case_container_text = test_case_container.text
@@ -117,28 +124,28 @@ class LeetScraper:
         return test_cases
 
 
-    def add_test_case(self, test_case: dict):
-        # test_container = self.scraper.find_element_by_id('testcase_tabbar_outer')
-        # test_container.click()
-        # test_container.find_elements("css selector", "button")[1].click()
+    def add_test_case(self, test_case: TestCase):
         self.show_testcase_container()
         test_case_container = self.scraper.find_element_by_css_selector("div[data-layout-path='/c1/ts1/t0']")
         test_case_container.find_element("css selector", "button[data-state='closed']").click()
-        case_num = sum(1 for name in test_case_container.text.split("\n") if name.startswith("Case")) + 1
-        self.update_test_case(str(case_num), test_case)
+        # case_num = sum(1 for name in test_case_container.text.split("\n") if name.startswith("Case")) + 1
+        return self.update_test_case(test_case)
 
 
-    def update_test_case(self, case_number: str, test_case: dict):
-        self.scraper.find_element_by_text(f"Case {case_number}").click()
+    def update_test_case(self, test_case: TestCase):
+        self.scraper.find_element_by_text(f"Case {test_case.number}").click()
         test_case_container = self.scraper.find_element_by_css_selector("div[data-layout-path='/c1/ts1/t0']")
         labels = test_case_container.find_elements("class name", "text-xs")[:-2]
-        inputs = test_case_container.find_elements("css selector", "div[contenteditable='true']")
-        for label, input in zip(labels, inputs):
+        input_elms = test_case_container.find_elements("css selector", "div[contenteditable='true']")
+        for label, input_elm, test_case_input in zip(labels, input_elms, test_case.inputs):
             label_text = label.text.strip(' =')
-            input.send_keys(Keys.BACKSPACE * len(input.text))
-            input.send_keys(test_case[label_text])
+            input_elm.send_keys(Keys.BACKSPACE * len(input_elm.text))
+            input_elm.send_keys(test_case_input.value.value)
+        
+        self.test_cases[test_case.number] = test_case
+        return self.run_tests()
 
-
+    
     def update_solution(self, solution: str):
         """Update the solution in the editor.
 
@@ -160,6 +167,7 @@ class LeetScraper:
         input_area.send_keys(Keys.RETURN)
         input_area.send_keys(200 * Keys.DELETE)
 
+        self.solution = solution
         return self.run_tests()   
             
 
@@ -168,6 +176,7 @@ class LeetScraper:
         self.scraper.wait_for_invisibility_of_element_located_by_css_selector("img[alt='Pending...']")
         self.scraper.wait_for_visibility_of_element_located_by_css_selector("img[alt='Judging...']")
         self.scraper.wait_for_invisibility_of_element_located_by_css_selector("img[alt='Judging...']")
+        sleep(2)
 
 
     def run_tests(self):
@@ -187,54 +196,15 @@ class LeetScraper:
         return submit_results_container.text
 
 
-    def add_test_case_tool_from_test_cases(self, test_case: dict):
-        return Tool(
-            name="add_test_case",
-            description="Add a test case to the problem.",
-            parameters=[
-                ObjectToolParameter(
-                    name="test_case",
-                    properties=[
-                        StringToolParameter(
-                            name=key, 
-                            description=f"Test value for {key}."
-                        ) for key in test_case.keys()
-                    ]
-                )
-            ],
-            callable=self.add_test_case
-        )
-    
-    def update_test_case_tool_from_test_cases(self, test_case: dict):
-        return Tool(
-            name="update_test_case",
-            description="Update a test case",
-            parameters={
-                "case_number": NumberToolParameter(description="The case number. (1-7)"),
-                "test_case": ObjectToolParameter(
-                    name="test_case",
-                    properties=[
-                        StringToolParameter(
-                            name=key, 
-                            description=f"Testcase value for {key}."
-                        ) for key in test_case.keys()
-                    ]
-                )
-            },
-            callable=self.update_test_case
-        )    
-
     def make_prompt(self, 
-                    problem: dict, 
-                    test_cases: dict,
+                    problem: LeetCodeProblem, 
+                    test_cases: Iterable[TestCase],
                     current_solution: str
                     ):
-        prompt = f"Problem: {problem['title']} ({problem['difficulty']})\n\n"
-        prompt += f"Description: {problem['description']}\n\n"
-        prompt += f"Constraints: {problem['constraints']}\n\n"
-        prompt += f"Examples: " + "\n".join(problem['examples']) + "\n\n"
-        # prompt += f"Test Cases: " + "\n".join([f"{case['name']}: {case['input']} -> {case['output']}" for case in test_cases]) + "\n\n"
-        prompt += f"Test Cases: " + "\n".join([f"{case_name}: {case}" for case_name, case in test_cases.items()]) + "\n\n"
+        prompt = f"Problem: {problem.title} ({problem.difficulty})\n\n"
+        prompt += f"Description: {problem.description}\n\n"
+        prompt += f"Constraints: {problem.constraints}\n\n"
+        prompt += f"Current Test Cases: " + "\n".join(map(str, test_cases)) + "\n\n"
         prompt += f"Current Solution: {current_solution}\n\n"
         print(prompt)
         return prompt
@@ -249,18 +219,18 @@ class LeetScraper:
         
         self.goto_problem(problem_href)
         self.select_language(language)
-        problem = self.extract_problem()
-        solution = self.get_current_solution()
-        test_cases = self.get_test_cases()
+        self.problem = self.extract_problem(self.scraper.soup.text)
+        self.solution = self.get_current_solution()
+        self.test_cases = dict(enumerate(self.problem.examples))
 
 
         solve_leetcode_problem = FuncSpec(
-            eval_type="solve_leetcode_problem",
+            name="solve_leetcode_problem",
             system_prompt="Your role is to solve leetcode problems using the optimal solution. You can add/modify test cases and submit your solution.",
             tools=[
                 self.update_solution,
-                # self.add_test_case_tool_from_test_cases(test_cases),
-                self.update_test_case_tool_from_test_cases(test_cases),
+                self.add_test_case,
+                self.update_test_case,
                 self.run_tests,
                 self.submit_solution,
                 Tool(
@@ -282,11 +252,8 @@ class LeetScraper:
 
         runtime_percentile, memory_percentile = 0, 0
         while runtime_percentile < min_runtime_percentile or memory_percentile < min_memory_percentile:
-            prompt = self.make_prompt(problem, test_cases, solution)
-            solution = self.ai.evaluate(
-                eval_type=solve_leetcode_problem,
-                content=prompt
-            )
+            prompt = self.make_prompt(self.problem, self.test_cases.values(), self.solution)
+            solution = self.ai.get_function(solve_leetcode_problem)(prompt)
             if not solution:
                 input("Failed to solve problem. Press enter to continue.")
                 continue
@@ -295,7 +262,7 @@ class LeetScraper:
             memory_percentile = solution["memory_percentile"]
             solution = self.get_current_solution()
             test_cases = self.get_test_cases()            
-            print(f"Solved {problem['title']} with runtime percentile: {runtime_percentile} and memory percentile: {memory_percentile}")
+            print(f"Solved {self.problem.title} with runtime percentile: {runtime_percentile} and memory percentile: {memory_percentile}")
             
 
         # self.add_test_case({"arr": "[1,2,3,4]", "k":"5"})
@@ -316,7 +283,6 @@ if __name__ == "__main__":
             "openai": PROVIDER_DEFAULTS["openai"][1],
             "ollama": PROVIDER_DEFAULTS["ollama"][1]
         },
-        eval_prameters=[extract_leetcode_problem]
     )
     
     leet_scraper = LeetScraper(ai=ai)

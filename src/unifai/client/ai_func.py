@@ -1,14 +1,17 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 from ..components.prompt_template import PromptTemplate
-from ..components.output_parsers import pydantic_parse
+from ..components.output_parsers import pydantic_parse, json_parse_one
 from ..exceptions import UnifAIError
-from ..types import Message, MessageChunk
-from ..type_conversions import stringify_content
+from ..types import Message, MessageChunk, Tool
+from ..type_conversions import stringify_content, tool_from_model
 from .chat import Chat
 from .specs import FuncSpec
 from .rag_engine import RAGEngine
 
 from pydantic import BaseModel
+
+def is_tool_or_model(value: Any) -> bool:
+    return isinstance(value, Tool) or (isinstance(value, type) and issubclass(value, BaseModel))
 
 class AIFunction(Chat):
     def __init__(
@@ -18,6 +21,40 @@ class AIFunction(Chat):
             **kwargs,
             ):
         super().__init__(**kwargs)
+        self.output_parsers = []
+
+        if response_format := spec.response_format: 
+            if response_format == "json":
+                self.output_parsers.append(json_parse_one)
+            elif is_tool_or_model(response_format):
+                self.output_parsers.append(response_format)
+                if not isinstance(response_format, Tool):
+                    response_format = tool_from_model(response_format)
+                spec.return_on = response_format.name
+                spec.response_format = None
+
+                if spec.tools is None:
+                    spec.tools = []
+                if response_format not in spec.tools:
+                    spec.tools.append(response_format)
+
+                if (tool_choice := spec.tool_choice) is None:
+                    spec.tool_choice = response_format
+                elif isinstance(tool_choice, (Tool, str)) and tool_choice != response_format and tool_choice != response_format.name:
+                    spec.tool_choice = [tool_choice, response_format]
+                elif isinstance(tool_choice, list) and response_format not in tool_choice:
+                    spec.tool_choice.append(response_format)
+
+            # elif isinstance(response_format, dict):
+            #     schema = response_format.get("json_schema")
+            #     if isinstance(schema, dict):
+            #         self.output_parsers.append(json_parse_one)
+            #     elif is_tool_or_model(schema):
+            #         self.output_parsers.append(schema)
+
+        if output_parser := spec.output_parser:
+            self.output_parsers.append(output_parser)
+
         self.spec = spec
         self.rag_engine = rag_engine
         self.reset()
@@ -117,7 +154,10 @@ class AIFunction(Chat):
     def parse_output(self, *args, **kwargs):
         spec = self.spec
         output = getattr(self, spec.return_as) if spec.return_as != "self" else self
-        if output_parser := spec.output_parser:
+        for output_parser in self.output_parsers:
+            if isinstance(output_parser, Tool) and output_parser.callable:
+                output_parser = output_parser.callable
+
             # TODO: Multiple possible output parsers based on if content, tool_name, message, etc.
             if isinstance(output_parser, BaseModel) or (isinstance(output_parser, type) and issubclass(output_parser, BaseModel)):
                 output = pydantic_parse(output, output_parser, **spec.output_parser_kwargs)

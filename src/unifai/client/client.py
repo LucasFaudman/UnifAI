@@ -468,12 +468,9 @@ class UnifAIClient:
     ) -> ToolCaller:
         tool_callables = {**self.tool_callables}
         if tools:
-            for tool in tools:
-                if isinstance(tool, str):
-                    tool = self.tools.get(tool)
-
+            for tool_name, tool in standardize_tools(tools, self.tools).items():
                 if isinstance(tool, Tool) and tool.callable:
-                    tool_callables[tool.name] = tool.callable
+                    tool_callables[tool_name] = tool.callable
 
         if tool_callables:
             tool_callables.update(tool_callables)

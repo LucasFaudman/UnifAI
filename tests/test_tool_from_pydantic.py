@@ -384,11 +384,11 @@ def test_tool_from_base_model(
 
     ai = UnifAIClient({provider: client_kwargs})    
     get_model = ai.get_function(
-        FuncSpec(
-            tools=[return_tool],
-            tool_choice=return_tool,
-            return_on='message', 
-            output_parser=bmodel
+        FuncSpec(response_format=bmodel,
+            # tools=[return_tool],
+            # tool_choice=return_tool,
+            # return_on='message', 
+            # output_parser=bmodel
         ))
 
     model = get_model("Fill out the model to test the tool input types.")

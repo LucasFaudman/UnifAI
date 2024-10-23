@@ -80,7 +80,7 @@ class FuncSpec(Spec):
     system_prompt_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     examples: Optional[list[Union[Message, dict[Literal["input", "response"], Any]]]] = None   
-    response_format: Optional[Literal["text", "json", "json_schema"]] = None
+    response_format: Optional[Literal["text", "json"]|Type[BaseModel]|Tool|dict[Literal["json_schema"], dict|Type[BaseModel]|Tool]] = None
     return_on: Union[Literal["content", "tool_call", "message"], str, Tool, list[str|Tool]] = "content"
     return_as: Literal["self", 
                        "messages", 
@@ -95,8 +95,8 @@ class FuncSpec(Spec):
     output_parser: Optional[Callable|Type[BaseModel]|BaseModel] = None
     output_parser_kwargs: dict[str, Any] = Field(default_factory=dict)
 
-    tools: Optional[Sequence[ToolInput]] = None            
-    tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None
+    tools: Optional[list[ToolInput]] = None            
+    tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, Sequence[Union[Literal["auto", "required", "none"], Tool, str]]]] = None
     enforce_tool_choice: bool = True
     tool_choice_error_retries: int = 3
     tool_callables: Optional[dict[str, Callable]] = None
@@ -120,5 +120,5 @@ class AgentSpec(Spec):
     name: str = "default_agent_spec"
     ai_functions: list[FuncSpec|str] = Field(default_factory=list)
 
-# eval_spec = FuncSpec()
+eval_spec = FuncSpec()
 # rag_spec = RAGSpec()

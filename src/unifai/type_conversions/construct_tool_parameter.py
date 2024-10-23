@@ -126,7 +126,7 @@ def construct_tool_parameter(
         return NullToolParameter(name=param_name, description=param_description, enum=param_enum)
 
     if param_type == 'object':
-        if not (param_properties := param_dict.get('properties')):
+        if (param_properties := param_dict.get('properties')) is None:
             raise ValueError("Object parameters must have a 'properties' key.")
         properties = {
             prop_name: construct_tool_parameter(param_dict=prop_dict, param_name=prop_name) 

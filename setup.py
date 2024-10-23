@@ -47,6 +47,12 @@ setup(
         "openai": ["openai"],
         "ollama": ["ollama"],
         "anthropic": ["anthropic"],
+        "google": ["google-generativeai"],
+        "cohere": ["cohere"],
+        "rank_bm25": ["rank_bm25"],
+        "chroma": ["chroma"],
+        "pinecone": ["pinecone"],
+        "sentence_transformers": ["sentence_transformers"],
     },
     entry_points={
         "console_scripts": [],
