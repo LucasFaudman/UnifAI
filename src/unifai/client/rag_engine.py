@@ -1,14 +1,10 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
-from .._core._base_vector_db_index import VectorDBIndex
-from .._core._base_reranker import Reranker
+from ..components.retrievers._base_retriever import Retriever
+from ..components.rerankers._base_reranker import Reranker
 from ..types.vector_db import VectorDBQueryResult
 from ..components.prompt_template import PromptTemplate
 from .specs import RAGSpec
-
-class Retriever:
-    def query(self, query_text: str, n_results: int, **kwargs) -> VectorDBQueryResult:
-        raise NotImplementedError
 
 
 class RAGEngine:
@@ -16,10 +12,10 @@ class RAGEngine:
     def __init__(
             self, 
             spec: RAGSpec,
-            retreiver: VectorDBIndex|Retriever,
+            retriever: Retriever,
             reranker: Optional[Reranker] = None,
         ):
-        self.retreiver = retreiver
+        self.retriever = retriever
         self.reranker = reranker
         self.spec = spec
 
@@ -30,19 +26,19 @@ class RAGEngine:
             top_k: Optional[int] = None,
             where: Optional[dict] = None,
             where_document: Optional[dict] = None,
-            **retreiver_kwargs
+            **retriever_kwargs
         ) -> VectorDBQueryResult:
 
         n_results = top_k or self.spec.top_k or self.spec.top_n
         where = where or self.spec.where
         where_document = where_document or self.spec.where_document
-        retreiver_kwargs = {**self.spec.retreiver_kwargs, **retreiver_kwargs}
-        return self.retreiver.query(
+        retriever_kwargs = {**self.spec.retriever_kwargs, **retriever_kwargs}
+        return self.retriever.query(
             query_text=query,
             n_results=n_results,
             where=where,
             where_document=where_document,
-            **retreiver_kwargs
+            **retriever_kwargs
         )
 
 
@@ -99,10 +95,10 @@ class RAGEngine:
             self, 
             query: str,
             prompt_template: Optional[PromptTemplate] = None,
-            retreiver_kwargs: Optional[dict] = None,
+            retriever_kwargs: Optional[dict] = None,
             reranker_kwargs: Optional[dict] = None,
             **prompt_template_kwargs
             ) -> str:
 
-        query_result = self.query(query, retreiver_kwargs, reranker_kwargs)
+        query_result = self.query(query, retriever_kwargs, reranker_kwargs)
         return self.augment(query, query_result, prompt_template, **prompt_template_kwargs)

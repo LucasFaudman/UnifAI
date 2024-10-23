@@ -1,19 +1,15 @@
-from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator
-from typing import overload
+from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator, overload
 
-from unifai._core._base_llm_client import LLMClient
-from unifai._core._base_embedder import Embedder
-from unifai._core._base_reranker import Reranker
-from unifai._core._base_document_db import DocumentDB
+from ..components.llms._base_llm_client import LLMClient
+from ..components.embedders._base_embedder import Embedder
+from ..components.rerankers._base_reranker import Reranker
+from ..components.document_dbs._base_document_db import DocumentDB
+from ..components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex
+from ..components.import_component import import_component, LLMS, EMBEDDERS, VECTOR_DBS, RERANKERS, DOCUMENT_DBS, PROVIDERS
+from ..components.tool_callers import ToolCaller
 
-from unifai._core._base_vector_db_client import (
-    VectorDBClient, 
-    VectorDBIndex,
-    VectorDBGetResult,
-    VectorDBQueryResult
-)
-
-from unifai.types import (
+from ..types import (
+    ComponentType,
     LLMProvider,
     EmbeddingProvider,
     VectorDBProvider,
@@ -26,25 +22,17 @@ from unifai.types import (
     ToolInput,
     Embeddings,
     Embedding,
+    VectorDBQueryResult    
 )
 
-from unifai.type_conversions import standardize_tools, standardize_specs
+from ..type_conversions import standardize_tools, standardize_specs
 
-from ..components.tool_caller import ToolCaller
+
 from .chat import Chat
 from .rag_engine import RAGEngine
 from .ai_func import AIFunction
 from .specs import RAGSpec, FuncSpec
 
-
-LLM_PROVIDERS: frozenset[LLMProvider] = frozenset(("anthropic", "google", "openai", "ollama", "nvidia"))
-EMBEDDING_PROVIDERS: frozenset[EmbeddingProvider] = frozenset(("google", "openai", "ollama", "cohere", "nvidia"))
-VECTOR_DB_PROVIDERS: frozenset[VectorDBProvider] = frozenset(("chroma", "pinecone"))
-RERANK_PROVIDERS: frozenset[RerankProvider] = frozenset(("nvidia", "cohere", "rank_bm25"))
-REQUIRED_BOUND_METHODS: dict[Provider, list[str]] = {
-    "chroma": ["embed"],
-    "pinecone": ["embed"],
-}
 
 class UnifAIClient:
     FUNC_SPECS: list[FuncSpec|dict] = [] #  | dict[str, EvalSpec|dict] = []
@@ -71,7 +59,7 @@ class UnifAIClient:
         self.set_default_vector_db_provider(default_vector_db_provider)
         self.set_default_rerank_provider(default_rerank_provider)
         
-        self._clients: dict[Provider, LLMClient|Embedder|VectorDBClient|Reranker] = {}
+        self._components: dict[ComponentType, dict[Provider, LLMClient|Embedder|VectorDBClient|Reranker]] = {}
         self.tools: dict[str, Tool] = {}
         self.tool_callables: dict[str, Callable] = {}
         self.func_specs: dict[str, FuncSpec] = {}
@@ -86,15 +74,15 @@ class UnifAIClient:
     def set_provider_client_kwargs(self, provider_client_kwargs: Optional[dict[Provider, dict[str, Any]]] = None):
         self.provider_client_kwargs = provider_client_kwargs if provider_client_kwargs is not None else {}        
         self.providers: list[Provider] = list(self.provider_client_kwargs.keys())
-        self.llm_providers: list[LLMProvider] = [provider for provider in self.providers if provider in LLM_PROVIDERS]
-        self.embedding_providers: list[EmbeddingProvider] = [provider for provider in self.providers if provider in EMBEDDING_PROVIDERS]
-        self.vector_db_providers: list[VectorDBProvider] = [provider for provider in self.providers if provider in VECTOR_DB_PROVIDERS]
-        self.rerank_providers: list[RerankProvider] = [provider for provider in self.providers if provider in RERANK_PROVIDERS]        
+        self.llm_providers: list[LLMProvider] = [provider for provider in self.providers if provider in LLMS]
+        self.embedding_providers: list[EmbeddingProvider] = [provider for provider in self.providers if provider in EMBEDDERS]
+        self.vector_db_providers: list[VectorDBProvider] = [provider for provider in self.providers if provider in VECTOR_DBS]
+        self.rerank_providers: list[RerankProvider] = [provider for provider in self.providers if provider in RERANKERS]        
 
 
     def set_default_llm_provider(self, provider: Optional[LLMProvider] = None, check: bool = True):
-        if check and provider and provider not in LLM_PROVIDERS:
-            raise ValueError(f"Invalid LLM provider: {provider}. Must be one of: {LLM_PROVIDERS}")
+        if check and provider and provider not in LLMS:
+            raise ValueError(f"Invalid LLM provider: {provider}. Must be one of: {LLMS}")
         if provider:
             self.default_llm_provider: LLMProvider = provider
         elif self.llm_providers:
@@ -104,8 +92,8 @@ class UnifAIClient:
 
 
     def set_default_embedding_provider(self, provider: Optional[EmbeddingProvider] = None, check: bool = True):
-        if check and provider and provider not in EMBEDDING_PROVIDERS:
-            raise ValueError(f"Invalid Embedding provider: {provider}. Must be one of: {EMBEDDING_PROVIDERS}")
+        if check and provider and provider not in EMBEDDERS:
+            raise ValueError(f"Invalid Embedding provider: {provider}. Must be one of: {EMBEDDERS}")
         if provider:
             self.default_embedding_provider: EmbeddingProvider = provider
         elif self.embedding_providers:
@@ -115,8 +103,8 @@ class UnifAIClient:
 
 
     def set_default_vector_db_provider(self, provider: Optional[VectorDBProvider] = None, check: bool = True):
-        if check and provider and provider not in VECTOR_DB_PROVIDERS:
-            raise ValueError(f"Invalid Vector DB provider: {provider}. Must be one of: {VECTOR_DB_PROVIDERS}")
+        if check and provider and provider not in VECTOR_DBS:
+            raise ValueError(f"Invalid Vector DB provider: {provider}. Must be one of: {VECTOR_DBS}")
         if provider:
             self.default_vector_db_provider: VectorDBProvider = provider
         elif self.vector_db_providers:
@@ -126,8 +114,8 @@ class UnifAIClient:
 
 
     def set_default_rerank_provider(self, provider: Optional[RerankProvider] = None, check: bool = True):
-        if check and provider and provider not in RERANK_PROVIDERS:
-            raise ValueError(f"Invalid Vector DB provider: {provider}. Must be one of: {RERANK_PROVIDERS}")
+        if check and provider and provider not in RERANKERS:
+            raise ValueError(f"Invalid Vector DB provider: {provider}. Must be one of: {RERANKERS}")
         if provider:
             self.default_rerank_provider: RerankProvider = provider
         elif self.rerank_providers:
@@ -160,103 +148,69 @@ class UnifAIClient:
             self.rag_specs.update(standardize_specs(rag_specs, RAGSpec))
 
 
-    def import_adapter(self, provider: Provider) -> Type[LLMClient|Embedder|VectorDBClient|Reranker]:
-        match provider:
-            # LLM Client Wrappers
-            case "anthropic":
-                from unifai.adapters.anthropic import AnthropicAdapter
-                return AnthropicAdapter
-            case "google":
-                from unifai.adapters.google import GoogleAIAdapter
-                return GoogleAIAdapter
-            case "openai":
-                from unifai.adapters.openai import OpenAIAdapter
-                return OpenAIAdapter
-            case "ollama":
-                from unifai.adapters.ollama import OllamaAdapter
-                return OllamaAdapter
-            case "nvidia":
-                from unifai.adapters.nvidia import NvidiaAdapter
-                return NvidiaAdapter
-                    
-            # Embedding Vector DB Client Wrappers
-            case "chroma":
-                from unifai.adapters.chroma import ChromaClient
-                return ChromaClient
-            case "pinecone":
-                from unifai.adapters.pinecone import PineconeClient
-                return PineconeClient
-            
-            # Reranker Client Wrappers
-            case "cohere":
-                from unifai.adapters.cohere import CohereAdapter
-                return CohereAdapter  
-            case "rank_bm25":
-                from unifai.adapters.rank_bm25 import RankBM25Adapter
-                return RankBM25Adapter
-            case "sentence_transformers":
-                from unifai.adapters.sentence_transformers import SentenceTransformersAdapter
-                return SentenceTransformersAdapter            
-            case _:
-                raise ValueError(f"Invalid provider: {provider}")
-            
     
-    def init_client(self, provider: Provider, **client_kwargs) -> LLMClient|Embedder|VectorDBClient|Reranker:
+    def init_component(self, provider: Provider, component_type: ComponentType, **client_kwargs) -> LLMClient|Embedder|VectorDBClient|Reranker:
         if (registered_kwargs := self.provider_client_kwargs.get(provider)) is not None:
             client_kwargs = {**registered_kwargs, **client_kwargs}
         else:
             self.provider_client_kwargs[provider] = client_kwargs
             client_kwargs = {**self.provider_client_kwargs[provider], **client_kwargs}
            
-        if required_bound_methods := REQUIRED_BOUND_METHODS.get(provider):
-            for method in required_bound_methods:
-                if method not in client_kwargs:
-                    client_kwargs[method] = getattr(self, method)
-        self._clients[provider] = self.import_adapter(provider)(**client_kwargs)
-        return self._clients[provider]  
+        if component_type not in self._components:
+            self._components[component_type] = {}
+        self._components[component_type][provider] = import_component(provider, component_type)(**client_kwargs)
+        return self._components[component_type][provider]  
 
 
     @overload
-    def get_client(self, provider: LLMProvider, **client_kwargs) -> LLMClient:
+    def get_component(self, provider: LLMProvider, component_type: ComponentType = "llm", **client_kwargs) -> LLMClient:
         ...
 
     @overload
-    def get_client(self, provider: EmbeddingProvider, **client_kwargs) -> Embedder:
+    def get_component(self, provider: EmbeddingProvider, component_type: ComponentType = "embedder", **client_kwargs) -> Embedder:
         ...        
 
     @overload
-    def get_client(self, provider: VectorDBProvider, **client_kwargs) -> VectorDBClient:
+    def get_component(self, provider: VectorDBProvider, component_type: ComponentType = "vector_db", **client_kwargs) -> VectorDBClient:
         ...        
 
     @overload
-    def get_client(self, provider: RerankProvider, **client_kwargs) -> Reranker:
+    def get_component(self, provider: RerankProvider, component_type: ComponentType = "reranker", **client_kwargs) -> Reranker:
         ...
 
-    def get_client(self, provider: Provider, **client_kwargs) -> LLMClient|Embedder|VectorDBClient|Reranker:
-        provider = provider or self.default_llm_provider
-        if provider not in self._clients or (client_kwargs and self._clients[provider].client_kwargs != client_kwargs):
-            return self.init_client(provider, **client_kwargs)
-        return self._clients[provider]
+    def get_component(self, provider: Provider, component_type: ComponentType = "llm", **client_kwargs) -> LLMClient|Embedder|VectorDBClient|Reranker:
+        components_of_type = self._components.get(component_type)
+        if (not components_of_type
+            or provider not in components_of_type 
+            or (client_kwargs and components_of_type[provider].client_kwargs != client_kwargs
+            )):
+            return self.init_component(provider, component_type, **client_kwargs)
+        return self._components[component_type][provider]
 
 
     def get_llm_client(self, provider: Optional[LLMProvider] = None, **client_kwargs) -> LLMClient:
         provider = provider or self.default_llm_provider
-        return self.get_client(provider, **client_kwargs)
+        return self.get_component(provider, component_type="llm", **client_kwargs)
 
 
     def get_embedder(self, provider: Optional[EmbeddingProvider] = None, **client_kwargs) -> Embedder:
         provider = provider or self.default_embedding_provider
-        return self.get_client(provider, **client_kwargs)
+        return self.get_component(provider, component_type="embedder", **client_kwargs)
 
 
     def get_reranker(self, provider: Optional[RerankProvider] = None, **client_kwargs) -> Reranker:
         provider = provider or self.default_rerank_provider
-        return self.get_client(provider, **client_kwargs)
+        return self.get_component(provider, component_type="reranker", **client_kwargs)
 
 
     def get_vector_db(self, provider: Optional[VectorDBProvider] = None, **client_kwargs) -> VectorDBClient:
         provider = provider or self.default_vector_db_provider
-        return self.get_client(provider, **client_kwargs)
+        if "embed" not in client_kwargs:
+            client_kwargs["embed"] = self.embed
+        if "default_dimensions" not in client_kwargs:
+            default_embedding_provider = client_kwargs.get("default_embedding_provider") or self.default_embedding_provider
+            client_kwargs["default_dimensions"] = self.get_embedder(default_embedding_provider).get_model_dimensions(client_kwargs.get("default_embedding_model"))
+        return self.get_component(provider, component_type="vector_db", **client_kwargs)
 
 
     def get_default_model(self, provider: Provider, model_type: Literal["llm", "embedding", "rerank"]) -> str:        
@@ -273,7 +227,7 @@ class UnifAIClient:
 
     # List Models
     def list_models(self, provider: Optional[LLMProvider] = None) -> list[str]:
-        return self.get_client(provider).list_models()
+        return self.get_llm_client(provider).list_models()
     
 
     # Chat
@@ -480,7 +434,6 @@ class UnifAIClient:
 
 
     
-
     def get_or_create_index(self, 
                             name: str,
                             vector_db_provider: Optional[VectorDBProvider] = None,                            
@@ -491,6 +444,8 @@ class UnifAIClient:
                             index_metadata: Optional[dict] = None,
                             **kwargs
                             ) -> VectorDBIndex:
+        if dimensions is None:
+            dimensions = self.get_embedder(embedding_provider).get_model_dimensions(embedding_model)
         return self.get_vector_db(vector_db_provider).get_or_create_index(
             name=name,
             embedding_provider=embedding_provider,
@@ -500,128 +455,9 @@ class UnifAIClient:
             metadata=index_metadata,
             **kwargs
         )        
-        # return self.get_vector_db_client(vector_db_provider).get_or_create_index(
-        #     name=name,
-        #     embedding_provider=embedding_provider,
-        #     embedding_model=embedding_model,
-        #     dimensions=dimensions,
-        #     distance_metric=distance_metric,
-        #     metadata=index_metadata,
-        #     **kwargs
-        # )
-    
 
-    def upsert_index(self,
-                     name: str,
-                     ids: list[str],
-                     metadatas: Optional[list[dict]] = None,
-                     documents: Optional[list[str]] = None,
-                     embeddings: Optional[list[Embedding]] = None,
-                     vector_db_provider: Optional[VectorDBProvider] = None,                            
-                     embedding_provider: Optional[LLMProvider] = None,
-                     embedding_model: Optional[str] = None,
-                     dimensions: Optional[int] = None,
-                     distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 
-                     index_metadata: Optional[dict] = None
-                     ) -> VectorDBIndex:
-        return self.get_or_create_index(
-              name=name,
-              vector_db_provider=vector_db_provider,
-              embedding_provider=embedding_provider,
-              embedding_model=embedding_model,
-              dimensions=dimensions,
-              distance_metric=distance_metric,
-              index_metadata=index_metadata
-            ).upsert(
-                ids=ids,
-                metadatas=metadatas,
-                documents=documents,
-                embeddings=embeddings
-            )
-    
-       
-    def query_index(self, 
-                    name: str,
-                    query: str | list[str] | Embedding | list[Embedding] | Embeddings,
-                    n_results: int = 10,
-                    where: Optional[dict] = None,
-                    where_document: Optional[dict] = None,
-                    include: list[Literal["metadatas", "documents", "distances"]] = ["metadatas", "documents", "distances"],
-                    vector_db_provider: Optional[VectorDBProvider] = None,                            
-                    embedding_provider: Optional[LLMProvider] = None,
-                    embedding_model: Optional[str] = None,
-                    dimensions: Optional[int] = None,
-                    distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 
-                    index_metadata: Optional[dict] = None                    
-              ) -> VectorDBQueryResult|list[VectorDBQueryResult]:                     
-        
-        if not query:
-            raise ValueError("Query cannot be empty")
-        
-        index = self.get_or_create_index(
-            name=name,
-            vector_db_provider=vector_db_provider,
-            embedding_provider=embedding_provider,
-            embedding_model=embedding_model,
-            dimensions=dimensions,
-            distance_metric=distance_metric,
-            index_metadata=index_metadata
-        )        
-
-                          
-        if (is_str_query := isinstance(query, str)) or (isinstance(query, list) and isinstance(query[0], float)):
-            if is_str_query:
-                query_text = query # Single string
-                query_embedding = None
-            else:
-                query_text = None
-                query_embedding = query # Single Embedding (list of floats)
-            return index.query(
-                query_text=query_text,
-                query_embedding=query_embedding,
-                n_results=n_results,
-                where=where,
-                where_document=where_document,
-                include=include
-            )
-
-        query_texts = None
-        query_embeddings = None
-        if isinstance(query, Embeddings):
-            query_embeddings = query.list() # List of Embeddings (RootModel) (list of lists of floats)
-        elif isinstance(query, list):
-            if isinstance((item_0 := query[0]), list) and isinstance(item_0[0], float):
-                query_embeddings = query # List of Embeddings (list of lists of floats)            
-            elif isinstance(item_0, str):
-                query_texts = query # List of strings
-        else:
-            raise ValueError(f"Invalid query type: {type(query)}. Must be a str, list of str, Embedding (list[float]), list of Embedding list[list[float]] or Embeddings object returned by embed()")
-
-                    
-        return index.query_many(
-                    query_texts=query_texts,
-                    query_embeddings=query_embeddings,
-                    n_results=n_results,
-                    where=where,
-                    where_document=where_document,
-                    include=include
-                )
     
     
-    def delete_index(self,
-                     name: str,
-                     vector_db_provider: Optional[VectorDBProvider] = None,
-                     ):
-        return self.get_vector_db(vector_db_provider).delete_index(name)
-    
-    
-    def delete_indexes(self,
-                       names: list[str],
-                       vector_db_provider: Optional[VectorDBProvider] = None,
-                       ):
-          return self.get_vector_db(vector_db_provider).delete_indexes(names)
-    
-
     def get_tool_caller(
             self,
             tool_caller_class_or_instance: Type[ToolCaller]|ToolCaller = ToolCaller,
@@ -632,12 +468,9 @@ class UnifAIClient:
     ) -> ToolCaller:
         tool_callables = {**self.tool_callables}
         if tools:
-            for tool in tools:
-                if isinstance(tool, str):
-                    tool = self.tools.get(tool)
-
+            for tool_name, tool in standardize_tools(tools, self.tools).items():
                 if isinstance(tool, Tool) and tool.callable:
-                    tool_callables[tool.name] = tool.callable
+                    tool_callables[tool_name] = tool.callable
 
         if tool_callables:
             tool_callables.update(tool_callables)
@@ -669,6 +502,7 @@ class UnifAIClient:
             if isinstance(document_db, type):
                 document_db = document_db(**rag_spec.document_db_kwargs)
 
+        
         index = self.get_or_create_index(
             name=rag_spec.index_name,
             vector_db_provider=rag_spec.vector_db_provider,
@@ -686,7 +520,7 @@ class UnifAIClient:
         
         return RAGEngine(
             spec=rag_spec,
-            retreiver=index,
+            retriever=index,
             reranker=reranker
         )  
     

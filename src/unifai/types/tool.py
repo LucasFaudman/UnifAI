@@ -18,31 +18,18 @@ class Tool(BaseModel):
         name: str, 
         description: str, 
         *args: ToolParameter,
-        parameters: Optional[Union[ObjectToolParameter, Sequence[ToolParameter], Mapping[str, ToolParameter]]] = None,
+        parameters: Optional[ObjectToolParameter|Mapping[str, ToolParameter]|Sequence[ToolParameter]] = None,
         type: str = "function",
         strict: bool = True,
         callable: Optional[Callable] = None
     ):        
-             
-        if isinstance(parameters, ObjectToolParameter):
-            parameters = parameters
-            # parameters.name = "parameters"
-        elif isinstance(parameters, Sequence):
-            parameters = ObjectToolParameter(properties=parameters)
-        elif isinstance(parameters, Mapping):
-            properties = []
-            for parameter_name, parameter in parameters.items():
-                if parameter.name is None:
-                    parameter.name = parameter_name
-                elif parameter.name != parameter_name:
-                    raise ValueError("Parameter name does not match key")
-                properties.append(parameter)
-            parameters = ObjectToolParameter(properties=properties)
+        if args and parameters:
+            raise ValueError("Cannot specify both args and parameters")
         elif args:
             parameters = ObjectToolParameter(properties=list(args))
-        else:
-            raise ValueError(f"Invalid parameters type: {parameters}")
-
+        elif isinstance(parameters, (Mapping, Sequence)):
+            parameters = ObjectToolParameter(properties=parameters)
+            
         BaseModel.__init__(self, name=name, type=type, description=description, parameters=parameters, strict=strict, callable=callable)
 
 

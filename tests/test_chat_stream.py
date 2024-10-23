@@ -9,7 +9,6 @@ from basetest import base_test_llms_all, PROVIDER_DEFAULTS
 def test_chat_stream_simple(provider: LLMProvider, client_kwargs: dict, func_kwargs: dict):
 
     ai = UnifAIClient({provider: client_kwargs})
-    ai.init_client(provider, **client_kwargs)
     stream = ai.chat_stream(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,
@@ -64,7 +63,6 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
 def test_chat_stream_tools(provider: LLMProvider, client_kwargs: dict, func_kwargs: dict):
 
     ai = UnifAIClient({provider: client_kwargs})
-    ai.init_client(provider, **client_kwargs)
     stream = ai.chat_stream(
         messages=[{"role": "user", "content": "What's the weather in San Francisco, Tokyo, and Paris?"}],
         tools=[get_current_weather],

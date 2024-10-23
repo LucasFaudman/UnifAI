@@ -26,16 +26,16 @@ def test_switch_providers_simple(
     func_kwargs2: dict
 ):
     ai = UnifAIClient({provider1: client_kwargs1, provider2: client_kwargs2})
-    chat = ai.chat([Message(role="user", content="Hi I'm Lucas what's your name?")], provider=provider1, **func_kwargs1)
+    chat = ai.chat([Message(role="user", content="Hi my favorite color is blue, what's yours?")], provider=provider1, **func_kwargs1)
     assert isinstance(chat.messages, list)
     assert isinstance(chat.last_content, str)
     print(chat.last_content)
     chat.set_provider(provider2)
     assert chat.provider == provider2
-    ass_message = chat.send_message(Message(role="user", content="Can you remember my name?"))
+    ass_message = chat.send_message(Message(role="user", content="Can you remember my favorite color?"))
     assert ass_message.role == "assistant"
     assert ass_message.content
-    assert "lucas" in ass_message.content.lower()
+    assert "blue" in ass_message.content.lower()
     print(ass_message)
 
 

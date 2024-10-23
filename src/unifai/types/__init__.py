@@ -14,12 +14,14 @@ from .tool_parameters import (
     RefToolParameter,
     ObjectToolParameter,
     AnyOfToolParameter,
+    OptionalToolParameter,
     ToolParameters,
     ToolParameterType,
     ToolParameterPyTypes,
 )
 from .tool import Tool, ProviderTool, PROVIDER_TOOLS
 from .valid_inputs import (
+    ComponentType,
     LLMProvider, 
     VectorDBProvider, 
     EmbeddingProvider,
@@ -50,6 +52,7 @@ __all__ = [
     "ArrayToolParameter",
     "ObjectToolParameter",
     "AnyOfToolParameter",
+    "OptionalToolParameter",
     "ToolParameters",
     "Tool", 
     "ProviderTool",

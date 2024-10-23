@@ -19,6 +19,7 @@ class Usage(BaseModel):
 
     
 class ResponseInfo(BaseModel):
-    model: Optional[str] = None    
+    model: Optional[str] = None
+    provider: Optional[str] = None
     done_reason: Optional[Literal["stop", "tool_calls", "max_tokens", "content_filter", "error"]] = None
     usage: Usage = Field(default_factory=Usage)

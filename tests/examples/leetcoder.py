@@ -36,8 +36,8 @@ from _provider_defaults import PROVIDER_DEFAULTS
 #     }
 # )
 
-extract_leetcode_problem = Func(
-    eval_type="extract_leetcode_problem",
+extract_leetcode_problem = FuncSpec(
+    name="extract_leetcode_problem",
     system_prompt="Your role is to extract leetcode problems from the leetcode website.",
     tools=[
         Tool(
@@ -305,7 +305,7 @@ class LeetScraper:
 
 
         solve_leetcode_problem = FuncSpec(
-            eval_type="solve_leetcode_problem",
+            name="solve_leetcode_problem",
             system_prompt="Your role is to solve leetcode problems using the optimal solution. You can add/modify test cases and submit your solution.",
             tools=[
                 self.update_solution,
@@ -366,7 +366,7 @@ if __name__ == "__main__":
             "openai": PROVIDER_DEFAULTS["openai"][1],
             "ollama": PROVIDER_DEFAULTS["ollama"][1]
         },
-        eval_prameters=[extract_leetcode_problem]
+        func_specs=[extract_leetcode_problem]
     )
     
     leet_scraper = LeetScraper(ai=ai)

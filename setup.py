@@ -23,7 +23,7 @@ EXT_MODULES = []
 
 setup(
     name="unifai",
-    version="0.0.1",
+    version="0.0.2",
     use_scm_version=True,
     setup_requires=["setuptools>=42", "setuptools_scm>=8", "wheel"],
     description="Unify AI clients into a single interface with enhanced Tool Calling support.",
@@ -47,6 +47,12 @@ setup(
         "openai": ["openai"],
         "ollama": ["ollama"],
         "anthropic": ["anthropic"],
+        "google": ["google-generativeai"],
+        "cohere": ["cohere"],
+        "rank_bm25": ["rank_bm25"],
+        "chroma": ["chroma"],
+        "pinecone": ["pinecone"],
+        "sentence_transformers": ["sentence_transformers"],
     },
     entry_points={
         "console_scripts": [],

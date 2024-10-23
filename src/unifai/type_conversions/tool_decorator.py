@@ -2,8 +2,9 @@ from typing import Callable, Type, Optional, Union, overload, Any
 from pydantic import BaseModel
 
 from ..types.tool import Tool
+from .construct_tool_parameter import construct_tool_parameter, is_type_and_subclass
+from .tool_from_pydantic import tool_from_pydantic
 from .tool_from_func import tool_from_func
-from .tool_from_pydantic import tool_from_pydantic_model, is_type_and_subclass
 
 
 @overload
@@ -18,7 +19,7 @@ def tool(
         description: Optional[str] = None,
         type: str = "function",
         strict: bool = True,
-        exclude_fields: Optional[list[str]] = None,
+        exclude: Optional[list[str]] = None,
     ) -> Callable[[Callable|Type[BaseModel]], Tool]:
     ...
 
@@ -27,18 +28,18 @@ def tool(
         description: Optional[str] = None,
         type: str = "function",
         strict: bool = True,
-        exclude_fields: Optional[list[str]] = None,
+        exclude: Optional[list[str]] = None,
     ) -> Tool|Callable[[Callable|Type[BaseModel]], Tool]:
     
     def decorator(func_or_model: Union[Callable[..., Any], Type[BaseModel]]) -> Tool:
         if is_type_and_subclass(func_or_model, BaseModel):
-            return tool_from_pydantic_model(
+            return tool_from_pydantic(
                 model=func_or_model,
                 name=name,
                 description=description,
                 type=type,
                 strict=strict,
-                exclude_fields=exclude_fields
+                exclude=exclude
             )
         else:
             return tool_from_func(
@@ -47,6 +48,7 @@ def tool(
                 description=description,
                 type=type,
                 strict=strict,
+                exclude=exclude
             )
 
     if callable(name):

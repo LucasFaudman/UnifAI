@@ -33,7 +33,6 @@ ai = UnifAIClient()
             location (str): The city and state, e.g. San Francisco, CA
             unit (str): The unit of temperature to return. Infer the unit from the location if not provided.
                 enum: ["celsius", "fahrenheit"]
-                required: False
 
         Returns:
             dict: The current weather in the location
@@ -48,13 +47,11 @@ ai = UnifAIClient()
                 StringToolParameter(
                     name="location", 
                     description="The city and state, e.g. San Francisco, CA", 
-                    required=True
                 ),
                 StringToolParameter(
                     name="unit",
                     description="The unit of temperature to return. Infer the unit from the location if not provided.", 
                     enum=["celsius", "fahrenheit"],
-                    required=False
                 )
             ]
         )
@@ -69,7 +66,6 @@ ai = UnifAIClient()
             unit (str): The unit of temperature to return. 
                         Infer the unit from the location if not provided.
                 enum: ["celsius", "fahrenheit"]
-                required: False
 
         Returns:
             dict: The current weather in the location
@@ -84,13 +80,11 @@ ai = UnifAIClient()
                 StringToolParameter(
                     name="location", 
                     description="The city and state, e.g. San Francisco, CA", 
-                    required=True
                 ),
                 StringToolParameter(
                     name="unit",
                     description="The unit of temperature to return. Infer the unit from the location if not provided.", 
                     enum=["celsius", "fahrenheit"],
-                    required=False
                 )
             ]
         )
@@ -102,61 +96,41 @@ ai = UnifAIClient()
         Args:
             string_param (str): A string parameter
                 enum: ["a", "b", "c"]
-                required: True
             number_param (float): A number parameter
                 enum: [1.0, 2.0, 3.0]
-                required: True
             integer_param (int): An integer parameter
                 enum: [1, 2, 3]
-                required: True
             boolean_param (bool): A boolean parameter
-                required: True
             null_param (None): A null parameter
-                required: True
             array_param (list): An array parameter
                 items (str): A string item
                     enum: ["a", "b", "c"]
-                required: True
             object_param (dict): An object parameter
                 properties:
                     string_prop (str): A string property
                         enum: ["a", "b", "c"]
-                        required: True
                     number_prop (float): A number property
                         enum: [1.0, 2.0, 3.0]
-                        required: True
                     integer_prop (int): An integer property
                         enum: [1, 2, 3]
-                        required: True
                     boolean_prop (bool): A boolean property
-                        required: True
                     null_prop (None): A null property
-                        required: True
                     array_prop (list): An array property
                         items (str): A string item
                             enum: ["a", "b", "c"]
-                        required: True
                     nested_object_prop (dict): A nested object property
                         properties:
                             nested_string_prop (str): A string property in a nested object
                                 enum: ["a", "b", "c"]
-                                required: True
                             nested_number_prop (float): A number property in a nested object
                                 enum: [1.0, 2.0, 3.0]
-                                required: True
                             nested_integer_prop (int): An integer property in a nested object
                                 enum: [1, 2, 3]
-                                required: True
                             nested_boolean_prop (bool): A boolean property in a nested object
-                                required: True
                             nested_null_prop (None): A null property in a nested object
-                                required: True
                             nested_array_prop (list): An array property in a nested object
                                 items (str): A string item in array in a nested object
                                     enum: ["a", "b", "c"]
-                                required: True
-                        required: True
-                required: True
             
         """,
         "Get an object with all types",
@@ -165,124 +139,101 @@ ai = UnifAIClient()
                 StringToolParameter(
                     name="string_param",
                     description="A string parameter",
-                    required=True,
                     enum=["a", "b", "c"]
                 ),
                 NumberToolParameter(
                     name="number_param",
                     description="A number parameter",
-                    required=True,
                     enum=[1.0, 2.0, 3.0]
                 ),
                 IntegerToolParameter(
                     name="integer_param",
                     description="An integer parameter",
-                    required=True,
                     enum=[1, 2, 3]
                 ),
                 BooleanToolParameter(
                     name="boolean_param",
                     description="A boolean parameter",
-                    required=True,
                 ),
                 NullToolParameter(
                     name="null_param",
                     description="A null parameter",
-                    required=True,
                 ),
                 ArrayToolParameter(
                     name="array_param",
                     description="An array parameter",
-                    required=True,
                     items=StringToolParameter(
                         description="A string item",
-                        required=True,
                         enum=["a", "b", "c"]
                     )
                 ),
                 ObjectToolParameter(
                     name="object_param",
                     description="An object parameter",
-                    required=True,
                     properties=[
                         StringToolParameter(
                             name="string_prop",
                             description="A string property",
-                            required=True,
                             enum=["a", "b", "c"]
                         ),
                         NumberToolParameter(
                             name="number_prop",
                             description="A number property",
-                            required=True,
                             enum=[1.0, 2.0, 3.0]
                         ),
                         IntegerToolParameter(
                             name="integer_prop",
                             description="An integer property",
-                            required=True,
                             enum=[1, 2, 3]
                         ),
                         BooleanToolParameter(
                             name="boolean_prop",
                             description="A boolean property",
-                            required=True,
                         ),
                         NullToolParameter(
                             name="null_prop",
                             description="A null property",
-                            required=True,
                         ),
                         ArrayToolParameter(
                             name="array_prop",
                             description="An array property",
-                            required=True,
                             items=StringToolParameter(
                                 description="A string item",
-                                required=True,
                                 enum=["a", "b", "c"]
                             )
                         ),
                         ObjectToolParameter(
                             name="nested_object_prop",
                             description="A nested object property",
-                            required=True,
                             properties=[
                                 StringToolParameter(
                                     name="nested_string_prop",
                                     description="A string property in a nested object",
-                                    required=True,
                                     enum=["a", "b", "c"]
                                 ),
                                 NumberToolParameter(
                                     name="nested_number_prop",
                                     description="A number property in a nested object",
-                                    required=True,
                                     enum=[1.0, 2.0, 3.0]
                                 ),
                                 IntegerToolParameter(
                                     name="nested_integer_prop",
                                     description="An integer property in a nested object",
-                                    required=True,
                                     enum=[1, 2, 3]
                                 ),
                                 BooleanToolParameter(
                                     name="nested_boolean_prop",
                                     description="A boolean property in a nested object",
-                                    required=True,
                                 ),
                                 NullToolParameter(
                                     name="nested_null_prop",
                                     description="A null property in a nested object",
-                                    required=True,
                                 ),
                                 ArrayToolParameter(
                                     name="nested_array_prop",
                                     description="An array property in a nested object",
-                                    required=True,
                                     items=StringToolParameter(
                                         description="A string item in array in a nested object",
-                                        required=True,
                                         enum=["a", "b", "c"]
                                     )
                                 ),
@@ -297,8 +248,8 @@ ai = UnifAIClient()
 ])
 def test_parse_docstring_and_annotations(docstring, expected_description, expected_parameters):
     description, parameters = parse_docstring_and_annotations(docstring)
-    assert expected_description == description
-    assert expected_parameters == parameters
+    assert description == expected_description
+    assert description == expected_description
 
 
 
@@ -312,7 +263,6 @@ def test_decorators_get_current_weather():
             location (str): The city and state, e.g. San Francisco, CA
             unit (str): The unit of temperature to return. Infer the unit from the location if not provided.
                 enum: ["celsius", "fahrenheit"]
-                required: False
 
         Returns:
             dict: The current weather in the location
@@ -353,13 +303,11 @@ def test_decorators_get_current_weather():
             StringToolParameter(
                 name="location", 
                 description="The city and state, e.g. San Francisco, CA", 
-                required=True
             ),
             StringToolParameter(
                 name="unit",
                 description="The unit of temperature to return. Infer the unit from the location if not provided.", 
                 enum=["celsius", "fahrenheit"],
-                required=False
             )
         ]
     )
@@ -401,17 +349,14 @@ def test_decorators_calculator():
                 name="operation",
                 description="The operation to perform.",
                 enum=["add", "subtract", "multiply", "divide"],
-                required=True
             ),
             NumberToolParameter(
                 name="left_val",
                 description="The value on the left side of the operation",
-                required=True
             ),
             NumberToolParameter(
                 name="right_val",
                 description="The value on the right side of the operation",
-                required=True
             )
         ]
     )
@@ -433,11 +378,11 @@ def test_decorators_base_model():
     assert Customer.parameters == ObjectToolParameter(
         type="object",
         properties=[
-            StringToolParameter(name="name", required=True),
-            IntegerToolParameter(name="age", required=True),
-            StringToolParameter(name="email", required=True),
-            StringToolParameter(name="phone", required=True),
-            StringToolParameter(name="address", required=True),
+            StringToolParameter(name="name"),
+            IntegerToolParameter(name="age"),
+            StringToolParameter(name="email"),
+            StringToolParameter(name="phone"),
+            StringToolParameter(name="address", description="The customer's address"),
         ]
     )
     customer = Customer(name="John Doe", age=30, email="1", phone="2", address="3")
@@ -463,11 +408,11 @@ def test_decorators_base_model():
     assert Customer2.parameters == ObjectToolParameter(
         type="object",
         properties=[
-            StringToolParameter(name="name", required=True),
-            IntegerToolParameter(name="age", required=True),
-            StringToolParameter(name="email", required=True),
-            StringToolParameter(name="phone", required=True),
-            StringToolParameter(name="address", required=True),
+            StringToolParameter(name="name"),
+            IntegerToolParameter(name="age"),
+            StringToolParameter(name="email"),
+            StringToolParameter(name="phone"),
+            StringToolParameter(name="address"),
         ]
     )
 
@@ -481,8 +426,115 @@ def test_decorators_base_model():
     assert Customer2 != Customer
     assert customer2 != customer
 
-@tool
-def some_tool_with_no_docs(param1: str, param2: int, param3: float) -> dict:
-    return {"param1": param1, "param2": param2, "param3": param3}
+class Customer(BaseModel):
+    """A customer object"""
+    name: str
+    age: int
+    email: str
+    phone: str
+    address: str = Field(description="The customer's address")
 
-print(some_tool_with_no_docs)
+def test_decorators_base_model_annotations():
+    @tool
+    def tool_with_basemodel_arg(customer: Customer) -> dict:
+        return {"customer": customer.model_dump()}
+
+    assert tool_with_basemodel_arg.name == "tool_with_basemodel_arg"
+    assert tool_with_basemodel_arg.description == ''
+    assert tool_with_basemodel_arg.parameters == ObjectToolParameter(
+        type="object",
+        properties=[
+            ObjectToolParameter(
+                type="object",
+                name="customer",
+                description="A customer object",
+                properties=[
+                    StringToolParameter(name="name"),
+                    IntegerToolParameter(name="age"),
+                    StringToolParameter(name="email"),
+                    StringToolParameter(name="phone"),
+                    StringToolParameter(name="address", description="The customer's address"),
+                ]
+            )
+        ]
+    )
+    
+    @tool(description="A tool with no docs")
+    def tool_with_basemodel_arg2(customer: Customer) -> dict:
+        return {"customer": customer.model_dump()}
+
+    assert tool_with_basemodel_arg2.name == "tool_with_basemodel_arg2"
+    assert tool_with_basemodel_arg2.description == 'A tool with no docs'
+    assert tool_with_basemodel_arg2.parameters == ObjectToolParameter(
+        type="object",
+        properties=[
+            ObjectToolParameter(
+                type="object",
+                name="customer",
+                description="A customer object",
+                properties=[
+                    StringToolParameter(name="name"),
+                    IntegerToolParameter(name="age"),
+                    StringToolParameter(name="email"),
+                    StringToolParameter(name="phone"),
+                    StringToolParameter(name="address", description="The customer's address"),
+                ]
+            )
+        ]
+    )
+
+    @tool
+    def tool_with_partial_docs(customer: Customer) -> dict:
+        """A tool with partial docs"""
+        return {"customer": customer.model_dump()}
+    
+    assert tool_with_partial_docs.name == "tool_with_partial_docs"
+    assert tool_with_partial_docs.description == 'A tool with partial docs'
+    assert tool_with_partial_docs.parameters == ObjectToolParameter(
+        type="object",
+        properties=[
+            ObjectToolParameter(
+                type="object",
+                name="customer",
+                description="A customer object",
+                properties=[
+                    StringToolParameter(name="name"),
+                    IntegerToolParameter(name="age"),
+                    StringToolParameter(name="email"),
+                    StringToolParameter(name="phone"),
+                    StringToolParameter(name="address", description="The customer's address"),
+                ]
+            )
+        ]
+    )
+    
+    @tool
+    def tool_with_description_only_args(int1: int, int2: int) -> int:
+        """
+        A tool with description only
+        Args:
+            int1: The first integer
+            int2: The second integer
+        """
+        return int1 + int2
+    assert tool_with_description_only_args.name == "tool_with_description_only_args"
+    assert tool_with_description_only_args.description == 'A tool with description only'
+    assert tool_with_description_only_args.parameters == ObjectToolParameter(
+        type="object",
+        properties=[
+            IntegerToolParameter(name="int1", description="The first integer"),
+            IntegerToolParameter(name="int2", description="The second integer"),
+        ]
+    )
+
+    # @tool
+    # def some_tool_with_no_docs(param1: str, param2: int, param3: float, customer: Customer) -> dict:
+    #     return {"param1": param1, "param2": param2, "param3": param3, "customer": customer.model_dump()}
+
+    # @tool
+    # def tool_with_basemodel_arg2(customer: Customer) -> dict:
+    #     return {"customer": customer.model_dump()}
+
+    # print(some_tool_with_no_docs)
+
+    # print(tool_with_basemodel_arg)

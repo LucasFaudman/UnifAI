@@ -107,7 +107,6 @@ def test_image_input_animals(
 
 
     ai = UnifAIClient({provider: client_kwargs})
-    ai.init_client(provider, **client_kwargs)
     chat = ai.chat(
         messages=messages,
         **func_kwargs
@@ -214,7 +213,6 @@ def test_image_and_tools_input_animals(
 
 
     ai = UnifAIClient({provider: client_kwargs})
-    ai.init_client(provider, **client_kwargs)
     chat = ai.chat(
         messages=messages,
         tools=[return_animal_in_image],

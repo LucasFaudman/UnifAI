@@ -33,7 +33,7 @@ class RAGSpec(Spec):
     index_name: str = "default_index"
 
     vector_db_provider: Optional[VectorDBProvider] = None
-    retreiver_kwargs: dict[str, Any] = Field(default_factory=dict)
+    retriever_kwargs: dict[str, Any] = Field(default_factory=dict)
     
     embedding_provider: Optional[EmbeddingProvider] = None
     embedding_model: Optional[str] = None
@@ -68,7 +68,7 @@ class RAGSpec(Spec):
 
 
 class FuncSpec(Spec):
-    name: str = "default_eval_spec"
+    name: str = "default_func_spec"
     provider: Optional[LLMProvider] = None           
     model: Optional[str] = None
 
@@ -80,7 +80,7 @@ class FuncSpec(Spec):
     system_prompt_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     examples: Optional[list[Union[Message, dict[Literal["input", "response"], Any]]]] = None   
-    response_format: Optional[Literal["text", "json", "json_schema"]] = None
+    response_format: Optional[Literal["text", "json"]|Type[BaseModel]|Tool|dict[Literal["json_schema"], dict|Type[BaseModel]|Tool]] = None
     return_on: Union[Literal["content", "tool_call", "message"], str, Tool, list[str|Tool]] = "content"
     return_as: Literal["self", 
                        "messages", 
@@ -95,8 +95,8 @@ class FuncSpec(Spec):
     output_parser: Optional[Callable|Type[BaseModel]|BaseModel] = None
     output_parser_kwargs: dict[str, Any] = Field(default_factory=dict)
 
-    tools: Optional[Sequence[ToolInput]] = None            
-    tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]] = None
+    tools: Optional[list[ToolInput]] = None            
+    tool_choice: Optional[Union[Literal["auto", "required", "none"], Tool, str, Sequence[Union[Literal["auto", "required", "none"], Tool, str]]]] = None
     enforce_tool_choice: bool = True
     tool_choice_error_retries: int = 3
     tool_callables: Optional[dict[str, Callable]] = None
@@ -121,4 +121,4 @@ class AgentSpec(Spec):
     ai_functions: list[FuncSpec|str] = Field(default_factory=list)
 
 eval_spec = FuncSpec()
-rag_spec = RAGSpec()
+# rag_spec = RAGSpec()

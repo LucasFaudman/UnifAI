@@ -26,7 +26,8 @@ from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 from typing import Literal, get_args, get_origin, Any, Optional, Union, TypeVar, TypeAlias, Sequence, Collection, Mapping, List, Annotated, Union
 
-from unifai.type_conversions.tool_from_pydantic import tool_from_pydantic_model, tool_parameter_from_pydantic_model, unpack_annotation
+from unifai.type_conversions.tool_from_pydantic import tool_from_pydantic, construct_tool_parameter
+
 
 
 class Contact(BaseModel):
@@ -369,25 +370,25 @@ def test_tool_from_base_model(
     func_kwargs: dict,    
     bmodel: type[BaseModel],
     ):
-    param = tool_parameter_from_pydantic_model(bmodel)
+    param = construct_tool_parameter({'type': bmodel})
     assert isinstance(param, ObjectToolParameter)
     print(param)
-    return_tool = tool_from_pydantic_model(bmodel)
+    return_tool = tool_from_pydantic(bmodel)
     assert isinstance(return_tool, Tool)
     print(return_tool)
     model_fields = dict(bmodel.model_fields.items())
-    assert len(return_tool.parameters.properties) == len(model_fields)
-    assert all(param.name in model_fields for param in return_tool.parameters.properties)
-    param_names = [param.name for param in return_tool.parameters.properties]
+    assert len(return_tool.parameters.properties.values()) == len(model_fields)
+    assert all(param.name in model_fields for param in return_tool.parameters.properties.values())
+    param_names = [param.name for param in return_tool.parameters.properties.values()]
     assert all(field_name in param_names for field_name in model_fields)
 
     ai = UnifAIClient({provider: client_kwargs})    
     get_model = ai.get_function(
-        FuncSpec(
-            tools=[return_tool],
-            tool_choice=return_tool,
-            return_on='message', 
-            output_parser=bmodel
+        FuncSpec(response_format=bmodel,
+            # tools=[return_tool],
+            # tool_choice=return_tool,
+            # return_on='message', 
+            # output_parser=bmodel
         ))
 
     model = get_model("Fill out the model to test the tool input types.")

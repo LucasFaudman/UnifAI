@@ -117,7 +117,7 @@ TOOL_DICTS = {
                         "enum": ["celsius", "fahrenheit"]
                     }
                 },
-                "required": ["location"],
+                "required": ["location", "unit"],
                 "additionalProperties": False
             },
             "strict": True
@@ -270,8 +270,6 @@ TOOL_DICTS = {
                     },
                     "null_param": {
                         "type": "null",
-                        "description": "A null parameter",
-                        # "enum": [None]
                     },
                     "array_param": {
                         "type": "array",
@@ -308,8 +306,6 @@ TOOL_DICTS = {
                             },
                             "null_prop": {
                                 "type": "null",
-                                "description": "A null property",
-                                # "enum": [None]
                             },
                             "array_prop": {
                                 "type": "array",
@@ -346,7 +342,6 @@ TOOL_DICTS = {
                                     },
                                     "nested_null_prop": {
                                         "type": "null",
-                                        "description": "A null property in a nested object",
                                         # "enum": [None]
                                     },
                                     "nested_array_prop": {
@@ -389,12 +384,10 @@ TOOL_OBJECTS = {
                 StringToolParameter(
                     name="location",
                     description="The city and state, e.g. San Francisco, CA",
-                    required=True
                 ),
                 StringToolParameter(
                     name="unit",
                     enum=["celsius", "fahrenheit"],
-                    required=False
                 )
             ],
         )
@@ -408,18 +401,15 @@ TOOL_OBJECTS = {
                 StringToolParameter(
                     name="operation",
                     description="The operation to perform",
-                    required=True,
                     enum=["add", "subtract", "multiply", "divide"]
                 ),
                 NumberToolParameter(
                     name="left_value",
                     description="The value on the left side of the operation",
-                    required=True
                 ),
                 NumberToolParameter(
                     name="right_value",
                     description="The value on the right side of the operation",
-                    required=True
                 ),
             ]
         )
@@ -432,18 +422,15 @@ TOOL_OBJECTS = {
             StringToolParameter(
                 name="operation",
                 description="The operation to perform",
-                required=True,
                 enum=["add", "subtract", "multiply", "divide"]
             ),
             NumberToolParameter(
                 name="left_value",
                 description="The value on the left side of the operation",
-                required=True
             ),
             NumberToolParameter(
                 name="right_value",
                 description="The value on the right side of the operation",
-                required=True
             ),
         ]
     ), # calculator_from_sequence    
@@ -454,16 +441,13 @@ TOOL_OBJECTS = {
         parameters={
             "operation": StringToolParameter(
                 description="The operation to perform",
-                required=True,
                 enum=["add", "subtract", "multiply", "divide"]
             ),
             "left_value": NumberToolParameter(
                 description="The value on the left side of the operation",
-                required=True,
             ),
             "right_value": NumberToolParameter(
                 description="The value on the right side of the operation",
-                required=True
             ),
         }
     ), # calculator_from_mapping
@@ -475,17 +459,14 @@ TOOL_OBJECTS = {
             name="operation",
             description="The operation to perform",
             enum=["add", "subtract", "multiply", "divide"],
-            required=True
         ),
         NumberToolParameter(
             name="left_value",
             description="The value on the left side of the operation",
-            required=True
         ),
         NumberToolParameter(
             name="right_value",
             description="The value on the right side of the operation",
-            required=True
         ),
     ), # calculator_from_args    
 
@@ -497,124 +478,98 @@ TOOL_OBJECTS = {
                 StringToolParameter(
                     name="string_param",
                     description="A string parameter",
-                    required=True,
                     enum=["a", "b", "c"]
                 ),
                 NumberToolParameter(
                     name="number_param",
                     description="A number parameter",
-                    required=True,
                     enum=[1.0, 2.0, 3.0]
                 ),
                 IntegerToolParameter(
                     name="integer_param",
                     description="An integer parameter",
-                    required=True,
                     enum=[1, 2, 3]
                 ),
                 BooleanToolParameter(
                     name="boolean_param",
                     description="A boolean parameter",
-                    required=True,
                 ),
                 NullToolParameter(
                     name="null_param",
-                    description="A null parameter",
-                    required=True,
                 ),
                 ArrayToolParameter(
                     name="array_param",
                     description="An array parameter",
-                    required=True,
                     items=StringToolParameter(
                         description="A string item",
-                        required=True,
                         enum=["a", "b", "c"]
                     )
                 ),
                 ObjectToolParameter(
                     name="object_param",
                     description="An object parameter",
-                    required=True,
                     properties=[
                         StringToolParameter(
                             name="string_prop",
                             description="A string property",
-                            required=True,
                             enum=["a", "b", "c"]
                         ),
                         NumberToolParameter(
                             name="number_prop",
                             description="A number property",
-                            required=True,
                             enum=[1.0, 2.0, 3.0]
                         ),
                         IntegerToolParameter(
                             name="integer_prop",
                             description="An integer property",
-                            required=True,
                             enum=[1, 2, 3]
                         ),
                         BooleanToolParameter(
                             name="boolean_prop",
                             description="A boolean property",
-                            required=True,
                         ),
                         NullToolParameter(
                             name="null_prop",
-                            description="A null property",
-                            required=True,
                         ),
                         ArrayToolParameter(
                             name="array_prop",
                             description="An array property",
-                            required=True,
                             items=StringToolParameter(
                                 description="A string item",
-                                required=True,
                                 enum=["a", "b", "c"]
                             )
                         ),
                         ObjectToolParameter(
                             name="nested_object_prop",
                             description="A nested object property",
-                            required=True,
                             properties=[
                                 StringToolParameter(
                                     name="nested_string_prop",
                                     description="A string property in a nested object",
-                                    required=True,
                                     enum=["a", "b", "c"]
                                 ),
                                 NumberToolParameter(
                                     name="nested_number_prop",
                                     description="A number property in a nested object",
-                                    required=True,
                                     enum=[1.0, 2.0, 3.0]
                                 ),
                                 IntegerToolParameter(
                                     name="nested_integer_prop",
                                     description="An integer property in a nested object",
-                                    required=True,
                                     enum=[1, 2, 3]
                                 ),
                                 BooleanToolParameter(
                                     name="nested_boolean_prop",
                                     description="A boolean property in a nested object",
-                                    required=True,
                                 ),
                                 NullToolParameter(
                                     name="nested_null_prop",
-                                    description="A null property in a nested object",
-                                    required=True,
                                 ),
                                 ArrayToolParameter(
                                     name="nested_array_prop",
                                     description="An array property in a nested object",
-                                    required=True,
                                     items=StringToolParameter(
                                         description="A string item in array in a nested object",
-                                        required=True,
                                         enum=["a", "b", "c"]
                                     )
                                 ),
