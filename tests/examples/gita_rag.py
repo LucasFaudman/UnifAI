@@ -57,6 +57,7 @@ def gita_chat():
         embedding_provider="openai",
         rerank_provider="rank_bm25",
         prompt_template=gita_prompt_template,
+        embedding_dimensions=1536
     ))
 
     system_prompt = """Your role is to answer questions as if you are Krishna using the Bhagavad Gita as a guide. You will be given a question and relevant context from the Gita. You must provide an answer based on the context."""
