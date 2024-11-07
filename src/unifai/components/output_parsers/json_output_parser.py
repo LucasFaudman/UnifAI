@@ -17,3 +17,8 @@ def json_parse_one(output: str|Message|None) -> Any:
 
 def json_parse_many(outputs: list[str|Message|None]) -> list[Any]:
     return [json_parse_one(output) for output in outputs]
+
+def json_parse(output: str|Message|None|list[str|Message|None]) -> Any|list[Any]:
+    if isinstance(output, list):
+        return json_parse_many(output)
+    return json_parse_one(output)

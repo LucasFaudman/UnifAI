@@ -1,44 +1,46 @@
-from typing import Any, Literal, Union, Sequence, Callable
+from typing import Any, Literal, Union, Sequence, Collection, Callable, TypeAlias
 from .message import Message
 from .tool import Tool
 from pydantic import BaseModel
 
 # UnifAI Component Types
-ComponentType = Literal["llm", "embedder", "vector_db", "reranker", "document_db", "document_chunker", "output_parser", "tool_caller"]
+ComponentType: TypeAlias = Literal["llm", "embedder", "vector_db", "reranker", "document_db", "document_chunker", "output_parser", "tool_caller"]
 
 # Supported AI providers
-LLMProvider = Literal["anthropic", "google", "openai", "ollama", "cohere", "nvidia"]
+LLMProvider: TypeAlias = Literal["anthropic", "google", "openai", "ollama", "cohere", "nvidia"]
 
 # Supported Embedding providers
-EmbeddingProvider = Literal["google", "openai", "ollama", "cohere", "sentence_transformers", "nvidia"]
+EmbeddingProvider: TypeAlias = Literal["google", "openai", "ollama", "cohere", "sentence_transformers", "nvidia"]
 
 # Supported Vector DB providers
-VectorDBProvider = Literal["chroma", "pinecone"]
+VectorDBProvider: TypeAlias = Literal["chroma", "pinecone"]
 
 # Supported Rerank providers
-RerankProvider = Literal["rank_bm25", "cohere", "sentence_transformers", "nvidia"]
+RerankProvider: TypeAlias = Literal["rank_bm25", "cohere", "sentence_transformers", "nvidia"]
 
 # Supported providers
-Provider = Union[LLMProvider, EmbeddingProvider, VectorDBProvider, RerankProvider] 
+Provider: TypeAlias = LLMProvider|EmbeddingProvider|VectorDBProvider|RerankProvider
 
 # Valid input types that can be converted to a Message object
-MessageInput = Union[Message,  dict[str, Any], str]
+MessageInput: TypeAlias = Message|str|dict
 
+
+ToolName: TypeAlias = str
 # Valid input types that can be converted to a Tool object
-ToolInput = Union[Tool, BaseModel, Callable, dict[str, Any], str]
+ToolInput: TypeAlias = Tool|BaseModel|Callable|dict[str, Any]|ToolName
+
 
 # Valid input types that can be converted to a ToolChoice object
-ToolChoiceInput = Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence[Union[Tool, str, dict]]]
-# ToolChoiceInput = Union[Literal["auto", "required", "none"], Tool, str, dict, Sequence["ToolChoiceInput"]]
+ToolChoice: TypeAlias = Literal["auto", "required", "none"]|Tool|ToolName|dict
+ToolChoiceInput: TypeAlias = ToolChoice|Sequence[ToolChoice]
 
 # Valid input types that can be converted to a ResponseFormat object
-ResponseFormatInput = Union[Literal["text", "json", "json_schema"], dict[Literal["type"], Literal["text", "json", "json_schema"]]]
+ResponseFormatInput: TypeAlias = Literal["text", "json"]|dict[Literal["json_schema"], dict|Tool|ToolName|BaseModel]
 
-# Valid input types that can be converted to a EvaluateParameters object
-# EvalSpecInput = Union[EvalSpec, dict[str, Any]]
+ReturnOnInput: TypeAlias = Literal["content", "tool_call", "message"]|ToolName|Collection[ToolName]
 
 # Valid task types for embeddings. Used to determine what the embeddings are used for to improve the quality of the embeddings
-EmbeddingTaskTypeInput = Literal[
+EmbeddingTaskTypeInput: TypeAlias = Literal[
     "retreival_query", 
     "retreival_document", 
     "semantic_similarity",

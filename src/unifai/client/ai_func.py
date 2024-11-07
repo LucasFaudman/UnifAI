@@ -4,7 +4,7 @@ from ..components.output_parsers import pydantic_parse, json_parse_one
 from ..exceptions import UnifAIError
 from ..types import Message, MessageChunk, Tool
 from ..type_conversions import stringify_content, tool_from_model
-from .chat import Chat
+from .chat_og import Chat
 from .specs import FuncSpec
 from .rag_engine import RAGEngine
 

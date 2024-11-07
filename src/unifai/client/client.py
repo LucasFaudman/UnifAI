@@ -28,7 +28,7 @@ from ..types import (
 from ..type_conversions import standardize_tools, standardize_specs
 
 
-from .chat import Chat
+from .chat_og import Chat
 from .rag_engine import RAGEngine
 from .ai_func import AIFunction
 from .specs import RAGSpec, FuncSpec

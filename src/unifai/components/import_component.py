@@ -6,6 +6,9 @@ EMBEDDERS: frozenset[EmbeddingProvider] = frozenset(("cohere", "google", "nvidia
 VECTOR_DBS: frozenset[VectorDBProvider] = frozenset(("chroma", "pinecone"))
 RERANKERS: frozenset[RerankProvider] = frozenset(("cohere", "nvidia", "rank_bm25", "sentence_transformers"))
 DOCUMENT_DBS = frozenset(("dict", "sqlite", "mongo", "firebase"))
+DOCUMENT_CHUNKERS = frozenset(("unstructured"))
+OUTPUT_PARSERS = frozenset(("json", "pydantic"))
+TOOL_CALLERS = frozenset(("default", "concurrent"))
 
 
 PROVIDERS = {
@@ -13,7 +16,10 @@ PROVIDERS = {
     "embedder": EMBEDDERS,
     "vector_db": VECTOR_DBS,
     "reranker": RERANKERS,
-    "document_db": DOCUMENT_DBS
+    "document_db": DOCUMENT_DBS,
+    "document_chunker": DOCUMENT_CHUNKERS,
+    "output_parser": OUTPUT_PARSERS,
+    "tool_caller": TOOL_CALLERS
 }    
 
 def import_component(provider: Provider, component_type: ComponentType) -> Type|Callable:
@@ -93,11 +99,25 @@ def import_component(provider: Provider, component_type: ComponentType) -> Type|
                     raise NotImplementedError("Firebase DocumentDB not yet implemented")
                 
             case "document_chunker":
-                pass
+                if provider == "unstructured":
+                    raise NotImplementedError("Unstructured Document Chunker not yet implemented")
+            
             case "output_parser":
-                pass
+                if provider == "json":
+                    from .output_parsers.json_output_parser import json_parse
+                    return json_parse
+                elif provider == "pydantic":
+                    from .output_parsers.pydantic_output_parser import pydantic_parse
+                    return pydantic_parse
+            
             case "tool_caller":
-                pass
+                if provider == "default":
+                    from .tool_callers._base_tool_caller import ToolCaller
+                    return ToolCaller
+                elif provider == "concurrent":
+                    from .tool_callers.concurrent_tool_caller import ConcurrentToolCaller
+                    return ConcurrentToolCaller
+            
             case _:
                 raise ValueError(f"Invalid component_type: {component_type}. Must be one of: 'llm', 'embedder', 'vector_db', 'reranker', 'document_db', 'document_chunker', 'output_parser', 'tool_caller'")
         raise ValueError(f"Invalid {component_type} provider: {provider}. Must be one of: {PROVIDERS[component_type]}")

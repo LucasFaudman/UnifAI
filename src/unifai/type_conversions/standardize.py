@@ -4,7 +4,7 @@ from unifai.types import (
     MessageInput,
     Tool,
     ToolInput,
-    ToolChoiceInput,
+    ToolChoice,
     ResponseFormatInput,
 )
 from .tool_from_dict import tool_from_dict
@@ -49,7 +49,26 @@ def standardize_tools(tools: Sequence[ToolInput], tool_dict: Optional[dict[str, 
     return {tool.name: tool for tool in (standardize_tool(tool, tool_dict) for tool in tools)}
 
 
-def standardize_tool_choice(tool_choice: ToolChoiceInput) -> str|list[str]:
+# def standardize_tool_choice(tool_choice: ToolChoiceInput) -> str|list[str]:
+#     if isinstance(tool_choice, str):
+#         return tool_choice if tool_choice != 'any' else 'required'
+#     if isinstance(tool_choice, Tool):
+#         return tool_choice.name
+#     if isinstance(tool_choice, dict):
+#         tool_type = tool_choice['type']
+#         return tool_choice[tool_type]['name']
+#     if isinstance(tool_choice, Sequence):
+#         tool_choice_str_sequence = []
+#         for tool_choice_item in tool_choice:
+#             if not isinstance(tool_choice_item, str) and isinstance(tool_choice_item, Sequence):
+#                 raise ValueError(f"Invalid tool_choice_item type: {type(tool_choice_item)}. Nested sequences are NOT supported.")            
+#             tool_choice_str_sequence.append(standardize_tool_choice(tool_choice_item))
+                
+#         return tool_choice_str_sequence
+
+#     raise ValueError(f"Invalid tool_choice type: {type(tool_choice)}")
+
+def standardize_tool_choice(tool_choice: ToolChoice) -> str:
     if isinstance(tool_choice, str):
         return tool_choice if tool_choice != 'any' else 'required'
     if isinstance(tool_choice, Tool):
@@ -57,15 +76,7 @@ def standardize_tool_choice(tool_choice: ToolChoiceInput) -> str|list[str]:
     if isinstance(tool_choice, dict):
         tool_type = tool_choice['type']
         return tool_choice[tool_type]['name']
-    if isinstance(tool_choice, Sequence):
-        tool_choice_str_sequence = []
-        for tool_choice_item in tool_choice:
-            if not isinstance(tool_choice_item, str) and isinstance(tool_choice_item, Sequence):
-                raise ValueError(f"Invalid tool_choice_item type: {type(tool_choice_item)}. Nested sequences are NOT supported.")            
-            tool_choice_str_sequence.append(standardize_tool_choice(tool_choice_item))
-                
-        return tool_choice_str_sequence
-
+    
     raise ValueError(f"Invalid tool_choice type: {type(tool_choice)}")
 
 
@@ -73,7 +84,7 @@ def standardize_response_format(response_format: ResponseFormatInput) -> str:
     if isinstance(response_format, str):
         return response_format
     if isinstance(response_format, dict):
-        return response_format['type']
+        return response_format['json_schema']
     raise ValueError(f"Invalid response_format type: {type(response_format)}")
 
 

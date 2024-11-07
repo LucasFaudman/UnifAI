@@ -2,15 +2,15 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 
 from ...types import Tool, ToolCall
 from ...exceptions.tool_errors import ToolCallExecutionError, ToolCallableNotFoundError, ToolCallArgumentValidationError
+from .._base_component import UnifAIComponent
 
-
-class ToolCaller:
+class ToolCaller(UnifAIComponent):
 
     def __init__(
             self,
             tool_callables: dict[str, Callable[..., Any]],
             tool_argument_validators: Optional[dict[str, Callable[..., Any]]] = None,
-            tools: Optional[list[Tool]] = None,
+            tools: Optional[Iterable[Tool]] = None,
             tool_execution_error_retries: int = 0,            
     ):
         self.tool_callables = {tool.name: tool.callable for tool in tools if tool.callable} if tools else {}
