@@ -1,4 +1,4 @@
-from ._client import (
+from .__client import (
     Config, 
     ProviderConfig, 
     get_config, 

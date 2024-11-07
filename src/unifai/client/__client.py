@@ -1,12 +1,14 @@
-from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator, overload
+from typing import TYPE_CHECKING, Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator, overload
 
-from ..components.llms._base_llm_client import LLMClient
-from ..components.embedders._base_embedder import Embedder
-from ..components.rerankers._base_reranker import Reranker
-from ..components.document_dbs._base_document_db import DocumentDB
-from ..components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex
-from ..components.import_component import import_component, LLMS, EMBEDDERS, VECTOR_DBS, RERANKERS, DOCUMENT_DBS, PROVIDERS
-from ..components.tool_callers import ToolCaller
+if TYPE_CHECKING:
+    from ..components.llms._base_llm_client import LLMClient
+    from ..components.embedders._base_embedder import Embedder
+    from ..components.rerankers._base_reranker import Reranker
+    from ..components.document_dbs._base_document_db import DocumentDB
+    from ..components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex
+    from ..components.tool_callers import ToolCaller
+
+from ..components.import_component import import_component
 
 from pathlib import Path
 from pydantic import BaseModel, Field

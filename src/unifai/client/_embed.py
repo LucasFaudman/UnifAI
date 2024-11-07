@@ -1,7 +1,7 @@
 from typing import Optional, Sequence, Literal
 
 from ..types import EmbeddingProvider, Embeddings
-from ._client import get_embedder
+from .__client import get_embedder
 
 
 def embed(

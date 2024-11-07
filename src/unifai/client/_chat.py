@@ -19,7 +19,7 @@ from ..types import (
 )
 from ..components.tool_callers import ToolCaller
 
-from ._client import get_llm_client
+from .__client import get_llm_client
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
 from ..components.llms._base_llm_client import LLMClient
