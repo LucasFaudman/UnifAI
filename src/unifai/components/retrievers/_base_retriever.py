@@ -7,7 +7,7 @@ class Retriever(UnifAIComponent):
     def query(self,              
               query_text: Optional[str] = None,
               query_embedding: Optional[Embedding] = None,
-              n_results: int = 10,
+              top_k: int = 10,
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],

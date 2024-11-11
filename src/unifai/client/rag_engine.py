@@ -1,24 +1,60 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
+from pydantic import BaseModel, Field, ConfigDict
+
 
 from ..components.retrievers._base_retriever import Retriever
 from ..components.rerankers._base_reranker import Reranker
 from ..types.vector_db import VectorDBQueryResult
 from ..components.prompt_template import PromptTemplate
-from .specs import RAGSpec
 
+class RAGConfig(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    vector_db_provider: Optional[str] = None
+    index_name: str = "default_index"
+    query_kwargs: dict[str, Any] = Field(default_factory=dict)
+    
+    document_db_provider: Optional[str] = None
+    document_db_get_kwargs: dict[str, Any] = Field(default_factory=dict)
+
+    embedding_provider: Optional[str] = None
+    embedding_model: Optional[str] = None
+    embedding_dimensions: Optional[int] = None
+    embedding_distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None
+    
+    rerank_provider: Optional[str] = None
+    rerank_model: Optional[str] = None
+    rerank_kwargs: dict[str, Any] = Field(default_factory=dict)
+
+    top_k: Optional[int] = 20
+    top_n: Optional[int] = 10
+    where: Optional[dict] = None
+    where_document: Optional[dict] = None
+
+    prompt_template: PromptTemplate = PromptTemplate(
+        "{prompt_header}{query}{sep}{result_header}{query_result}{response_start}",
+        value_formatters={
+            VectorDBQueryResult: 
+            lambda result: "\n".join(f"DOCUMENT: {id}\n{doc}" for id, doc in result.zip("ids", "documents"))
+        },
+        prompt_header="PROMPT:\n",
+        result_header="CONTEXT:\n",        
+        response_start="\n\nRESPONSE: ",
+        sep="\n\n",        
+    )
+    prompt_template_kwargs: dict[str, Any] = Field(default_factory=dict)
 
 class RAGEngine:
 
     def __init__(
             self, 
-            spec: RAGSpec,
+            config: RAGConfig,
             retriever: Retriever,
             reranker: Optional[Reranker] = None,
         ):
+        self.config = config
         self.retriever = retriever
         self.reranker = reranker
-        self.spec = spec
-
 
     def retrieve(
             self, 
@@ -26,59 +62,45 @@ class RAGEngine:
             top_k: Optional[int] = None,
             where: Optional[dict] = None,
             where_document: Optional[dict] = None,
-            **retriever_kwargs
+            **query_kwargs
         ) -> VectorDBQueryResult:
-
-        n_results = top_k or self.spec.top_k or self.spec.top_n
-        where = where or self.spec.where
-        where_document = where_document or self.spec.where_document
-        retriever_kwargs = {**self.spec.retriever_kwargs, **retriever_kwargs}
         return self.retriever.query(
             query_text=query,
-            n_results=n_results,
-            where=where,
-            where_document=where_document,
-            **retriever_kwargs
+            **{
+            **self.config.query_kwargs, 
+            **query_kwargs, 
+            "top_k": top_k or self.config.top_k, 
+            "where": where or self.config.where, 
+            "where_document": where_document or self.config.where_document, 
+            }
         )
-
 
     def rerank(
             self, 
             query: str, 
             query_result: VectorDBQueryResult,
-            model: Optional[str] = None,
             top_n: Optional[int] = None,
-            **reranker_kwargs
+            rerank_model: Optional[str] = None,
+            **rerank_kwargs
             ) -> VectorDBQueryResult:
-        if self.reranker is None:
-            # No reranker just return query_result as is
-            return query_result
         
-        model = model or self.spec.rerank_model
-        top_n = top_n or self.spec.top_n
-        reranker_kwargs = {**self.spec.reranker_kwargs, **reranker_kwargs}
+        top_n = top_n or self.config.top_n #or self.config.top_k
+        if self.reranker is None:
+            # No reranker just return query_result as is reduced to top_n if specified
+            return query_result.reduce_to_top_n(top_n) if top_n else query_result
+        
         return self.reranker.rerank(
             query=query,
             query_result=query_result,
-            model=model,
-            top_n=top_n,
-            **reranker_kwargs
+            **{
+            **self.config.rerank_kwargs, 
+            **rerank_kwargs, 
+            "top_n": top_n, 
+            "model": rerank_model or self.config.rerank_model
+            }
         )
     
-    
-    def query(
-            self, 
-            query: str,
-            retreiver_kwargs: Optional[dict] = None,
-            reranker_kwargs: Optional[dict] = None,
-            ) -> VectorDBQueryResult:
-        query_result = self.retrieve(query, **(retreiver_kwargs or {}))
-        if self.reranker:
-            query_result = self.rerank(query, query_result, **(reranker_kwargs or {}))        
-        return query_result
-
-
-    def augment(
+    def construct_rag_prompt(
             self,
             query: str,
             query_result: VectorDBQueryResult,
@@ -86,19 +108,61 @@ class RAGEngine:
             **prompt_template_kwargs
             ) -> str:
         
-        prompt_template = prompt_template or self.spec.prompt_template
-        prompt_template_kwargs = {**self.spec.prompt_template_kwargs, **prompt_template_kwargs}
+        prompt_template = prompt_template or self.config.prompt_template
+        prompt_template_kwargs = {**self.config.prompt_template_kwargs, **prompt_template_kwargs}
         return prompt_template.format(query=query, query_result=query_result, **prompt_template_kwargs)
 
-
+    def query(
+            self, 
+            query: str,
+            top_k: Optional[int] = None,
+            where: Optional[dict] = None,
+            where_document: Optional[dict] = None,
+            top_n: Optional[int] = None,
+            rerank_model: Optional[str] = None,                        
+            query_kwargs: Optional[dict] = None,
+            rerank_kwargs: Optional[dict] = None,
+            ) -> VectorDBQueryResult:
+        query_result = self.retrieve(query, top_k, where, where_document, **{**self.config.query_kwargs, **(query_kwargs or {})})
+        return self.rerank(query, query_result, top_n, rerank_model, **{**self.config.rerank_kwargs, **(rerank_kwargs or {})})
+    
     def ragify(
             self, 
             query: str,
+            top_k: Optional[int] = None,
+            where: Optional[dict] = None,
+            where_document: Optional[dict] = None,
+            top_n: Optional[int] = None,
+            rerank_model: Optional[str] = None,                        
+            query_kwargs: Optional[dict] = None,
+            rerank_kwargs: Optional[dict] = None,
             prompt_template: Optional[PromptTemplate] = None,
-            retriever_kwargs: Optional[dict] = None,
-            reranker_kwargs: Optional[dict] = None,
             **prompt_template_kwargs
             ) -> str:
 
-        query_result = self.query(query, retriever_kwargs, reranker_kwargs)
-        return self.augment(query, query_result, prompt_template, **prompt_template_kwargs)
+        query_result = self.query(query, top_k, where, where_document, top_n, rerank_model, query_kwargs, rerank_kwargs)
+        return self.construct_rag_prompt(query, query_result, prompt_template, **prompt_template_kwargs)
+
+    # def query(
+    #         self, 
+    #         query: str,
+    #         query_kwargs: Optional[dict] = None,
+    #         rerank_kwargs: Optional[dict] = None,
+    #         ) -> VectorDBQueryResult:
+    #     query_result = self.retrieve(query, **(query_kwargs or {}))
+    #     if self.reranker:
+    #         query_result = self.rerank(query, query_result, **(rerank_kwargs or {}))        
+    #     return query_result
+    
+
+    # def ragify(
+    #         self, 
+    #         query: str,
+    #         query_kwargs: Optional[dict] = None,
+    #         rerank_kwargs: Optional[dict] = None,
+    #         prompt_template: Optional[PromptTemplate] = None,
+    #         **prompt_template_kwargs
+    #         ) -> str:
+
+    #     query_result = self.query(query, query_kwargs, rerank_kwargs)
+    #     return self.construct_rag_prompt(query, query_result, prompt_template, **prompt_template_kwargs)

@@ -87,18 +87,20 @@ def standardize_response_format(response_format: ResponseFormatInput) -> str:
         return response_format['json_schema']
     raise ValueError(f"Invalid response_format type: {type(response_format)}")
 
+def standardize_config(config: T|dict, config_type: Type[T]) -> T:
+    if isinstance(config, config_type):
+        return config
+    if isinstance(config, dict):
+        return config_type(**config)
+    raise ValueError(f"Invalid config type: {type(config)} must be {config_type} or dict that can be converted to {config_type}")
 
-def standardize_specs(
-        specs: list[T|dict], 
-        spec_type: Type[T],
-        key_attr: str = 'name'
+def standardize_configs(
+        configs:dict[str, T|dict], 
+        config_type: Type[T],
         ) -> dict[str, T]:
-    std_specs = {}
-    for spec in specs:
-        if isinstance(spec, spec_type):
-            std_specs[getattr(spec, key_attr)] = spec
-        elif isinstance(spec, dict):
-            std_specs[spec[key_attr]] = spec_type(**spec)
-        else:
-            raise ValueError(f"Invalid spec type: {type(spec)} must be {spec_type} or dict that can be converted to {spec_type}")
-    return std_specs
+    std_configs = {}
+    for name, config in configs.items():
+        std_configs[name] = standardize_config(config, config_type)
+    return std_configs    
+        
+     

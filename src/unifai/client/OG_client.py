@@ -25,10 +25,10 @@ from ..types import (
     VectorDBQueryResult    
 )
 
-from ..type_conversions import standardize_tools, standardize_specs
+from ..type_conversions import standardize_tools, standardize_configs
 
 
-from .chat_og import Chat
+from .OG_chat import Chat
 from .rag_engine import RAGEngine
 from .ai_func import AIFunction
 from .specs import RAGSpec, FuncSpec
@@ -140,12 +140,12 @@ class UnifAIClient:
 
     def add_func_specs(self, func_specs: Optional[list[FuncSpec|dict]]):
         if func_specs:
-            self.func_specs.update(standardize_specs(func_specs, FuncSpec))
+            self.func_specs.update(standardize_configs(func_specs, FuncSpec))
 
 
     def add_rag_specs(self, rag_specs: Optional[list[RAGSpec|dict]]):
         if rag_specs:
-            self.rag_specs.update(standardize_specs(rag_specs, RAGSpec))
+            self.rag_specs.update(standardize_configs(rag_specs, RAGSpec))
 
 
     

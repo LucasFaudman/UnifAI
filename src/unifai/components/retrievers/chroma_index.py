@@ -140,7 +140,7 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
     def query(self,              
               query_text: Optional[str] = None,
               query_embedding: Optional[Embedding] = None,
-              n_results: int = 10,
+              top_k: int = 10,
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
@@ -154,14 +154,14 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
             query_embeddings = [query_embedding]
         else:
             raise ValueError("Either query_text or query_embedding must be provided")
-        return self.query_many(query_texts, query_embeddings, n_results, where, where_document, include, **kwargs)[0]
+        return self.query_many(query_texts, query_embeddings, top_k, where, where_document, include, **kwargs)[0]
 
     
     @convert_exceptions
     def query_many(self,
               query_texts: Optional[list[str]] = None,
               query_embeddings: Optional[list[Embedding]] = None,              
-              n_results: int = 10,
+              top_k: int = 10,
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
@@ -174,7 +174,7 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
         query_result = self.wrapped.query(
             query_embeddings=query_embeddings, 
             query_texts=query_texts, 
-            n_results=n_results, 
+            n_results=top_k, 
             where=where, 
             where_document=where_document, 
             include=include,

@@ -87,7 +87,7 @@ def test_rerank_simple(
     assert index.count() == len(documents)
 
 
-    query_result = index.query(query_text=query, n_results=6)
+    query_result = index.query(query_text=query, top_k=6)
     assert isinstance(query_result, VectorDBQueryResult)
     assert len(query_result) == 6
     assert query_result.ids and query_result.metadatas and query_result.documents

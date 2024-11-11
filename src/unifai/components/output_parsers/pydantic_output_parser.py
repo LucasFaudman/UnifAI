@@ -3,7 +3,7 @@ from json import loads, JSONDecodeError
 
 from ...exceptions import OutputParserError
 from ...types import Message, ToolCall
-from ...client.chat_og import Chat
+from ...client.chat import Chat
 from pydantic import BaseModel, ValidationError
 
 T = TypeVar("T", bound=BaseModel)

@@ -1,20 +1,6 @@
-from .__client import (
-    Config, 
-    ProviderConfig, 
-    get_config, 
-    set_config, 
-    configure, 
-    register_component, 
-    get_component, 
-    get_llm_client,
-    get_embedder,
-    get_reranker,
-    get_vector_db,
-    get_document_db,
-    get_document_chunker,
-)
-from ._embed import embed
-# from .chat import Chat
-from ._chat import Chat, start_chat, chat, chat_stream
-from .client import UnifAIClient
-from .specs import RAGSpec, FuncSpec, AgentSpec
+from ._base_client import Config, ProviderConfig
+from ._function_client import UnifAIFunctionClient as UnifAI
+
+from .chat import Chat
+from .function import UnifAIFunction, FunctionConfig
+from .rag_engine import RAGEngine, RAGConfig
