@@ -1,4 +1,4 @@
-from unifai import UnifAIClient, tool, FuncSpec
+from unifai import UnifAI, tool, FuncSpec
 from _provider_defaults import PROVIDER_DEFAULTS
 
 import webbrowser
@@ -97,7 +97,7 @@ def render_html_in_browser(html_content):
 
 
 if __name__ == "__main__":
-    ai = UnifAIClient(
+    ai = UnifAI(
     provider_client_kwargs={
         "anthropic": PROVIDER_DEFAULTS["anthropic"][1],
         "google": PROVIDER_DEFAULTS["google"][1],

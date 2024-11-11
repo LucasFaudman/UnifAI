@@ -1,6 +1,6 @@
 
 from typing import Any, Literal, Iterable
-from unifai import UnifAIClient, tool, Message, FuncSpec, Tool, NumberToolParameter, StringToolParameter, ArrayToolParameter, ObjectToolParameter
+from unifai import UnifAI, tool, Message, FuncSpec, Tool, NumberToolParameter, StringToolParameter, ArrayToolParameter, ObjectToolParameter
 from souperscraper import SouperScraper, Keys
 from pydantic import BaseModel
 from time import sleep
@@ -58,7 +58,7 @@ class LeetScraper:
     WEBDRIVER_PATH = "/Users/lucasfaudman/.chromedriver/chromedriver-mac-x64/chromedriver"
 
     def __init__(self, 
-                 ai: UnifAIClient,
+                 ai: UnifAI,
                  chromedriver_path: str = WEBDRIVER_PATH
                  ):        
         self.scraper = SouperScraper(
@@ -145,7 +145,7 @@ class LeetScraper:
         self.test_cases[test_case.number] = test_case
         return self.run_tests()
 
-    
+
     def update_solution(self, solution: str):
         """Update the solution in the editor.
 
@@ -276,7 +276,7 @@ class LeetScraper:
 
 
 if __name__ == "__main__":
-    ai = UnifAIClient(
+    ai = UnifAI(
         provider_client_kwargs={
             "anthropic": PROVIDER_DEFAULTS["anthropic"][1],
             # "google": PROVIDER_DEFAULTS["google"][1],

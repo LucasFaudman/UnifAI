@@ -1,4 +1,4 @@
-from unifai import UnifAIClient, tool
+from unifai import UnifAI, tool
 from unifai.client.specs import RAGSpec, DEFAULT_RAG_PROMPT_TEMPLATE
 from unifai.types import VectorDBQueryResult
 from _provider_defaults import PROVIDER_DEFAULTS
@@ -9,7 +9,7 @@ GITA_PATH = Path("/Users/lucasfaudman/Documents/UnifAI/scratch/geeda.json")
 GITA_EMBEDDINGS_DB_PATH = Path("/Users/lucasfaudman/Documents/UnifAI/scratch/gita_embeddings")
 
 
-ai = UnifAIClient(
+ai = UnifAI(
     provider_client_kwargs={
         "openai": PROVIDER_DEFAULTS["openai"][1],
         "chroma": PROVIDER_DEFAULTS["chroma"][1],

@@ -1,7 +1,7 @@
 import pytest
 from typing import Optional, Literal
 
-from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider, RerankProvider
+from unifai import UnifAI, LLMProvider, VectorDBProvider, Provider, RerankProvider
 from unifai.components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex
 from unifai.components.rerankers._base_reranker import Reranker
 
@@ -16,7 +16,7 @@ def test_init_rerankers(
         client_kwargs: dict,
         func_kwargs: dict
     ):
-    ai = UnifAIClient({provider: client_kwargs})
+    ai = UnifAI({provider: client_kwargs})
     assert ai.provider_client_kwargs == {provider: client_kwargs}
     reranker = ai.get_component(provider, "reranker", **client_kwargs)
     assert isinstance(reranker, Reranker)
@@ -32,7 +32,7 @@ def test_rerank_simple(
         func_kwargs: dict
     ):
 
-    ai = UnifAIClient({
+    ai = UnifAI({
         provider: client_kwargs,
         "openai": PROVIDER_DEFAULTS["openai"][1],
         "chroma": PROVIDER_DEFAULTS["chroma"][1],

@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAIClient, LLMProvider
+from unifai import UnifAI, LLMProvider
 from unifai.type_conversions import standardize_messages, standardize_tools
 from unifai.types import (
     Message, 
@@ -382,7 +382,7 @@ def test_tool_from_base_model(
     param_names = [param.name for param in return_tool.parameters.properties.values()]
     assert all(field_name in param_names for field_name in model_fields)
 
-    ai = UnifAIClient({provider: client_kwargs})    
+    ai = UnifAI({provider: client_kwargs})    
     get_model = ai.get_function(
         FuncSpec(response_format=bmodel,
             # tools=[return_tool],

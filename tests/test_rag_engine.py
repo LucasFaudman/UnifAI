@@ -1,7 +1,7 @@
 import pytest
 from typing import Optional, Literal
 
-from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider, RerankProvider, EmbeddingProvider
+from unifai import UnifAI, LLMProvider, VectorDBProvider, Provider, RerankProvider, EmbeddingProvider
 from unifai.components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex
 from unifai.components import DictDocumentDB
 from unifai.components.rerankers._base_reranker import Reranker
@@ -41,7 +41,7 @@ def test_rag_engine_simple(
     ):
 
     func_kwargs = PROVIDER_DEFAULTS[vector_db_provider][2]
-    ai = UnifAIClient({
+    ai = UnifAI({
         vector_db_provider: PROVIDER_DEFAULTS[vector_db_provider][1],
         embedding_provider: PROVIDER_DEFAULTS[embedding_provider][1],
         rerank_provider: PROVIDER_DEFAULTS[rerank_provider][1],

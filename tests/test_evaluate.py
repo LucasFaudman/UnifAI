@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAIClient, LLMProvider
+from unifai import UnifAI, LLMProvider
 from unifai.types import Message, Tool, ArrayToolParameter, ObjectToolParameter, BooleanToolParameter, StringToolParameter, NumberToolParameter
 from unifai.client.specs import FuncSpec
 from basetest import base_test_llms_all, PROVIDER_DEFAULTS
@@ -74,7 +74,7 @@ def test_evalutate_flagged_reason(
     flagged: bool
     ):
 
-    ai = UnifAIClient(
+    ai = UnifAI(
         provider_client_kwargs={
             provider: client_kwargs,
             "openai": PROVIDER_DEFAULTS["openai"][1],
@@ -306,7 +306,7 @@ def test_evalutate_contacts(
     content: dict|str,
     ):
 
-    ai = UnifAIClient(
+    ai = UnifAI(
         provider_client_kwargs={
             provider: client_kwargs,
             "openai": PROVIDER_DEFAULTS["openai"][1]

@@ -435,6 +435,8 @@ class Chat:
     def copy(self, **kwargs) -> Self:
         return self.__class__(
         **{**dict(
+            get_llm_client=self.get_llm_client,
+            
             provider=self.provider,
             messages=deepcopy(self.std_messages),
             model=self.model,

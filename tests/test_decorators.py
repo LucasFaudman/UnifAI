@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAIClient, LLMProvider
+from unifai import UnifAI, LLMProvider
 from unifai.types import (
     Message, 
     Image, 
@@ -22,7 +22,7 @@ from unifai.type_conversions.tool_from_func import parse_docstring_and_annotatio
 from unifai.type_conversions import tool
 from pydantic import BaseModel, Field
 
-ai = UnifAIClient()
+ai = UnifAI()
 
 
 @pytest.mark.parametrize("docstring, expected_description, expected_parameters", [

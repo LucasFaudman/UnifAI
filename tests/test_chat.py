@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAIClient, LLMProvider
+from unifai import UnifAI, LLMProvider
 from unifai.types import Message, Tool
 from basetest import base_test_llms_all
 
@@ -113,7 +113,7 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
 @base_test_llms_all
 def test_chat_simple(provider: LLMProvider, client_kwargs: dict, func_kwargs: dict):
 
-    ai = UnifAIClient({provider: client_kwargs})
+    ai = UnifAI(provider_configs={provider: client_kwargs})
     chat = ai.chat(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,
@@ -169,7 +169,7 @@ def test_chat_tools_simple(
     tool_callables: dict
     ):
 
-    ai = UnifAIClient(
+    ai = UnifAI(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
@@ -216,7 +216,7 @@ def test_chat_return_on(
     tool_callables: dict, 
     ):
 
-    ai = UnifAIClient(
+    ai = UnifAI(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
@@ -297,7 +297,7 @@ def test_chat_enforce_tool_choice(
     tool_choice: str
     ):
 
-    ai = UnifAIClient(
+    ai = UnifAI(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
@@ -365,7 +365,7 @@ def test_chat_enforce_tool_choice_sequence(
     tool_choice: list[str]
     ):
 
-    ai = UnifAIClient(
+    ai = UnifAI(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
@@ -454,7 +454,7 @@ def test_chat_send_message(
     tool_choice: list[str]
     ):    
 
-    ai = UnifAIClient(
+    ai = UnifAI(
         {provider: client_kwargs},
         tool_callables=tool_callables
     )
@@ -528,7 +528,7 @@ def test_chat_options(
     extra_kwargs: dict
     ):
 
-    ai = UnifAIClient({provider: client_kwargs})
+    ai = UnifAI(provider_configs={provider: client_kwargs})
     chat = ai.chat(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,

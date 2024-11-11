@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAIClient, LLMProvider
+from unifai import UnifAI, LLMProvider
 from unifai.types import Message, Tool, Embeddings, Embedding, ResponseInfo, Usage
 from unifai.exceptions import ProviderUnsupportedFeatureError, BadRequestError, EmbeddingDimensionsError
 from basetest import base_test_llms_all, base_test_embeddings_all, base_test
@@ -24,7 +24,7 @@ def test_embeddings_simple(
     input: str|list[str]
     ):
 
-    ai = UnifAIClient({provider: client_kwargs})
+    ai = UnifAI(provider_configs={provider: client_kwargs})
 
     if provider == "anthropic":
         with pytest.raises((ProviderUnsupportedFeatureError, AttributeError)):
@@ -94,7 +94,7 @@ def test_embeddings_dimensions(
     dimensions: int
     ):
 
-    ai = UnifAIClient({provider: client_kwargs})
+    ai = UnifAI(provider_configs={provider: client_kwargs})
 
     result = ai.embed(input, 
                       provider=provider, 
@@ -127,7 +127,7 @@ def test_embeddings_dimensions_errors(
     dimensions_too_large: str    
     ):
 
-    ai = UnifAIClient({provider: client_kwargs})
+    ai = UnifAI(provider_configs={provider: client_kwargs})
     if dimensions >= 1 and dimensions_too_large == "reduce_dimensions":
         result = ai.embed(
             input, 

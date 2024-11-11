@@ -27,7 +27,7 @@ class FunctionConfig(BaseModel):
     provider: Optional[str] = None           
     model: Optional[str] = None
 
-    prompt_template: PromptTemplate|str = PromptTemplate("{content}", value_formatters={Message: lambda m: m.content})
+    prompt_template: PromptTemplate|str|Callable[..., str] = PromptTemplate("{content}", value_formatters={Message: lambda m: m.content})
     prompt_template_kwargs: dict[str, Any] = Field(default_factory=dict)
     rag_config: Optional[RAGConfig|str] = None
     
@@ -80,9 +80,6 @@ class UnifAIFunction(Chat):
         super().__init__(**kwargs)
         self.output_parsers = []
 
-        if output_parser := config.output_parser:
-            self.output_parsers.append(output_parser)
-
         if response_format := config.response_format: 
             if response_format == "json":
                 self.output_parsers.append(json_parse)
@@ -111,6 +108,9 @@ class UnifAIFunction(Chat):
             #         self.output_parsers.append(json_parse_one)
             #     elif is_tool_or_model(schema):
             #         self.output_parsers.append(schema)
+
+        if (output_parser := config.output_parser) and output_parser not in self.output_parsers:
+            self.output_parsers.append(output_parser)            
 
         self.config = config
         self.rag_engine = rag_engine
@@ -172,10 +172,15 @@ class UnifAIFunction(Chat):
     
     
     def with_config(self, **kwargs) -> "UnifAIFunction":
-        return self.copy(
+        new_func = self.copy(
             config=self.config.model_copy(update=kwargs), 
             rag_engine=self.rag_engine
         )
+        new_func.output_parsers = [
+            parser.with_config() if isinstance(parser, UnifAIFunction) else parser 
+            for parser in self.output_parsers
+        ]
+        return new_func
 
     
     def handle_exception(self, exception: Exception):
@@ -195,7 +200,8 @@ class UnifAIFunction(Chat):
         if args:
             if len(args) != 1:
                 raise ValueError("Only one positional argument is allowed, the value for '{content}' if present in the prompt template, got: ", args)
-            kwargs["content"] = args[0]
+            content = args[0]
+            kwargs["content"] = content if not isinstance(content, UnifAIFunction) else content.last_message
         
         config = self.config
         prompt = self.config.prompt_template.format(**{**config.prompt_template_kwargs, **kwargs})
@@ -230,6 +236,21 @@ class UnifAIFunction(Chat):
             if self.config.stateless:
                 self.reset()
     
+    def parse_output_stream(self, *args, **kwargs):
+        config = self.config
+        output = getattr(self, config.return_as) if config.return_as != "self" else self
+        for output_parser in self.output_parsers:
+            # if isinstance(output_parser, Tool) and output_parser.callable:
+            #     output_parser = output_parser.callable
+
+            # TODO: Multiple possible output parsers based on if content, tool_name, message, etc.
+            if is_base_model_type(output_parser):
+                output = pydantic_parse(output, model=output_parser, **config.output_parser_kwargs)
+            elif isinstance(output_parser, UnifAIFunction):
+                output = yield from output_parser.stream(output)
+            else:
+                output = output_parser(output, **config.output_parser_kwargs)
+        return output
 
     def stream(
             self,
@@ -239,7 +260,8 @@ class UnifAIFunction(Chat):
         try:
             rag_prompt = self.prepare_input(*args, **kwargs)
             yield from self.send_message_stream(rag_prompt)
-            return self.parse_output()
+            output = yield from self.parse_output_stream()
+            return output
         except Exception as error:
             self.handle_exception(error)
         finally:
@@ -251,4 +273,10 @@ class UnifAIFunction(Chat):
     exec = __call__
     exec_stream = stream
     
-
+    def __or__(self, other: Union['UnifAIFunction', Callable]) -> 'UnifAIFunction':
+        """Implements the | operator by appending to output_parsers"""
+        if other is self:
+            raise ValueError("Cannot pipe a function into itself")        
+        new_func = self.with_config()  # Create a copy
+        new_func.output_parsers.append(other)
+        return new_func

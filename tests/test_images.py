@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAIClient, LLMProvider
+from unifai import UnifAI, LLMProvider
 from unifai.types import Message, Tool, Image, StringToolParameter
 from basetest import base_test_llms_all, LLM_PROVIDERS, base_test
 
@@ -106,7 +106,7 @@ def test_image_input_animals(
     ]
 
 
-    ai = UnifAIClient({provider: client_kwargs})
+    ai = UnifAI({provider: client_kwargs})
     chat = ai.chat(
         messages=messages,
         **func_kwargs
@@ -212,7 +212,7 @@ def test_image_and_tools_input_animals(
 )
 
 
-    ai = UnifAIClient({provider: client_kwargs})
+    ai = UnifAI({provider: client_kwargs})
     chat = ai.chat(
         messages=messages,
         tools=[return_animal_in_image],

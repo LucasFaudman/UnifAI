@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAIClient, LLMProvider
+from unifai import UnifAI, LLMProvider
 from unifai.type_conversions import standardize_messages, standardize_tools
 from unifai.types import (
     Message, 
@@ -22,7 +22,7 @@ from unifai.types import (
 
 from basetest import base_test_llms_all
 
-ai = UnifAIClient()
+ai = UnifAI()
 
 @pytest.mark.parametrize("input_messages, expected_std_messages", [
     (
