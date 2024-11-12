@@ -59,9 +59,9 @@ class GoogleEmbedder(GoogleAdapter, Embedder):
             return "RETRIEVAL_DOCUMENT"
         raise ProviderUnsupportedFeatureError(
             f"Embedding task_type={task_type} is not supported by Google. "
-             "Supported input types are 'retreival_query', 'retreival_document', "
+             "Supported input types are 'retrieval_query', 'retrieval_document', "
              "'semantic_similarity', 'classification', 'clustering', 'question_answering', "
-             "'fact_verification', and 'code_retreival_query'. Use 'retreival_document' for images with Google. "
+             "'fact_verification', and 'code_retrieval_query'. Use 'retrieval_document' for images with Google. "
              "Or use Cohere which supports embedding 'image' task_type."
         )
 

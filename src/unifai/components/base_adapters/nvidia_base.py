@@ -50,14 +50,14 @@ class NvidiaAdapter(OpenAIAdapter):
     # - embedding parameters (truncate, input_type, etc)
     # - probably many with time)
     default_base_url = "https://integrate.api.nvidia.com/v1"
-    retreival_base_url = "https://ai.api.nvidia.com/v1/retrieval/nvidia"
+    retrieval_base_url = "https://ai.api.nvidia.com/v1/retrieval/nvidia"
     vlm_base_url = "https://ai.api.nvidia.com/v1/vlm/"
   
     model_base_urls = {
-        "NV-Embed-QA": retreival_base_url,
-        "nv-rerank-qa-mistral-4b:1": retreival_base_url,
-        "nvidia/nv-rerankqa-mistral-4b-v3": f"{retreival_base_url}/nv-rerankqa-mistral-4b-v3",
-        "snowflake/arctic-embed-l": f"{retreival_base_url}/snowflake/arctic-embed-l",
+        "NV-Embed-QA": retrieval_base_url,
+        "nv-rerank-qa-mistral-4b:1": retrieval_base_url,
+        "nvidia/nv-rerankqa-mistral-4b-v3": f"{retrieval_base_url}/nv-rerankqa-mistral-4b-v3",
+        "snowflake/arctic-embed-l": f"{retrieval_base_url}/snowflake/arctic-embed-l",
         # "meta/llama-3.2-11b-vision-instruct": "https://ai.api.nvidia.com/v1/gr/meta/llama-3.2-11b-vision-instruct",
         # "meta/llama-3.2-90b-vision-instruct": "https://ai.api.nvidia.com/v1/gr/meta/llama-3.2-90b-vision-instruct",
     } 

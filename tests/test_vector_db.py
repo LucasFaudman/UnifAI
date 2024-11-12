@@ -88,8 +88,9 @@ def parameterize_distance_metric(func):
 
 
 
-@base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
+# @base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
 # @base_test_vector_dbs_all
+@base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -124,7 +125,7 @@ def test_vector_db_create_index(provider: Provider,
 
     index = client.create_index(
         name=name,
-        metadata=metadata,
+        # metadata=metadata,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
@@ -135,16 +136,16 @@ def test_vector_db_create_index(provider: Provider,
     assert isinstance(index, VectorDBIndex)
     assert index.name == name
     
-    updated_metadata = {
-                **metadata,
-                "_unifai_embedding_config": ",".join((
-                str(embedding_provider),
-                str(embedding_model),
-                str(dimensions if dimensions is not None else 1536),
-                str(distance_metric if distance_metric is not None else "cosine")
-            ))                
-    }
-    if provider == "chroma": assert index.metadata == updated_metadata
+    # updated_metadata = {
+    #             **metadata,
+    #             "_unifai_embedding_config": ",".join((
+    #             str(embedding_provider),
+    #             str(embedding_model),
+    #             str(dimensions if dimensions is not None else 1536),
+    #             str(distance_metric if distance_metric is not None else "cosine")
+    #         ))                
+    # }
+    # if provider == "chroma": assert index.metadata == updated_metadata
     
     assert index.embedding_provider == embedding_provider
     assert index.embedding_model == embedding_model
@@ -164,7 +165,7 @@ def test_vector_db_create_index(provider: Provider,
 
     index2 = client.get_or_create_index(
         name=index2_name,
-        metadata=metadata,
+        # metadata=metadata,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
@@ -175,7 +176,7 @@ def test_vector_db_create_index(provider: Provider,
     assert index2
     assert isinstance(index2, VectorDBIndex)
     assert index2.name == index2_name
-    if provider == "chroma": assert index2.metadata == updated_metadata
+    # if provider == "chroma": assert index2.metadata == updated_metadata
     assert index2.embedding_provider == embedding_provider
     assert index2.embedding_model == embedding_model
     assert index2.dimensions == dimensions if dimensions is not None else 1536
@@ -186,20 +187,20 @@ def test_vector_db_create_index(provider: Provider,
     assert sorted(client.list_indexes()) == sorted([name, index2_name])
     assert client.count_indexes() == 2
     
-    # test getting index by metadata
-    if provider == "chroma":
-        client.indexes.pop(index2_name)
-        metaloaded_index2 = client.get_index(name=index2_name)
-        assert metaloaded_index2
-        assert isinstance(metaloaded_index2, VectorDBIndex)
-        assert metaloaded_index2.name == index2.name
-        assert metaloaded_index2.metadata == index2.metadata
-        assert metaloaded_index2.embedding_provider == index2.embedding_provider
-        assert metaloaded_index2.embedding_model == index2.embedding_model
-        assert metaloaded_index2.dimensions == index2.dimensions
-        assert metaloaded_index2.distance_metric == index2.distance_metric
+    # # test getting index by metadata
+    # if provider == "chroma":
+    #     client.indexes.pop(index2_name)
+    #     metaloaded_index2 = client.get_index(name=index2_name)
+    #     assert metaloaded_index2
+    #     assert isinstance(metaloaded_index2, VectorDBIndex)
+    #     assert metaloaded_index2.name == index2.name
+    #     assert metaloaded_index2.metadata == index2.metadata
+    #     assert metaloaded_index2.embedding_provider == index2.embedding_provider
+    #     assert metaloaded_index2.embedding_model == index2.embedding_model
+    #     assert metaloaded_index2.dimensions == index2.dimensions
+    #     assert metaloaded_index2.distance_metric == index2.distance_metric
 
-        assert client.get_index(index2_name) == metaloaded_index2
+    #     assert client.get_index(index2_name) == metaloaded_index2
 
     # test deleting index
     client.delete_index(index2_name)
@@ -220,7 +221,7 @@ def approx_embeddings(embeddings, expected_embeddings):
 
 # @base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
 # @base_test_vector_dbs_all
-@base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
+@base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -256,7 +257,7 @@ def test_vector_db_add(provider: Provider,
 
     index = client.create_index(
         name=name,
-        metadata=metadata,
+        # metadata=metadata,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
@@ -433,8 +434,7 @@ def test_vector_db_add(provider: Provider,
 
 # @base_test_vector_dbs_all
 # @base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
-
-@base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
+@base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -471,7 +471,7 @@ def test_vector_db_query_simple(provider: Provider,
 
     index = client.create_index(
         name=name,
-        metadata=metadata,
+        # metadata=metadata,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,

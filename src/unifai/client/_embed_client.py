@@ -21,14 +21,14 @@ class UnifAIEmbedClient(BaseClient):
         model: Optional[str] = None,
         dimensions: Optional[int] = None,
         task_type: Optional[Literal[
-        "retreival_query", 
-        "retreival_document", 
+        "retrieval_query", 
+        "retrieval_document", 
         "semantic_similarity", 
         "classification", 
         "clustering", 
         "question_answering", 
         "fact_verification", 
-        "code_retreival_query", 
+        "code_retrieval_query", 
         "image"]] = None,
         input_too_large: Literal[
         "truncate_end", 

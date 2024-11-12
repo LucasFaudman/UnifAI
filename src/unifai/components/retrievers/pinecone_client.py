@@ -88,7 +88,7 @@ class PineconeClient(PineconeAdapter, VectorDBClient):
         )
 
         index = PineconeIndex(
-            wrapped=pinecone_index,
+            _wrapped=pinecone_index,
             name=name,
             embedding_function=embedding_function,
             embedding_provider=embedding_provider,
@@ -132,7 +132,7 @@ class PineconeClient(PineconeAdapter, VectorDBClient):
         )
 
         index = PineconeIndex(
-            wrapped=pinecone_index,
+            _wrapped=pinecone_index,
             name=name,
             metadata={},
             embedding_function=embedding_function,

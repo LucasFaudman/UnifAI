@@ -30,13 +30,13 @@ class CohereEmbedder(CohereAdapter, Embedder):
                             ) -> Literal["search_document", "search_query", "classification", "clustering", "image"]:
         if task_type in ("classification", "clustering", "image"):
             return task_type
-        elif task_type == "retreival_query":
+        elif task_type == "retrieval_query":
             return "search_query"        
-        elif task_type == "retreival_document" or task_type is None or task_type_not_supported == "use_closest_supported":
+        elif task_type == "retrieval_document" or task_type is None or task_type_not_supported == "use_closest_supported":
             return "search_document"     
         raise ProviderUnsupportedFeatureError(
              f"Embedding task_type={task_type} is not supported by Cohere. "
-             "Supported input types are 'retreival_query', 'retreival_document', 'classification', 'clustering', 'image'")
+             "Supported input types are 'retrieval_query', 'retrieval_document', 'classification', 'clustering', 'image'")
 
 
     def _get_embed_response(

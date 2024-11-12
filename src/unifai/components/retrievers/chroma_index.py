@@ -6,7 +6,7 @@ from itertools import zip_longest
 if TYPE_CHECKING:
     from chromadb.api.models.Collection import Collection as ChromaCollection
 
-from ...types import Embedding, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult
+from ...types import Embedding, Embeddings, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult
 from .._base_component import convert_exceptions
 from ..base_adapters.chroma_base import ChromaExceptionConverter
 from ._base_vector_db_index import VectorDBIndex
@@ -14,34 +14,34 @@ from ._base_vector_db_index import VectorDBIndex
 
 class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
     provider = "chroma"
-    wrapped: ChromaCollection
+    _wrapped: ChromaCollection
     
     @convert_exceptions
     def count(self, **kwargs) -> int:
-        return self.wrapped.count()
+        return self._wrapped.count()
     
-    @convert_exceptions
-    def modify(self, 
-               new_name: Optional[str]=None, 
-               new_metadata: Optional[dict]=None,
-               embedding_provider: Optional[EmbeddingProvider] = None,
-               embedding_model: Optional[str] = None,
-               dimensions: Optional[int] = None,
-               distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,               
-               metadata_update_mode: Optional[Literal["replace", "merge"]] = "replace",
-               **kwargs
-               ) -> Self:
+    # @convert_exceptions
+    # def modify(self, 
+    #            new_name: Optional[str]=None, 
+    #            new_metadata: Optional[dict]=None,
+    #            embedding_provider: Optional[EmbeddingProvider] = None,
+    #            embedding_model: Optional[str] = None,
+    #            dimensions: Optional[int] = None,
+    #            distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,               
+    #            metadata_update_mode: Optional[Literal["replace", "merge"]] = "replace",
+    #            **kwargs
+    #            ) -> Self:
         
-        if new_name is not None:
-            self.name = new_name
-        if new_metadata is not None:
-            if metadata_update_mode == "replace":
-                self.metadata = new_metadata
-            else:
-                self.metadata.update(new_metadata)
+    #     if new_name is not None:
+    #         self.name = new_name
+    #     if new_metadata is not None:
+    #         if metadata_update_mode == "replace":
+    #             self.metadata = new_metadata
+    #         else:
+    #             self.metadata.update(new_metadata)
                 
-        self.wrapped.modify(name=self.name, metadata=self.metadata, **kwargs)
-        return self
+    #     self.wrapped.modify(name=self.name, metadata=self.metadata, **kwargs)
+    #     return self
 
             
     @convert_exceptions
@@ -53,7 +53,12 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
             **kwargs
             ) -> Self:
         
-        self.wrapped.add(
+        if not documents and not embeddings:
+            raise ValueError("Either documents or embeddings must be provided")
+        if documents and not embeddings:
+            embeddings = self._prepare_embeddings("documents", documents)
+        
+        self._wrapped.add(
             ids=ids, 
             metadatas=metadatas, 
             documents=documents, 
@@ -70,8 +75,11 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
                 embeddings: Optional[list[Embedding]] = None,
                 **kwargs
                 ) -> Self:
-          
-        self.wrapped.update(
+
+        if documents and not embeddings:
+            embeddings = self._prepare_embeddings("documents", documents)
+
+        self._wrapped.update(
             ids=ids, 
             metadatas=metadatas, 
             documents=documents, 
@@ -89,7 +97,10 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
                 **kwargs
                 ) -> Self:
         
-        self.wrapped.upsert(
+        if documents and not embeddings:
+            embeddings = self._prepare_embeddings("documents", documents)
+
+        self._wrapped.upsert(
             ids=ids, 
             metadatas=metadatas, 
             documents=documents, 
@@ -105,7 +116,7 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
                where_document: Optional[dict] = None,
                **kwargs
                ) -> None:
-        return self.wrapped.delete(ids=ids, where=where, where_document=where_document, **kwargs)
+        return self._wrapped.delete(ids=ids, where=where, where_document=where_document, **kwargs)
 
 
     @convert_exceptions
@@ -119,7 +130,7 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
             **kwargs
             ) -> VectorDBGetResult:
         
-        get_result = self.wrapped.get(
+        get_result = self._wrapped.get(
             ids=ids, 
             where=where, 
             limit=limit, 
@@ -137,43 +148,33 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
         )
     
 
-    def query(self,              
-              query_text: Optional[str] = None,
-              query_embedding: Optional[Embedding] = None,
-              top_k: int = 10,
-              where: Optional[dict] = None,
-              where_document: Optional[dict] = None,
-              include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
-              **kwargs
+    def query(
+            self,              
+            text_or_embedding: str|Embedding,
+            top_k: int = 10,
+            where: Optional[dict] = None,
+            where_document: Optional[dict] = None,
+            include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
+            **kwargs
               ) -> VectorDBQueryResult:
-        if query_text is not None:
-            query_texts = [query_text]
-            query_embeddings = None
-        elif query_embedding is not None:
-            query_texts = None
-            query_embeddings = [query_embedding]
-        else:
-            raise ValueError("Either query_text or query_embedding must be provided")
-        return self.query_many(query_texts, query_embeddings, top_k, where, where_document, include, **kwargs)[0]
+        texts_or_embeddings = [text_or_embedding]
+        return self.query_many(texts_or_embeddings, top_k, where, where_document, include, **kwargs)[0]
 
     
     @convert_exceptions
-    def query_many(self,
-              query_texts: Optional[list[str]] = None,
-              query_embeddings: Optional[list[Embedding]] = None,              
-              top_k: int = 10,
-              where: Optional[dict] = None,
-              where_document: Optional[dict] = None,
-              include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
-              **kwargs
+    def query_many(
+            self,              
+            texts_or_embeddings: list[str] | list[Embedding] | Embeddings,
+            top_k: int = 10,
+            where: Optional[dict] = None,
+            where_document: Optional[dict] = None,
+            include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
+            **kwargs
               ) -> list[VectorDBQueryResult]:
         
-        if query_texts is None and query_embeddings is None:
-            raise ValueError("Either query_texts or query_embeddings must be provided")
-
-        query_result = self.wrapped.query(
+        query_embeddings = self._prepare_embeddings("queries", texts_or_embeddings)
+        query_result = self._wrapped.query(
             query_embeddings=query_embeddings, 
-            query_texts=query_texts, 
             n_results=top_k, 
             where=where, 
             where_document=where_document, 
@@ -200,6 +201,69 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
                 fillvalue=None
             )
         ]    
+    # def query(self,              
+    #           query_text: Optional[str] = None,
+    #           query_embedding: Optional[Embedding] = None,
+    #           top_k: int = 10,
+    #           where: Optional[dict] = None,
+    #           where_document: Optional[dict] = None,
+    #           include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
+    #           **kwargs
+    #           ) -> VectorDBQueryResult:
+    #     if query_text is not None:
+    #         query_texts = [query_text]
+    #         query_embeddings = None
+    #     elif query_embedding is not None:
+    #         query_texts = None
+    #         query_embeddings = [query_embedding]
+    #     else:
+    #         raise ValueError("Either query_text or query_embedding must be provided")
+    #     return self.query_many(query_texts, query_embeddings, top_k, where, where_document, include, **kwargs)[0]
+
+    
+    # @convert_exceptions
+    # def query_many(self,
+    #           query_texts: Optional[list[str]] = None,
+    #           query_embeddings: Optional[list[Embedding]] = None,              
+    #           top_k: int = 10,
+    #           where: Optional[dict] = None,
+    #           where_document: Optional[dict] = None,
+    #           include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
+    #           **kwargs
+    #           ) -> list[VectorDBQueryResult]:
+        
+    #     if query_texts is None and query_embeddings is None:
+    #         raise ValueError("Either query_texts or query_embeddings must be provided")
+
+    #     query_result = self._wrapped.query(
+    #         query_embeddings=query_embeddings, 
+    #         query_texts=query_texts, 
+    #         n_results=top_k, 
+    #         where=where, 
+    #         where_document=where_document, 
+    #         include=include,
+    #         **kwargs
+    #     )
+
+    #     included = query_result["included"]
+    #     empty_tuple = ()
+    #     return [
+    #         VectorDBQueryResult(
+    #             ids=ids,
+    #             metadatas=metadatas,
+    #             documents=documents,
+    #             embeddings=embeddings,
+    #             distances=distances,
+    #             included=["ids", *included]
+    #         ) for ids, metadatas, documents, embeddings, distances in zip_longest(
+    #             query_result["ids"],
+    #             query_result["metadatas"] or empty_tuple,
+    #             query_result["documents"] or empty_tuple,
+    #             query_result["embeddings"] or empty_tuple,
+    #             query_result["distances"] or empty_tuple,
+    #             fillvalue=None
+    #         )
+    #     ]    
     
 
 

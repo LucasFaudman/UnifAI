@@ -30,8 +30,8 @@ class UnifAIVectorDBClient(UnifAIEmbedClient, UnifAIDocumentDBClient):
             default_index_kwargs=default_index_kwargs,
             default_document_db=default_document_db
         )
-        if "embed" not in client_kwargs:
-            client_kwargs["embed"] = self.embed
+        if "_embed" not in client_kwargs:
+            client_kwargs["_embed"] = self.embed
         return self._get_component(provider, "vector_db", **client_kwargs)
 
     def get_or_create_index(self, 

@@ -8,7 +8,7 @@ from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, Embe
 T = TypeVar("T")
 
 class Embedder(UnifAIAdapter):
-    provider = "base_embedding"
+    provider = "base_embedder"
     default_embedding_model = "llama3.1:8b-instruct-q2_K"
     
     model_embedding_dimensions: dict[str, int] = {}
@@ -30,14 +30,14 @@ class Embedder(UnifAIAdapter):
             model: Optional[str] = None,
             dimensions: Optional[int] = None,
             task_type: Optional[Literal[
-                "retreival_document", 
-                "retreival_query", 
+                "retrieval_document", 
+                "retrieval_query", 
                 "semantic_similarity", 
                 "classification", 
                 "clustering", 
                 "question_answering", 
                 "fact_verification", 
-                "code_retreival_query", 
+                "code_retrieval_query", 
                 "image"]] = None,
             input_too_large: Literal[
                 "truncate_end", 
@@ -134,14 +134,14 @@ class Embedder(UnifAIAdapter):
             model: str,
             dimensions: Optional[int] = None,
             task_type: Optional[Literal[
-                "retreival_query", 
-                "retreival_document", 
+                "retrieval_query", 
+                "retrieval_document", 
                 "semantic_similarity", 
                 "classification", 
                 "clustering", 
                 "question_answering", 
                 "fact_verification", 
-                "code_retreival_query", 
+                "code_retrieval_query", 
                 "image"]] = None,
             input_too_large: Literal[
                 "truncate_end", 

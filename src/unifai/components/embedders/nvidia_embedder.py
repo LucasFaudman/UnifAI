@@ -30,13 +30,13 @@ class NvidiaEmbedder(NvidiaAdapter, OpenAIEmbedder):
                             task_type_not_supported: Literal["use_closest_supported", "raise_error"] = "use_closest_supported"
                             ) -> Literal["query", "passage"]:
 
-        if task_type == "retreival_query":
+        if task_type == "retrieval_query":
             return "query"        
-        elif task_type == "retreival_document" or task_type is None or task_type_not_supported == "use_closest_supported":
+        elif task_type == "retrieval_document" or task_type is None or task_type_not_supported == "use_closest_supported":
             return "passage"     
         raise ProviderUnsupportedFeatureError(
              f"Embedding task_type={task_type} is not supported by Nvidia. "
-             "Supported input types are 'retreival_query', 'retreival_document'")
+             "Supported input types are 'retrieval_query', 'retrieval_document'")
     
         
     def _get_embed_response(

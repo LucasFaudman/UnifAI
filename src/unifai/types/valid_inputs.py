@@ -41,13 +41,13 @@ ReturnOnInput: TypeAlias = Literal["content", "tool_call", "message"]|ToolName|C
 
 # Valid task types for embeddings. Used to determine what the embeddings are used for to improve the quality of the embeddings
 EmbeddingTaskTypeInput: TypeAlias = Literal[
-    "retreival_query", 
-    "retreival_document", 
+    "retrieval_query", 
+    "retrieval_document", 
     "semantic_similarity",
     "classification",
     "clustering",
     "question_answering",
     "fact_verification",
-    "code_retreival_query",
+    "code_retrieval_query",
     "image"
 ]

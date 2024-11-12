@@ -155,12 +155,12 @@ class PineconeIndex(PineconeExceptionConverter, VectorDBIndex):
         for vector in result.vectors.values():
             metadata = vector.metadata
             # Pinecone Fetch does not support 'where' metadata filtering so need to do it here
-            if where and not self.check_metadata_filters(where, metadata):
+            if where and not self._check_metadata_filters(where, metadata):
                 continue
             # Same for 'where_document' filtering but only if document_db is provided to get the documents 
             if where_document and self.document_db:
                 document = self.document_db.get_document(vector.id)
-                if not self.check_filter(where_document, document):
+                if not self._check_filter(where_document, document):
                     continue
                 if documents is not None: # "documents" in include
                     documents.append(document)
@@ -222,14 +222,14 @@ class PineconeIndex(PineconeExceptionConverter, VectorDBIndex):
             if where and include_metadata:
                 metadata = match["metadata"]
                 # Preforms any additional metadata filtering not supported by Pinecone
-                if not self.check_metadata_filters(where, metadata):
+                if not self._check_metadata_filters(where, metadata):
                     continue
 
             id = match["id"]            
             # Same for 'where_document' filtering but only if document_db is provided to get the documents 
             if where_document and self.document_db:
                 document = self.document_db.get_document(id)
-                if not self.check_filter(where_document, document):
+                if not self._check_filter(where_document, document):
                     continue
                 if documents is not None: # "documents" in include
                     documents.append(document)
