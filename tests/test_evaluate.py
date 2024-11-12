@@ -75,7 +75,7 @@ def test_evalutate_flagged_reason(
     ):
 
     ai = UnifAI(
-        provider_client_kwargs={
+        provider_configs={
             provider: client_kwargs,
             "openai": PROVIDER_DEFAULTS["openai"][1],
             "anthropic": PROVIDER_DEFAULTS["anthropic"][1],
@@ -307,7 +307,7 @@ def test_evalutate_contacts(
     ):
 
     ai = UnifAI(
-        provider_client_kwargs={
+        provider_configs={
             provider: client_kwargs,
             "openai": PROVIDER_DEFAULTS["openai"][1]
             },

@@ -516,12 +516,12 @@ class Chat:
         messages = standardize_messages(message)
 
         # prevent error when using multiple return_tools without submitting tool outputs
-        # if (last_message := self.last_message) and last_message.role == "assistant" and last_message.tool_calls:
-        #     # Submit tool outputs before sending new messages. 
-        #     # Use first new message content as content of tool message or send after as user message based on provider
-        #     # self.extend_messages_with_tool_outputs(last_message.tool_calls, content=messages.pop(0).content)
-        #     # self.extend_messages_with_tool_outputs(last_message.tool_calls)
-        #     self.pop_message()
+        if (last_message := self.last_message) and last_message.role == "assistant" and last_message.tool_calls:
+            # Submit tool outputs before sending new messages. 
+            # Use first new message content as content of tool message or send after as user message based on provider
+            # self.extend_messages_with_tool_outputs(last_message.tool_calls, content=messages.pop(0).content)
+            # self.extend_messages_with_tool_outputs(last_message.tool_calls)
+            self.pop_message()
 
         
         self.extend_messages(messages)

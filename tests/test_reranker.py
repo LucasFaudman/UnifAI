@@ -16,8 +16,7 @@ def test_init_rerankers(
         client_kwargs: dict,
         func_kwargs: dict
     ):
-    ai = UnifAI({provider: client_kwargs})
-    assert ai.provider_client_kwargs == {provider: client_kwargs}
+    ai = UnifAI(provider_configs={provider: client_kwargs})
     reranker = ai.get_component(provider, "reranker", **client_kwargs)
     assert isinstance(reranker, Reranker)
     assert reranker.provider == provider
@@ -32,7 +31,7 @@ def test_rerank_simple(
         func_kwargs: dict
     ):
 
-    ai = UnifAI({
+    ai = UnifAI(provider_configs={
         provider: client_kwargs,
         "openai": PROVIDER_DEFAULTS["openai"][1],
         "chroma": PROVIDER_DEFAULTS["chroma"][1],

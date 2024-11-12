@@ -32,10 +32,10 @@ def test_switch_providers_simple(
     print(chat.last_content)
     chat.set_provider(provider2)
     assert chat.provider == provider2
-    ass_message = chat.send_message(Message(role="user", content="Can you remember my favorite color?"))
+    ass_message = chat.send_message(Message(role="user", content="What berry is my favorite color?"))
     assert ass_message.role == "assistant"
     assert ass_message.content
-    assert "blue" in ass_message.content.lower()
+    assert "blueberry" in ass_message.content.lower()
     print(ass_message)
 
 

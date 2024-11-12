@@ -98,6 +98,5 @@ def test_api_exceptions(
 
     print(f"provider:\n{provider}\n\nclient_kwargs:\n{client_kwargs}\n\nfunc_kwargs:\n{func_kwargs}")
     with pytest.raises(expected_exception):
-        ai = UnifAI({provider: client_kwargs})
-        ai.get_component(provider).client
+        ai = UnifAI(provider_configs={provider: client_kwargs})
         messages = ai.chat(**func_kwargs)
