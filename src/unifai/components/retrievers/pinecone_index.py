@@ -188,7 +188,7 @@ class PineconeIndex(PineconeExceptionConverter, VectorDBIndex):
     def query(self,              
               query_text: Optional[str] = None,
               query_embedding: Optional[Embedding] = None,
-              n_results: int = 10,
+              top_k: int = 10,
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
@@ -211,7 +211,7 @@ class PineconeIndex(PineconeExceptionConverter, VectorDBIndex):
         
         result = self.wrapped.query(
             vector=query_embedding,
-            top_k=n_results,
+            top_k=top_k,
             filter=where,
             include_values=(embeddings is not None),
             include_metadata=(include_metadata:=(metadatas is not None)),
@@ -261,7 +261,7 @@ class PineconeIndex(PineconeExceptionConverter, VectorDBIndex):
     def query_many(self,
               query_texts: Optional[list[str]] = None,
               query_embeddings: Optional[list[Embedding]] = None,              
-              n_results: int = 10,
+              top_k: int = 10,
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
@@ -280,7 +280,7 @@ class PineconeIndex(PineconeExceptionConverter, VectorDBIndex):
             raise ValueError("Must provide either query_texts or query_embeddings")
 
         return [
-            self.query(None, query_embedding, n_results, where, where_document, include, **kwargs)
+            self.query(None, query_embedding, top_k, where, where_document, include, **kwargs)
             for query_embedding in query_embeddings
         ]
 

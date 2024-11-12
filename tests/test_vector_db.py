@@ -1,7 +1,7 @@
 import pytest
 from typing import Optional, Literal
 
-from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider
+from unifai import UnifAI, LLMProvider, VectorDBProvider, Provider
 from unifai.components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex, DocumentDB
 from unifai.components import DictDocumentDB
 
@@ -13,20 +13,16 @@ from chromadb.errors import InvalidCollectionException
 from time import sleep
 @base_test_vector_dbs_all
 def test_init_vector_db_init_clients(provider, client_kwargs, func_kwargs):
-    ai = UnifAIClient({
+    ai = UnifAI(provider_configs={
         provider: client_kwargs
     })
 
-    assert ai.provider_client_kwargs[provider] == client_kwargs
-    assert ai.providers == [provider]
-    assert ai._clients == {}
-    assert ai.default_vector_db_provider == provider
 
-    client = ai.init_component(provider)    
+
+    client = ai.get_component(provider, "vector_db")
 
     assert client
-    assert ai._clients[provider] is client
-    assert ai.get_component(provider) is client
+    assert ai._components["vector_db"][provider] is client
     assert ai.get_vector_db() is client 
     assert ai.get_vector_db(provider) is client 
 
@@ -114,14 +110,14 @@ def test_vector_db_create_index(provider: Provider,
     #     client_kwargs["persist_directory"] = str(tmp_path)
     # name = f"{name}_{provider}_{embedding_provider}_{embedding_model}_{dimensions}_{distance_metric}"
 
-    ai = UnifAIClient({
+    ai = UnifAI(provider_configs={
         provider: client_kwargs,
         "openai": PROVIDER_DEFAULTS["openai"][1],
         "google": PROVIDER_DEFAULTS["google"][1],
         "ollama": PROVIDER_DEFAULTS["ollama"][1],        
     })
 
-    client = ai.get_component(provider)
+    client = ai.get_component(provider, "vector_db")
     assert client
     assert isinstance(client, VectorDBClient)
     client.delete_all_indexes() # Reset for each test
@@ -241,14 +237,14 @@ def test_vector_db_add(provider: Provider,
                                 # serial
                                 ):
 
-    ai = UnifAIClient({
+    ai = UnifAI(provider_configs={
         provider: client_kwargs,
         "openai": PROVIDER_DEFAULTS["openai"][1],
         "google": PROVIDER_DEFAULTS["google"][1],
         "ollama": PROVIDER_DEFAULTS["ollama"][1],        
     })
 
-    client = ai.get_component(provider)
+    client = ai.get_component(provider, "vector_db")
     assert client
     assert isinstance(client, VectorDBClient)
     client.delete_all_indexes() # Reset for each test
@@ -455,14 +451,14 @@ def test_vector_db_query_simple(provider: Provider,
                                 # serial
                                 ):
 
-    ai = UnifAIClient({
+    ai = UnifAI(provider_configs={
         provider: client_kwargs,
         "openai": PROVIDER_DEFAULTS["openai"][1],
         "google": PROVIDER_DEFAULTS["google"][1],
         "ollama": PROVIDER_DEFAULTS["ollama"][1],        
     })
 
-    client = ai.get_component(provider)
+    client = ai.get_component(provider, "vector_db")
     assert client
     assert isinstance(client, VectorDBClient)
     client.delete_all_indexes() # Reset for each test
@@ -534,7 +530,7 @@ def test_vector_db_query_simple(provider: Provider,
         assert group_ids
         assert len(group_ids) == sub_group_size * len(groups[group_name])
     
-    query = index.query_many(["dog", "fish"], include=["metadatas", "documents"], n_results=30)
+    query = index.query_many(["dog", "fish"], include=["metadatas", "documents"], top_k=30)
     assert query
     dog_result, fish_result = query
     assert dog_result.ids

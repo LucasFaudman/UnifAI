@@ -1,6 +1,7 @@
 from ._base_component import UnifAIComponent
 from .base_adapters._base_adapter import UnifAIAdapter
 from .document_dbs._base_document_db import DocumentDB
+from .document_chunkers._base_document_chunker import DocumentChunker
 from .document_dbs.dict_doc_db import DictDocumentDB
 from .embedders._base_embedder import Embedder
 from .prompt_template import PromptTemplate

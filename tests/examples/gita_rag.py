@@ -1,4 +1,4 @@
-from unifai import UnifAIClient, tool
+from unifai import UnifAI, tool
 from unifai.client.specs import RAGSpec, DEFAULT_RAG_PROMPT_TEMPLATE
 from unifai.types import VectorDBQueryResult
 from _provider_defaults import PROVIDER_DEFAULTS
@@ -9,7 +9,7 @@ GITA_PATH = Path("/Users/lucasfaudman/Documents/UnifAI/scratch/geeda.json")
 GITA_EMBEDDINGS_DB_PATH = Path("/Users/lucasfaudman/Documents/UnifAI/scratch/gita_embeddings")
 
 
-ai = UnifAIClient(
+ai = UnifAI(
     provider_client_kwargs={
         "openai": PROVIDER_DEFAULTS["openai"][1],
         "chroma": PROVIDER_DEFAULTS["chroma"][1],
@@ -57,6 +57,7 @@ def gita_chat():
         embedding_provider="openai",
         rerank_provider="rank_bm25",
         prompt_template=gita_prompt_template,
+        embedding_dimensions=1536
     ))
 
     system_prompt = """Your role is to answer questions as if you are Krishna using the Bhagavad Gita as a guide. You will be given a question and relevant context from the Gita. You must provide an answer based on the context."""

@@ -1,6 +1,4 @@
 import pytest
-from unifai import UnifAIClient
-
 from os import getenv
 from dotenv import load_dotenv
 

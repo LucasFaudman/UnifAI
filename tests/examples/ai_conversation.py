@@ -1,9 +1,9 @@
-from unifai import UnifAIClient, tool, Message
+from unifai import UnifAI, tool, Message
 
 from _provider_defaults import PROVIDER_DEFAULTS
 
 
-ai = UnifAIClient(
+ai = UnifAI(
     provider_client_kwargs={
         "anthropic": PROVIDER_DEFAULTS["anthropic"][1],
         "google": PROVIDER_DEFAULTS["google"][1],

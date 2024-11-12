@@ -1,7 +1,7 @@
 import pytest
 from typing import Optional, Literal
 
-from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider, RerankProvider
+from unifai import UnifAI, LLMProvider, VectorDBProvider, Provider, RerankProvider
 from unifai.components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex
 from unifai.components.rerankers._base_reranker import Reranker
 
@@ -16,8 +16,7 @@ def test_init_rerankers(
         client_kwargs: dict,
         func_kwargs: dict
     ):
-    ai = UnifAIClient({provider: client_kwargs})
-    assert ai.provider_client_kwargs == {provider: client_kwargs}
+    ai = UnifAI(provider_configs={provider: client_kwargs})
     reranker = ai.get_component(provider, "reranker", **client_kwargs)
     assert isinstance(reranker, Reranker)
     assert reranker.provider == provider
@@ -32,7 +31,7 @@ def test_rerank_simple(
         func_kwargs: dict
     ):
 
-    ai = UnifAIClient({
+    ai = UnifAI(provider_configs={
         provider: client_kwargs,
         "openai": PROVIDER_DEFAULTS["openai"][1],
         "chroma": PROVIDER_DEFAULTS["chroma"][1],
@@ -87,7 +86,7 @@ def test_rerank_simple(
     assert index.count() == len(documents)
 
 
-    query_result = index.query(query_text=query, n_results=6)
+    query_result = index.query(query_text=query, top_k=6)
     assert isinstance(query_result, VectorDBQueryResult)
     assert len(query_result) == 6
     assert query_result.ids and query_result.metadatas and query_result.documents

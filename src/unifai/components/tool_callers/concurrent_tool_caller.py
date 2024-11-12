@@ -3,7 +3,7 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 from ...types import Tool, ToolCall
 from ...exceptions.tool_errors import ToolCallExecutionError, ToolCallableNotFoundError, ToolCallArgumentValidationError
 from ..concurrent_executor import ConcurrentExecutor
-from .tool_caller import ToolCaller
+from ._base_tool_caller import ToolCaller
 
 class ConcurrentToolCaller(ToolCaller):
     def __init__(

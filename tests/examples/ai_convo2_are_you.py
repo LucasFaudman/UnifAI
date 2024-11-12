@@ -1,4 +1,4 @@
-from unifai import UnifAIClient, tool, Message, Tool, BooleanToolParameter, StringToolParameter
+from unifai import UnifAI, tool, Message, Tool, BooleanToolParameter, StringToolParameter
 from unifai.components.prompt_template import PromptTemplate
 from _provider_defaults import PROVIDER_DEFAULTS
 
@@ -8,7 +8,7 @@ import pygame
 
 
 
-ai = UnifAIClient(
+ai = UnifAI(
     provider_client_kwargs={
         "anthropic": PROVIDER_DEFAULTS["anthropic"][1],
         "google": PROVIDER_DEFAULTS["google"][1],

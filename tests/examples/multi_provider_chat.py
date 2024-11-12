@@ -1,11 +1,11 @@
-from unifai import UnifAIClient, tool
+from unifai import UnifAI, tool
 
 from _provider_defaults import PROVIDER_DEFAULTS
 
 class SimpleChat:
 
     def __init__(self):
-        self.ai = UnifAIClient(
+        self.ai = UnifAI(
             provider_client_kwargs={
                 "anthropic": PROVIDER_DEFAULTS["anthropic"][1],
                 "google": PROVIDER_DEFAULTS["google"][1],

@@ -1,7 +1,8 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
 from ..base_adapters._base_adapter import UnifAIAdapter
-from ._base_vector_db_index import VectorDBIndex, DocumentDB
+from ._base_vector_db_index import Retriever, VectorDBIndex, DocumentDB
+from ..embedders._base_embedder import Embedder
 
 from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, EmbeddingProvider, Usage, VectorDBGetResult, VectorDBQueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, BadRequestError, NotFoundError
@@ -58,7 +59,7 @@ class VectorDBCompatibleEmbeddingFunction:
         return embed_result.list()
     
 
-class VectorDBClient(UnifAIAdapter):
+class VectorDBClient(UnifAIAdapter, Retriever):
     provider = "base_vector_db"
 
     def __init__(self, 
@@ -255,23 +256,23 @@ class VectorDBClient(UnifAIAdapter):
               name: str,
               query_text: Optional[str] = None,
               query_embedding: Optional[Embedding] = None,         
-              n_results: int = 10,
+              top_k: int = 10,
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["embeddings", "metadatas", "documents", "distances"]] = ["metadatas", "documents", "distances"],
               **kwargs
               ) -> VectorDBQueryResult:
-        return self.get_index(name).query(query_text, query_embedding, n_results, where, where_document, include, **kwargs)    
+        return self.get_index(name).query(query_text, query_embedding, top_k, where, where_document, include, **kwargs)    
     
 
     def query_many(self,
               name: str,
               query_texts: Optional[list[str]] = None,
               query_embeddings: Optional[list[Embedding]] = None,              
-              n_results: int = 10,
+              top_k: int = 10,
               where: Optional[dict] = None,
               where_document: Optional[dict] = None,
               include: list[Literal["embeddings", "metadatas", "documents", "distances"]] = ["metadatas", "documents", "distances"],
               **kwargs
               ) -> list[VectorDBQueryResult]:
-        return self.get_index(name).query_many(query_texts, query_embeddings, n_results, where, where_document, include, **kwargs)        
+        return self.get_index(name).query_many(query_texts, query_embeddings, top_k, where, where_document, include, **kwargs)        

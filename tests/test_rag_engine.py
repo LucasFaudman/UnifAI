@@ -1,7 +1,7 @@
 import pytest
 from typing import Optional, Literal
 
-from unifai import UnifAIClient, LLMProvider, VectorDBProvider, Provider, RerankProvider, EmbeddingProvider
+from unifai import UnifAI, LLMProvider, VectorDBProvider, Provider, RerankProvider, EmbeddingProvider
 from unifai.components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex
 from unifai.components import DictDocumentDB
 from unifai.components.rerankers._base_reranker import Reranker
@@ -9,7 +9,7 @@ from unifai.components.rerankers._base_reranker import Reranker
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError
 from basetest import base_test_rerankers_all, PROVIDER_DEFAULTS, EMBEDDING_PROVIDERS
-from unifai.client.rag_engine import RAGSpec, RAGEngine
+from unifai.client.rag_engine import RAGConfig, RAGEngine
 
 from time import sleep
 
@@ -41,7 +41,7 @@ def test_rag_engine_simple(
     ):
 
     func_kwargs = PROVIDER_DEFAULTS[vector_db_provider][2]
-    ai = UnifAIClient({
+    ai = UnifAI({
         vector_db_provider: PROVIDER_DEFAULTS[vector_db_provider][1],
         embedding_provider: PROVIDER_DEFAULTS[embedding_provider][1],
         rerank_provider: PROVIDER_DEFAULTS[rerank_provider][1],
@@ -94,7 +94,7 @@ def test_rag_engine_simple(
     if vector_db_provider == 'pinecone': sleep(20)
     assert index.count() == len(documents)
 
-    rag_spec = RAGSpec(
+    rag_spec = RAGConfig(
         name="test_rag_spec",
         index_name="rag-test",
         vector_db_provider=vector_db_provider,
@@ -124,7 +124,7 @@ def test_rag_engine_simple(
     assert isinstance(rerank_result, VectorDBQueryResult)
     assert len(rerank_result) == len(query_result) == 3
 
-    ragify_str = rag_engine.augment(query, query_result, top_n=3)
+    ragify_str = rag_engine.construct_rag_prompt(query, query_result, top_n=3)
     assert ragify_str
     assert isinstance(ragify_str, str)
     print(ragify_str)

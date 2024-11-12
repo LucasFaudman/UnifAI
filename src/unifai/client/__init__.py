@@ -1,3 +1,6 @@
+from ._base_client import Config, ProviderConfig
+from ._function_client import UnifAIFunctionClient as UnifAI
+
 from .chat import Chat
-from .client import UnifAIClient
-from .specs import RAGSpec, FuncSpec, AgentSpec
+from .function import UnifAIFunction, FunctionConfig
+from .rag_engine import RAGEngine, RAGConfig

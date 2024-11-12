@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAIClient, LLMProvider, tool, MessageChunk
+from unifai import UnifAI, LLMProvider, tool, MessageChunk
 from unifai.types import Message, Tool
 from basetest import base_test_llms_all, PROVIDER_DEFAULTS
 
@@ -25,17 +25,17 @@ def test_switch_providers_simple(
     client_kwargs2: dict, 
     func_kwargs2: dict
 ):
-    ai = UnifAIClient({provider1: client_kwargs1, provider2: client_kwargs2})
+    ai = UnifAI(provider_configs={provider1: client_kwargs1, provider2: client_kwargs2})
     chat = ai.chat([Message(role="user", content="Hi my favorite color is blue, what's yours?")], provider=provider1, **func_kwargs1)
     assert isinstance(chat.messages, list)
     assert isinstance(chat.last_content, str)
     print(chat.last_content)
     chat.set_provider(provider2)
     assert chat.provider == provider2
-    ass_message = chat.send_message(Message(role="user", content="Can you remember my favorite color?"))
+    ass_message = chat.send_message(Message(role="user", content="What berry is my favorite color?"))
     assert ass_message.role == "assistant"
     assert ass_message.content
-    assert "blue" in ass_message.content.lower()
+    assert "blueberry" in ass_message.content.lower()
     print(ass_message)
 
 
@@ -99,7 +99,7 @@ def test_switch_providers_tool_calls(
     client_kwargs2: dict, 
     func_kwargs2: dict
 ):
-    ai = UnifAIClient({provider1: client_kwargs1, provider2: client_kwargs2}, tools=[get_current_weather])
+    ai = UnifAI(provider_configs={provider1: client_kwargs1, provider2: client_kwargs2}, tools=[get_current_weather])
     chat = ai.chat(
         # [Message(role="user", content="What's the weather in San Francisco, Tokyo, and Paris?")], 
         provider=provider1, 

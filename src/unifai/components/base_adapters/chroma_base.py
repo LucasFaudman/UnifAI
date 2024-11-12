@@ -1,16 +1,29 @@
 from typing import Any
 
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings as ChromaSettings
+from chromadb.db.base import UniqueConstraintError
 from chromadb.errors import ChromaError
 from chromadb.api import ClientAPI as ChromaClientAPI
 
-from ...exceptions import UnifAIError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError
+from ...exceptions import UnifAIError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, IndexAlreadyExistsError, IndexNotFoundError
 from .._base_component import UnifAIComponent
 from ._base_adapter import UnifAIAdapter
  
 
 class ChromaExceptionConverter(UnifAIComponent):
-    def convert_exception(self, exception: ChromaError) -> UnifAIError:
+    def convert_exception(self, exception: ChromaError|UniqueConstraintError) -> UnifAIError:
+        if isinstance(exception, UniqueConstraintError):
+            message = exception.args[0]
+            if "Collection" in message and "already exists" in message:
+                return IndexAlreadyExistsError(
+                    message=message,
+                    original_exception=exception
+                )
+            return UnknownAPIError(
+                message=message,
+                original_exception=exception
+            )
+        
         status_code=exception.code()
         unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
         return unifai_exception_type(
@@ -24,7 +37,7 @@ class ChromaAdapter(UnifAIAdapter, ChromaExceptionConverter):
     client: ChromaClientAPI
     default_embedding_provider = "ollama"
 
-    
+
     def import_client(self) -> Any:
         from chromadb import Client
         return Client

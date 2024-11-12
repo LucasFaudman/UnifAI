@@ -5,7 +5,8 @@ from .standardize import (
     standardize_tools, 
     standardize_tool_choice,
     standardize_response_format,
-    standardize_specs,
+    standardize_config,
+    standardize_configs,
 )
 from .stringify_content import stringify_content
 from .tool_from_dict import tool_from_dict
@@ -20,7 +21,8 @@ __all__ = [
     "standardize_tools",
     "standardize_tool_choice",
     "standardize_response_format",
-    "standardize_specs",
+    "standardize_config",
+    "standardize_configs",
     "stringify_content",
     "tool_from_dict",
     "tool_from_func",

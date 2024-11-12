@@ -31,8 +31,11 @@ from .valid_inputs import (
     # EvalSpecInput, 
     MessageInput, 
     ToolInput, 
+    ToolName,
+    ToolChoice,
     ToolChoiceInput, 
-    ResponseFormatInput
+    ResponseFormatInput,
+    ReturnOnInput,
 )
 from .vector_db import VectorDBGetResult, VectorDBQueryResult
 
@@ -62,12 +65,16 @@ __all__ = [
     "EmbeddingProvider",
     "RerankProvider",
     "Provider",
+    
     "EmbeddingTaskTypeInput",
-    # "EvalSpecInput",
     "MessageInput",
     "ToolInput",
     "ToolChoiceInput",
+    "ToolChoice",
+    "ToolName",
     "ResponseFormatInput",
+    "ReturnOnInput",
+
     "Embeddings",
     "Embedding",
     "VectorDBGetResult",

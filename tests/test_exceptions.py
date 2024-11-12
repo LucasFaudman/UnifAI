@@ -1,7 +1,7 @@
 import pytest
 from basetest import base_test_llms_all
 
-from unifai import UnifAIClient, LLMProvider
+from unifai import UnifAI, LLMProvider
 from unifai.types import Message, Tool, StringToolParameter, ToolCall
 from unifai.exceptions import (
     UnifAIError,
@@ -98,6 +98,5 @@ def test_api_exceptions(
 
     print(f"provider:\n{provider}\n\nclient_kwargs:\n{client_kwargs}\n\nfunc_kwargs:\n{func_kwargs}")
     with pytest.raises(expected_exception):
-        ai = UnifAIClient({provider: client_kwargs})
-        ai.get_component(provider).client
+        ai = UnifAI(provider_configs={provider: client_kwargs})
         messages = ai.chat(**func_kwargs)

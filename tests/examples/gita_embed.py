@@ -1,4 +1,4 @@
-from unifai import UnifAIClient
+from unifai import UnifAI
 from _provider_defaults import PROVIDER_DEFAULTS
 
 from pathlib import Path
@@ -33,7 +33,7 @@ def chunk_gita(path: Path) -> list[dict]:
 
 def main():
     
-    ai = UnifAIClient(
+    ai = UnifAI(
             provider_client_kwargs={
                 "google": PROVIDER_DEFAULTS["google"][1],
                 "openai": PROVIDER_DEFAULTS["openai"][1],
