@@ -11,8 +11,7 @@ from ._base_client import BaseClient
 class UnifAIEmbedClient(BaseClient):
 
     def get_embedder(self, provider: Optional[str] = None, **client_kwargs) -> "Embedder":
-        provider = provider or self.config.default_providers["embedder"]
-        return self.get_component(provider, "embedder", **client_kwargs)
+        return self._get_component(provider, "embedder", **client_kwargs)
 
     # Embeddings
     def embed(

@@ -9,8 +9,7 @@ from ._base_client import BaseClient
 class UnifAIRerankClient(BaseClient):
 
     def get_reranker(self, provider: Optional[str] = None, **client_kwargs) -> "Reranker":
-        provider = provider or self.config.default_providers["reranker"]
-        return self.get_component(provider, "reranker", **client_kwargs)    
+        return self._get_component(provider, "reranker", **client_kwargs)    
 
     def rerank(
         self, 

@@ -9,5 +9,4 @@ from ._base_client import BaseClient
 class UnifAIDocumentChunkerClient(BaseClient):
     
     def get_document_chunker(self, provider: Optional[str] = None, **client_kwargs) -> "DocumentChunker":
-        provider = provider or self.config.default_providers["document_chunker"]
-        return self.get_component(provider, "document_chunker", **client_kwargs)
+        return self._get_component(provider, "document_chunker", **client_kwargs)

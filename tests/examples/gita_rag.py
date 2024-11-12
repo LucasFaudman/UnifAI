@@ -22,7 +22,7 @@ ai = UnifAI(
 
 pygame.mixer.init()
 def play_speech(text, voice="fable"):
-    openai_client = ai.get_component("openai").client
+    openai_client = ai._get_component("openai").client
     response = openai_client.audio.speech.create(
         model="tts-1",
         voice=voice,

@@ -34,8 +34,7 @@ from ._base_client import BaseClient, Config, ProviderConfig, Path
 class UnifAIChatClient(BaseClient):
 
     def get_llm_client(self, provider: Optional[str] = None, **client_kwargs) -> "LLMClient":
-        provider = provider or self.config.default_providers["llm"]
-        return self.get_component(provider, "llm", **client_kwargs)
+        return self._get_component(provider, "llm", **client_kwargs)
 
     def __init__(
         self,

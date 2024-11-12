@@ -6,7 +6,26 @@ from pydantic import BaseModel, Field
 
 from ..components.import_component import import_component
 
+# LLMS = ["anthropic", "cohere", "google", "ollama", "nvidia"]
+# EMBEDDERS = ["cohere", "google", "nvidia", "ollama", "openai"  ,"sentence_transformers"]
+# VECTOR_DBS = ["chroma", "pinecone"]
+# RERANKERS = ["cohere", "nvidia", "rank_bm25", "sentence_transformers"]
+# DOCUMENT_DBS = ["dict", "sqlite", "mongo", "firebase"]
+# DOCUMENT_CHUNKERS = ["unstructured"]
+# OUTPUT_PARSERS = ["json", "pydantic"]
+# TOOL_CALLERS = ["default", "concurrent"]
 
+COMPONENT_TYPES = ["llm", "embedder", "vector_db", "reranker", "document_db", "document_chunker", "output_parser", "tool_caller"]
+PROVIDERS = {
+    "llm": ["anthropic", "cohere", "google", "ollama", "nvidia"],
+    "embedder": ["cohere", "google", "nvidia", "ollama", "openai"  ,"sentence_transformers"],
+    "vector_db": ["chroma", "pinecone"],
+    "reranker": ["cohere", "nvidia", "rank_bm25", "sentence_transformers"],
+    "document_db": ["dict", "sqlite", "mongo", "firebase"],
+    "document_chunker": ["unstructured"],
+    "output_parser": ["json", "pydantic"],
+    "tool_caller": ["default", "concurrent"],
+}
 DEFAULT_PROVIDERS = {
     "llm": "openai",
     "embedder": "openai",
@@ -26,7 +45,7 @@ class ProviderConfig(BaseModel):
 
 class Config(BaseModel):
     provider_configs: dict[str, ProviderConfig] = Field(default_factory=dict)
-    default_providers: dict[str, str] = Field(default_factory=lambda: DEFAULT_PROVIDERS.copy())
+    default_providers: dict[str, str] = Field(default_factory=dict)
 
 
 class BaseClient:
@@ -47,7 +66,7 @@ class BaseClient:
             **kwargs
         )
 
-        self._component_types: dict[str, dict[str, Type[Any]]] = {component_type: {} for component_type in DEFAULT_PROVIDERS}
+        self._component_types: dict[str, dict[str, Type[Any]]] = {component_type: {} for component_type in COMPONENT_TYPES}
         self._components: dict[str, dict[str, Any]] = {}
 
     def configure(
@@ -99,15 +118,15 @@ class BaseClient:
     def register_component(
         self,
         provider: str,
-        component_type: Literal["llm", "embedder", "vector_db", "reranker", "document_db", "document_chunker"],
+        component_type: str,
         component_class: Type[Any]
     ) -> None:
         self._component_types[component_type][provider] = component_class
 
-    def init_component(
+    def _init_component(
         self,
         provider: str,
-        component_type: Literal["llm", "embedder", "vector_db", "reranker", "document_db", "document_chunker"],
+        component_type: str,
         **client_kwargs
     ) -> Any:
         if component_type not in self._component_types:
@@ -132,16 +151,32 @@ class BaseClient:
         self._components[component_type][provider] = component
         return component
 
-    def get_component(
+    def _get_component(
         self,
-        provider: str,
-        component_type: Literal["llm", "embedder", "vector_db", "reranker", "document_db", "document_chunker"],
+        provider: Optional[str],
+        component_type: str,
         **client_kwargs
     ) -> Any:
+        
+        provider = provider or self.get_default_provider(component_type)
         components_of_type = self._components.get(component_type)
         if not components_of_type or provider not in components_of_type:
-            return self.init_component(provider, component_type, **client_kwargs)
+            return self._init_component(provider, component_type, **client_kwargs)
         return self._components[component_type][provider]
+
+
+    def get_default_provider(self, component_type: str) -> str:
+        if config_default_provider := self.config.default_providers.get(component_type):
+            return config_default_provider
+        if classes_of_type := self._component_types.get(component_type):
+            return next(iter(classes_of_type))
+        for provider in self.config.provider_configs:
+            if provider in PROVIDERS[component_type]:
+                return provider
+        if component_type in DEFAULT_PROVIDERS:
+            return DEFAULT_PROVIDERS[component_type]
+        raise ValueError(f"No default provider found for component_type: {component_type}")
+        
 
     # Cleanup
     def cleanup(self) -> None:

@@ -20,8 +20,8 @@ class UnifAIVectorDBClient(UnifAIEmbedClient, UnifAIDocumentDBClient):
                       default_distance_metric: Literal["cosine", "euclidean", "dotproduct"] = "cosine",
                       default_index_kwargs: Optional[dict] = None,
                       default_document_db: Optional["DocumentDB"] = None,                                                  
-                      **client_kwargs) -> "VectorDBClient":
-        provider = provider or self.config.default_providers["vector_db"]
+                      **client_kwargs
+                      ) -> "VectorDBClient":
         client_kwargs.update(
             default_embedding_provider=default_embedding_provider,
             default_embedding_model=default_embedding_model,
@@ -32,7 +32,7 @@ class UnifAIVectorDBClient(UnifAIEmbedClient, UnifAIDocumentDBClient):
         )
         if "embed" not in client_kwargs:
             client_kwargs["embed"] = self.embed
-        return self.get_component(provider, "vector_db", **client_kwargs)
+        return self._get_component(provider, "vector_db", **client_kwargs)
 
     def get_or_create_index(self, 
                             name: str,

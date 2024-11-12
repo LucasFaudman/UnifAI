@@ -19,7 +19,7 @@ for provider in ["nvidia", "openai", "google", "anthropic", #"ollama"
                 #  "google", "anthropic", "ollama"
                  ]:
     # try:
-    print(f"Provider: {provider}\nModel: {ai.get_component(provider).default_model}\n>>>")
+    print(f"Provider: {provider}\nModel: {ai._get_component(provider).default_model}\n>>>")
     for message_chunk in ai.chat_stream(messages=messages, provider=provider):
         print(message_chunk.content, flush=True, end="")
     print("\n")

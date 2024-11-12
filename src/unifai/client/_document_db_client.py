@@ -9,5 +9,4 @@ from ._base_client import BaseClient
 class UnifAIDocumentDBClient(BaseClient):
     
     def get_document_db(self, provider: Optional[str] = None, **client_kwargs) -> "DocumentDB":
-        provider = provider or self.config.default_providers["document_db"]
-        return self.get_component(provider, "document_db", **client_kwargs)
+        return self._get_component(provider, "document_db", **client_kwargs)
