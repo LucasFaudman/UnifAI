@@ -1,6 +1,7 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
+from itertools import zip_longest
 
-from ...types import Embedding, Embeddings, EmbeddingProvider, EmbeddingTaskTypeInput, VectorDBGetResult, VectorDBQueryResult
+from ...types import Document, Documents, Embedding, Embeddings, EmbeddingProvider, EmbeddingTaskTypeInput, VectorDBGetResult, VectorDBQueryResult
 from ..document_dbs._base_document_db import DocumentDB
 from ._base_retriever import Retriever
 
@@ -20,7 +21,7 @@ class VectorDBIndex(Retriever):
                  _embed: Callable[..., Embeddings],           
                  name: str,                                 
                  dimensions: Optional[int] = None,
-                 distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
+                 distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None,
                  document_db: Optional[DocumentDB] = None,                 
 
                  embedding_provider: Optional[EmbeddingProvider] = None,
@@ -56,6 +57,9 @@ class VectorDBIndex(Retriever):
         # self.embed_task_type_not_supported = embed_task_type_not_supported
 
 
+
+
+
     def embed(self, *args, **kwargs) -> Embeddings:
         embed_kwargs = {
             **self.embed_kwargs, 
@@ -63,36 +67,73 @@ class VectorDBIndex(Retriever):
             "dimensions": self.dimensions,
             **kwargs
         }
+        print(f"Embedding {len(embed_kwargs.get('input', args[0]))} documents")
         embeddings = self._embed(*args, **embed_kwargs)
         self.embed_response_infos.append(embeddings.response_info)
         return embeddings
-
-    # def embed_documents(self, documents: list[str], **kwargs) -> Embeddings:
-    #     return self.embed(documents, task_type=self.embed_document_task_type, **kwargs)
-    
-    # def embed_queries(self, queries: list[str], **kwargs) -> Embeddings:
-    #     return self.embed(queries, task_type=self.embed_query_task_type, **kwargs)
 
 
     def _prepare_embeddings(
             self, 
             embed_as: Literal["documents", "queries"],
-            texts_or_embeddings: list[str] | list[Embedding] | Embeddings, 
+            inputs: list[str] | list[Embedding] | Embeddings, 
             **kwargs
         ) -> list[Embedding]:
-        
-        if isinstance(texts_or_embeddings, Embeddings):
-            return texts_or_embeddings.list()        
-        if not isinstance(texts_or_embeddings, list):
-            raise ValueError(f"Invalid input type {type(texts_or_embeddings)}")        
-        if not texts_or_embeddings:
-            raise ValueError("No texts or embeddings provided")
-        if isinstance(texts_or_embeddings[0], str):
+        if not inputs:
+            raise ValueError("Must provide either documents or embeddings")        
+        if isinstance(inputs, Embeddings):
+            return inputs.list()        
+        if not isinstance(inputs, list):
+            raise ValueError(f"Invalid input type {type(inputs)}")
+        if isinstance((item := inputs[0]), str):
             task_type = self.embed_document_task_type if embed_as == "documents" else self.embed_query_task_type    
-            return self.embed(texts_or_embeddings, task_type=task_type, **kwargs).list()
+            return self.embed(inputs, task_type=task_type, **kwargs).list()
+        if isinstance(item, list) and isinstance(item[0], (int, float)):
+            return inputs
         
-        return texts_or_embeddings # List of embeddings
+        raise ValueError(f"Invalid input type {type(inputs)}")
 
+    def _documents_to_lists(self, documents: Iterable[Document] | Documents) -> tuple[list[str], Optional[list[dict]], Optional[list[str]], list[Embedding]]:
+        if not documents:
+            raise ValueError("No documents provided")
+        if not isinstance(documents, list) or not isinstance((doc0 := documents[0]), Document):
+            raise ValueError(f"Invalid documents type: {type(documents)}. Must be list of Document or a Documents object")
+        
+        ids = []
+        if include_metadatas := doc0.metadata is not None:
+            metadatas = []
+        if include_documents := doc0.text is not None:
+            texts = []
+        if include_embeddings := doc0.embedding is not None:
+            embeddings = []
+        for document in documents:
+            ids.append(document.id)
+            if include_metadatas:
+                metadatas.append(document.metadata)
+            if include_documents:
+                texts.append(document.text)
+            if include_embeddings:
+                embeddings.append(document.embedding)
+
+        if len(ids) != (len_documents := len(documents)):
+            raise ValueError("All documents must have an id")
+        if include_metadatas and len(metadatas) != len_documents:
+            raise ValueError("All documents must have metadata")
+        if include_documents and len(texts) != len_documents:
+            raise ValueError("All documents must have text")
+        if include_embeddings and len(embeddings) != len_documents:
+            raise ValueError("All documents must have an embedding")
+        return ids, metadatas, texts, embeddings
+    
+    def _iterables_to_documents(
+            self,
+            ids: list[str],
+            metadatas: Optional[Iterable[dict]] = None,
+            documents: Optional[Iterable[str]] = None,
+            embeddings: Optional[Iterable[Embedding]] = None,   
+    ) -> Iterable[Document]:
+        for id, metadata, text, embedding in zip_longest(ids, metadatas or (), documents or (), embeddings or ()):
+            yield Document(id=id, metadata=metadata, text=text, embedding=embedding)    
 
     def _check_filter(self, filter: dict|str, value: Any) -> bool:
         if isinstance(filter, str):
@@ -152,30 +193,51 @@ class VectorDBIndex(Retriever):
         raise NotImplementedError("This method must be implemented by the subclass")
     
 
-    def modify(
-            self, 
-            new_name: Optional[str]=None, 
-            embedding_provider: Optional[EmbeddingProvider] = None,
-            embedding_model: Optional[str] = None,
-            dimensions: Optional[int] = None,
-            distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,               
-            **kwargs
-               ) -> Self:
+    # def modify(
+    #         self, 
+    #         new_name: Optional[str]=None, 
+    #         embedding_provider: Optional[EmbeddingProvider] = None,
+    #         embedding_model: Optional[str] = None,
+    #         dimensions: Optional[int] = None,
+    #         distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None,               
+    #         **kwargs
+    #            ) -> Self:
         
-        raise NotImplementedError("This method must be implemented by the subclass")
+    #     raise NotImplementedError("This method must be implemented by the subclass")
 
-        
+
+
+    def update_document_db(
+            self, 
+            ids: Optional[list[str]],
+            documents: Optional[Iterable[str] | Iterable[Document] | Documents]
+            ) -> None:
+        if documents is not None and self.document_db:
+            self.document_db.set_documents(ids, documents)
+
+    def delete_from_document_db(self, ids: list[str]) -> None:
+        if self.document_db:
+            self.document_db.delete_documents(ids)
+
+
     def add(
             self,
             ids: list[str],
             metadatas: Optional[list[dict]] = None,
             documents: Optional[list[str]] = None,
             embeddings: Optional[list[Embedding]|Embeddings] = None,
+            update_document_db: bool = True,
             **kwargs
             ) -> Self:
+        return self.add_documents(self._iterables_to_documents(ids, metadatas, documents, embeddings), update_document_db, **kwargs)
         
-        raise NotImplementedError("This method must be implemented by the subclass")
-
+    def add_documents(
+            self,
+            documents: Iterable[Document] | Documents,
+            update_document_db: bool = True,
+            **kwargs
+            ) -> Self:
+        return self.add(*self._documents_to_lists(documents), update_document_db, **kwargs)
 
     def update(
             self,
@@ -183,34 +245,61 @@ class VectorDBIndex(Retriever):
             metadatas: Optional[list[dict]] = None,
             documents: Optional[list[str]] = None,
             embeddings: Optional[list[Embedding]|Embeddings] = None,
+            update_document_db: bool = True,
             **kwargs
                 ) -> Self:
-          
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return self.update_documents(self._iterables_to_documents(ids, metadatas, documents, embeddings), update_document_db, **kwargs)
     
+    def update_documents(
+            self,
+            documents: Iterable[Document] | Documents,
+            update_document_db: bool = True,            
+            **kwargs
+                ) -> Self:
 
+        return self.update(*self._documents_to_lists(documents), update_document_db, **kwargs)  
+                 
     def upsert(
             self,
             ids: list[str],
             metadatas: Optional[list[dict]] = None,
             documents: Optional[list[str]] = None,
             embeddings: Optional[list[Embedding]|Embeddings] = None,
+            update_document_db: bool = True,
             **kwargs
                 ) -> Self:
         
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return self.upsert_documents(self._iterables_to_documents(ids, metadatas, documents, embeddings), update_document_db, **kwargs)
     
-
+    def upsert_documents(
+            self,
+            documents: Iterable[Document] | Documents,
+            update_document_db: bool = True,
+            **kwargs
+                ) -> Self:
+        return self.upsert(*self._documents_to_lists(documents), update_document_db, **kwargs)
+  
     def delete(
             self, 
-            ids: list[str],
+            ids: Optional[list[str]] = None,
             where: Optional[dict] = None,
             where_document: Optional[dict] = None,
+            update_document_db: bool = True,
             **kwargs
                ) -> None:
         raise NotImplementedError("This method must be implemented by the subclass")
 
-        
+    def delete_documents(
+            self,
+            documents: Optional[Iterable[Document] | Documents],
+            where: Optional[dict] = None,
+            where_document: Optional[dict] = None,
+            update_document_db: bool = True,
+            **kwargs
+                ) -> None:    
+        ids = [doc.id for doc in documents] if documents else None
+        return self.delete(ids, where, where_document, update_document_db, **kwargs)
+    
     def get(
             self,
             ids: Optional[list[str]] = None,
@@ -225,7 +314,7 @@ class VectorDBIndex(Retriever):
 
     def query(
             self,              
-            text_or_embedding: str|Embedding,
+            query_input: str|Embedding,
             top_k: int = 10,
             where: Optional[dict] = None,
             where_document: Optional[dict] = None,
@@ -237,7 +326,7 @@ class VectorDBIndex(Retriever):
 
     def query_many(
             self,              
-            texts_or_embeddings: list[str] | list[Embedding] | Embeddings,
+            query_inputs: list[str] | list[Embedding] | Embeddings,
             top_k: int = 10,
             where: Optional[dict] = None,
             where_document: Optional[dict] = None,
@@ -247,35 +336,8 @@ class VectorDBIndex(Retriever):
         
         raise NotImplementedError("This method must be implemented by the subclass")  
 
-
-    # def query(self,              
-    #           query_text: Optional[str] = None,
-    #           query_embedding: Optional[Embedding] = None,
-    #           top_k: int = 10,
-    #           where: Optional[dict] = None,
-    #           where_document: Optional[dict] = None,
-    #           include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
-    #           **kwargs
-    #           ) -> VectorDBQueryResult:
-        
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-
-    # def query_many(self,              
-    #           query_texts: Optional[list[str]] = None,
-    #           query_embeddings: Optional[list[Embedding]] = None,
-    #           top_k: int = 10,
-    #           where: Optional[dict] = None,
-    #           where_document: Optional[dict] = None,
-    #           include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
-    #           **kwargs
-    #           ) -> list[VectorDBQueryResult]:
-        
-    #     raise NotImplementedError("This method must be implemented by the subclass")    
-
-
     def list_ids(self, **kwargs) -> list[str]:
         raise NotImplementedError("This method must be implemented by the subclass")
     
-
     def delete_all(self, **kwargs) -> None:
         raise NotImplementedError("This method must be implemented by the subclass")

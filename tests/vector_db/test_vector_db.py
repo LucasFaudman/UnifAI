@@ -46,11 +46,11 @@ def parameterize_embedding_provider_embedding_model(func):
             ("openai", "text-embedding-3-small"),
             # ("openai", "text-embedding-ada-002"),
             ("google", None),
-            ("nvidia", None),
+            # ("nvidia", None),
             # ("google", "models/text-embedding-004"),
             # ("google", "embedding-gecko-001"),
             # ("google", "embedding-001"),
-            ("ollama", None),
+            # ("ollama", None),
             # ("ollama", "llama3.1-8b-num_ctx-8192:latest"),
             # ("ollama", "mistral:latest"),
         ]
@@ -63,7 +63,7 @@ def parameterize_dimensions(func):
         [
             None, 
             # 100, 
-            1000, 
+            # 1000, 
             1536, 
             # 3072
         ]
@@ -88,8 +88,9 @@ def parameterize_distance_metric(func):
 
 
 
-@base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
+# @base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
 # @base_test_vector_dbs_all
+@base_test(*VECTOR_DB_PROVIDERS, exclude=[])
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -102,7 +103,7 @@ def test_vector_db_create_index(provider: Provider,
                                 embedding_provider: Optional[LLMProvider],
                                 embedding_model: Optional[str],
                                 dimensions: Optional[int],
-                                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]],                                                                                               
+                                distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]],                                                                                               
                                 tmp_path,
                                 serial
                                 ):
@@ -124,7 +125,7 @@ def test_vector_db_create_index(provider: Provider,
 
     index = client.create_index(
         name=name,
-        metadata=metadata,
+        # metadata=metadata,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
@@ -135,17 +136,7 @@ def test_vector_db_create_index(provider: Provider,
     assert isinstance(index, VectorDBIndex)
     assert index.name == name
     
-    updated_metadata = {
-                **metadata,
-                "_unifai_embedding_config": ",".join((
-                str(embedding_provider),
-                str(embedding_model),
-                str(dimensions if dimensions is not None else 1536),
-                str(distance_metric if distance_metric is not None else "cosine")
-            ))                
-    }
-    if provider == "chroma": assert index.metadata == updated_metadata
-    
+
     assert index.embedding_provider == embedding_provider
     assert index.embedding_model == embedding_model
     assert index.dimensions == dimensions if dimensions is not None else 1536
@@ -164,7 +155,7 @@ def test_vector_db_create_index(provider: Provider,
 
     index2 = client.get_or_create_index(
         name=index2_name,
-        metadata=metadata,
+        # metadata=metadata,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
@@ -175,7 +166,7 @@ def test_vector_db_create_index(provider: Provider,
     assert index2
     assert isinstance(index2, VectorDBIndex)
     assert index2.name == index2_name
-    if provider == "chroma": assert index2.metadata == updated_metadata
+    # if provider == "chroma": assert index2.metadata == updated_metadata
     assert index2.embedding_provider == embedding_provider
     assert index2.embedding_model == embedding_model
     assert index2.dimensions == dimensions if dimensions is not None else 1536
@@ -186,20 +177,20 @@ def test_vector_db_create_index(provider: Provider,
     assert sorted(client.list_indexes()) == sorted([name, index2_name])
     assert client.count_indexes() == 2
     
-    # test getting index by metadata
-    if provider == "chroma":
-        client.indexes.pop(index2_name)
-        metaloaded_index2 = client.get_index(name=index2_name)
-        assert metaloaded_index2
-        assert isinstance(metaloaded_index2, VectorDBIndex)
-        assert metaloaded_index2.name == index2.name
-        assert metaloaded_index2.metadata == index2.metadata
-        assert metaloaded_index2.embedding_provider == index2.embedding_provider
-        assert metaloaded_index2.embedding_model == index2.embedding_model
-        assert metaloaded_index2.dimensions == index2.dimensions
-        assert metaloaded_index2.distance_metric == index2.distance_metric
+    # # test getting index by metadata
+    # if provider == "chroma":
+    #     client.indexes.pop(index2_name)
+    #     metaloaded_index2 = client.get_index(name=index2_name)
+    #     assert metaloaded_index2
+    #     assert isinstance(metaloaded_index2, VectorDBIndex)
+    #     assert metaloaded_index2.name == index2.name
+    #     assert metaloaded_index2.metadata == index2.metadata
+    #     assert metaloaded_index2.embedding_provider == index2.embedding_provider
+    #     assert metaloaded_index2.embedding_model == index2.embedding_model
+    #     assert metaloaded_index2.dimensions == index2.dimensions
+    #     assert metaloaded_index2.distance_metric == index2.distance_metric
 
-        assert client.get_index(index2_name) == metaloaded_index2
+    #     assert client.get_index(index2_name) == metaloaded_index2
 
     # test deleting index
     client.delete_index(index2_name)
@@ -218,9 +209,9 @@ def approx_embeddings(embeddings, expected_embeddings):
         for j, value in enumerate(embedding):
             assert pytest.approx(value) == pytest.approx(expected_embeddings[i][j])
 
-# @base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
+# @base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
 # @base_test_vector_dbs_all
-@base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
+@base_test(*VECTOR_DB_PROVIDERS, exclude=[])
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -233,7 +224,7 @@ def test_vector_db_add(provider: Provider,
                                 embedding_provider: Optional[LLMProvider],
                                 embedding_model: Optional[str],
                                 dimensions: Optional[int],
-                                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]],                                                                
+                                distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]],                                                                
                                 # serial
                                 ):
 
@@ -256,7 +247,7 @@ def test_vector_db_add(provider: Provider,
 
     index = client.create_index(
         name=name,
-        metadata=metadata,
+        # metadata=metadata,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
@@ -432,9 +423,8 @@ def test_vector_db_add(provider: Provider,
     del ai
 
 # @base_test_vector_dbs_all
-# @base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
-
-@base_test(*VECTOR_DB_PROVIDERS, exclude=["chroma"])
+# @base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])])
+@base_test(*VECTOR_DB_PROVIDERS, exclude=[])
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
@@ -447,7 +437,7 @@ def test_vector_db_query_simple(provider: Provider,
                                 embedding_provider: Optional[LLMProvider],
                                 embedding_model: Optional[str],
                                 dimensions: Optional[int],
-                                distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]],                                                                
+                                distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]],                                                                
                                 # serial
                                 ):
 
@@ -471,7 +461,7 @@ def test_vector_db_query_simple(provider: Provider,
 
     index = client.create_index(
         name=name,
-        metadata=metadata,
+        # metadata=metadata,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,

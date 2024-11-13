@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Literal, Self
+from typing import TYPE_CHECKING, Optional, Literal, Self, Iterable
 from itertools import zip_longest
 
 if TYPE_CHECKING:
     from chromadb.api.models.Collection import Collection as ChromaCollection
 
-from ...types import Embedding, Embeddings, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult
+
+from ...types import Embedding, Embeddings, EmbeddingProvider, VectorDBGetResult, VectorDBQueryResult, Document, Documents
 from .._base_component import convert_exceptions
 from ..base_adapters.chroma_base import ChromaExceptionConverter
 from ._base_vector_db_index import VectorDBIndex
-
 
 class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
     provider = "chroma"
@@ -27,7 +27,7 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
     #            embedding_provider: Optional[EmbeddingProvider] = None,
     #            embedding_model: Optional[str] = None,
     #            dimensions: Optional[int] = None,
-    #            distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,               
+    #            distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None,               
     #            metadata_update_mode: Optional[Literal["replace", "merge"]] = "replace",
     #            **kwargs
     #            ) -> Self:
@@ -43,81 +43,81 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
     #     self.wrapped.modify(name=self.name, metadata=self.metadata, **kwargs)
     #     return self
 
-            
     @convert_exceptions
+    def _update_dbs(
+        self,
+        _wrapped_func: str,
+        ids: list[str],
+        metadatas: Optional[list[dict]] = None,
+        documents: Optional[list[str]] = None,
+        embeddings: Optional[list[Embedding]] = None,
+        update_document_db: bool = True,
+        **kwargs
+        ) -> Self:
+        
+        if documents and not embeddings:
+            embeddings = self._prepare_embeddings("documents", documents)
+        
+        getattr(self._wrapped, _wrapped_func)(
+            ids=ids, 
+            metadatas=metadatas, 
+            documents=documents, 
+            embeddings=embeddings,
+            **kwargs
+        )
+        if update_document_db:
+            # self.update_document_db(self._iterables_to_documents(ids, metadatas, documents))
+            self.update_document_db(ids, documents)
+        return self
+            
     def add(self,
             ids: list[str],
             metadatas: Optional[list[dict]] = None,
             documents: Optional[list[str]] = None,
             embeddings: Optional[list[Embedding]] = None,
+            update_document_db: bool = True,
             **kwargs
             ) -> Self:
         
         if not documents and not embeddings:
             raise ValueError("Either documents or embeddings must be provided")
-        if documents and not embeddings:
-            embeddings = self._prepare_embeddings("documents", documents)
-        
-        self._wrapped.add(
-            ids=ids, 
-            metadatas=metadatas, 
-            documents=documents, 
-            embeddings=embeddings,
-            **kwargs
-        )
-        return self
+        return self._update_dbs("add", ids, metadatas, documents, embeddings, update_document_db, **kwargs)
+    
 
-    @convert_exceptions
     def update(self,
                 ids: list[str],
                 metadatas: Optional[list[dict]] = None,
                 documents: Optional[list[str]] = None,
                 embeddings: Optional[list[Embedding]] = None,
+                update_document_db: bool = True,
                 **kwargs
                 ) -> Self:
 
-        if documents and not embeddings:
-            embeddings = self._prepare_embeddings("documents", documents)
+        return self._update_dbs("update", ids, metadatas, documents, embeddings, update_document_db, **kwargs)
 
-        self._wrapped.update(
-            ids=ids, 
-            metadatas=metadatas, 
-            documents=documents, 
-            embeddings=embeddings,
-            **kwargs
-        )
-        return self
-    
-    @convert_exceptions
     def upsert(self,
                 ids: list[str],
                 metadatas: Optional[list[dict]] = None,
                 documents: Optional[list[str]] = None,
                 embeddings: Optional[list[Embedding]] = None,
+                update_document_db: bool = True,
                 **kwargs
                 ) -> Self:
         
-        if documents and not embeddings:
-            embeddings = self._prepare_embeddings("documents", documents)
-
-        self._wrapped.upsert(
-            ids=ids, 
-            metadatas=metadatas, 
-            documents=documents, 
-            embeddings=embeddings,
-            **kwargs
-        )
-        return self
+        return self._update_dbs("upsert", ids, metadatas, documents, embeddings, update_document_db, **kwargs)
     
+
     @convert_exceptions
     def delete(self, 
-               ids: list[str],
+               ids: Optional[list[str]] = None,
                where: Optional[dict] = None,
                where_document: Optional[dict] = None,
+               update_document_db: bool = True,
                **kwargs
                ) -> None:
-        return self._wrapped.delete(ids=ids, where=where, where_document=where_document, **kwargs)
-
+        self._wrapped.delete(ids=ids, where=where, where_document=where_document, **kwargs)
+        if update_document_db and ids:
+            self.delete_from_document_db(ids)
 
     @convert_exceptions
     def get(self,
@@ -150,21 +150,21 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
 
     def query(
             self,              
-            text_or_embedding: str|Embedding,
+            query_input: str|Embedding,
             top_k: int = 10,
             where: Optional[dict] = None,
             where_document: Optional[dict] = None,
             include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
             **kwargs
               ) -> VectorDBQueryResult:
-        texts_or_embeddings = [text_or_embedding]
-        return self.query_many(texts_or_embeddings, top_k, where, where_document, include, **kwargs)[0]
+        inputs = [query_input]
+        return self.query_many(inputs, top_k, where, where_document, include, **kwargs)[0]
 
     
     @convert_exceptions
     def query_many(
             self,              
-            texts_or_embeddings: list[str] | list[Embedding] | Embeddings,
+            query_inputs: list[str] | list[Embedding] | Embeddings,
             top_k: int = 10,
             where: Optional[dict] = None,
             where_document: Optional[dict] = None,
@@ -172,7 +172,7 @@ class ChromaIndex(ChromaExceptionConverter, VectorDBIndex):
             **kwargs
               ) -> list[VectorDBQueryResult]:
         
-        query_embeddings = self._prepare_embeddings("queries", texts_or_embeddings)
+        query_embeddings = self._prepare_embeddings("queries", query_inputs)
         query_result = self._wrapped.query(
             query_embeddings=query_embeddings, 
             n_results=top_k, 

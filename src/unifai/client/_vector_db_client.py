@@ -17,7 +17,7 @@ class UnifAIVectorDBClient(UnifAIEmbedClient, UnifAIDocumentDBClient):
                       default_embedding_provider: Optional[str] = None,
                       default_embedding_model: Optional[str] = None,
                       default_dimensions: int = 768,
-                      default_distance_metric: Literal["cosine", "euclidean", "dotproduct"] = "cosine",
+                      default_distance_metric: Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"] = "cosine",
                       default_index_kwargs: Optional[dict] = None,
                       default_document_db: Optional["DocumentDB"] = None,                                                  
                       **client_kwargs
@@ -41,7 +41,7 @@ class UnifAIVectorDBClient(UnifAIEmbedClient, UnifAIDocumentDBClient):
                             embedding_provider: Optional[str] = None,
                             embedding_model: Optional[str] = None,
                             dimensions: Optional[int] = None,
-                            distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None, 
+                            distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None, 
                             index_metadata: Optional[dict] = None,
                             **kwargs
                             ) -> "VectorDBIndex":

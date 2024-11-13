@@ -1,3 +1,4 @@
+from .documents import Document, Documents, QueryDocument, QueryDocuments, RerankedDocument, RerankedDocuments
 from .image import Image
 from .message import Message, MessageChunk
 from .embeddings import Embeddings, Embedding

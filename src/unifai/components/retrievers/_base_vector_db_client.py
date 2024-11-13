@@ -9,63 +9,16 @@ from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, BadR
 
 
 T = TypeVar("T")
-
-class VectorDBCompatibleEmbeddingFunction:
-    """
-    Chroma style EmbeddingFunction object that takes a list of documents and returns a list of embeddings.    
-    - Stores the a reference to the embedding function, the embedding provider, model, and dimensions used to generate the embeddings.
-    - Stores a list of response infos for the embeddings. (usage, model, etc)
-    Args:
-        embed (Callable[..., Embeddings]): Embedding function that takes a list of documents and returns a list of embeddings.
-        embedding_provider (Optional[str]): The embedding provider to use.
-        model (Optional[str]): The embedding model to use.
-        dimensions (Optional[int]): The number of dimensions to use.
-        response_infos (Optional[list[ResponseInfo]]): List of response infos (usage, model, etc) for the embeddings.
-    """
-
-    def __init__(
-            self,
-            embed: Callable[..., Embeddings],
-            embedding_provider: Optional[EmbeddingProvider] = None,
-            model: Optional[str] = None,
-            dimensions: Optional[int] = None,
-            response_infos: Optional[list[ResponseInfo]] = None,
-    ):
-        self.embed = embed
-        self.embedding_provider = embedding_provider
-        self.model = model
-        self.dimensions = dimensions
-        self.response_infos = response_infos or []
-
-    def __call__(self, input: list[str]) -> list[Embedding]:
-        """
-        Embed a list of documents.
-        
-        Args:
-            input (list[str]): List of documents to embed.
-
-        Returns:
-            list[Embedding]: List of embeddings for the input documents. (list of lists of floats)           
-        """
-        print(f"Embedding {len(input)} documents")
-        embed_result = self.embed(
-            input=input,
-            model=self.model,
-            provider=self.embedding_provider,
-            dimensions=self.dimensions
-        )
-        if embed_result.response_info:
-            self.response_infos.append(embed_result.response_info)
-        return embed_result.list()
-    
+IndexType = TypeVar("IndexType", bound=VectorDBIndex)
 
 class VectorDBClient(UnifAIAdapter, Retriever):
     provider = "base_vector_db"
+    index_type = VectorDBIndex
 
     def __init__(self, 
                  _embed: Callable[..., Embeddings],
                  default_dimensions: int = 768,
-                 default_distance_metric: Literal["cosine", "euclidean", "dotproduct"] = "cosine",                 
+                 default_distance_metric: Literal["cosine", "dotproduct", "euclidean", "ip", "l2"] = "cosine",                 
                  default_document_db: Optional[DocumentDB] = None,
                  default_index_kwargs: Optional[dict] = None,                 
                  default_embedding_provider: EmbeddingProvider = "openai",
@@ -86,7 +39,7 @@ class VectorDBClient(UnifAIAdapter, Retriever):
 
         self._embed = _embed
         self.default_dimensions = default_dimensions
-        self.default_distance_metric = default_distance_metric
+        self.default_distance_metric = self._validate_distance_metric(default_distance_metric)
         self.default_document_db = default_document_db
         self.default_index_kwargs = default_index_kwargs or {}
         self.default_embedding_provider = default_embedding_provider
@@ -101,20 +54,25 @@ class VectorDBClient(UnifAIAdapter, Retriever):
         self.embed_response_infos.append(embeddings.response_info)
         return embeddings
 
-    def _apply_defaults(
+    def _validate_distance_metric(self, distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]]) -> Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]:
+        raise NotImplementedError("This method must be implemented by the subclass")
+
+    def _init_index(
             self, 
+            _wrapped: Any,
+            _index_type: Type[IndexType],
             name: str,
             dimensions: Optional[int] = None,
-            distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,       
-            document_db: Optional[DocumentDB] = None,            
+            distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None,
+            document_db: Optional[DocumentDB] = None,
             embedding_provider: Optional[EmbeddingProvider] = None,
             embedding_model: Optional[str] = None,
             embed_document_task_type: Optional[EmbeddingTaskTypeInput] = None,
             embed_query_task_type: Optional[EmbeddingTaskTypeInput] = None,
-            embed_kwargs: Optional[dict] = None,     
-            **kwargs
-            ) -> dict:
-        kwargs.update(
+            embed_kwargs: Optional[dict] = None,
+            **index_kwargs
+    ) -> IndexType:
+        index_kwargs.update(
                 name=name,
                 dimensions=dimensions or self.default_dimensions,
                 distance_metric=distance_metric or self.default_distance_metric,
@@ -124,14 +82,52 @@ class VectorDBClient(UnifAIAdapter, Retriever):
                 embed_document_task_type=embed_document_task_type or self.default_embed_document_task_type,
                 embed_query_task_type=embed_query_task_type or self.default_embed_query_task_type,
                 embed_kwargs=embed_kwargs or self.default_embed_kwargs,       
+        )        
+
+        index = _index_type(
+            _wrapped=_wrapped,
+            _embed=self.embed,
+            **index_kwargs
         )
-        return kwargs
+        self.indexes[name] = index
+        return index       
+
+    def _create_wrapped_index(
+            self, 
+            name: str,
+            dimensions: Optional[int] = None,
+            distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None,
+            document_db: Optional[DocumentDB] = None,
+            embedding_provider: Optional[EmbeddingProvider] = None,
+            embedding_model: Optional[str] = None,
+            embed_document_task_type: Optional[EmbeddingTaskTypeInput] = None,
+            embed_query_task_type: Optional[EmbeddingTaskTypeInput] = None,
+            embed_kwargs: Optional[dict] = None,
+            **index_kwargs
+                     ) -> Any:
+        raise NotImplementedError("This method must be implemented by the subclass")
+
+    def _get_wrapped_index(
+            self, 
+            name: str,
+            dimensions: Optional[int] = None,
+            distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None,
+            document_db: Optional[DocumentDB] = None,
+            embedding_provider: Optional[EmbeddingProvider] = None,
+            embedding_model: Optional[str] = None,
+            embed_document_task_type: Optional[EmbeddingTaskTypeInput] = None,
+            embed_query_task_type: Optional[EmbeddingTaskTypeInput] = None,
+            embed_kwargs: Optional[dict] = None,
+            **index_kwargs
+                     ) -> Any:
+        raise NotImplementedError("This method must be implemented by the subclass")
+
 
     def create_index(
             self, 
             name: str,
             dimensions: Optional[int] = None,
-            distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
+            distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None,
             document_db: Optional[DocumentDB] = None,
             embedding_provider: Optional[EmbeddingProvider] = None,
             embedding_model: Optional[str] = None,
@@ -140,14 +136,41 @@ class VectorDBClient(UnifAIAdapter, Retriever):
             embed_kwargs: Optional[dict] = None,
             **index_kwargs
                      ) -> VectorDBIndex:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
+        
+        distance_metric = self._validate_distance_metric(distance_metric) if distance_metric else self.default_distance_metric
+        index_kwargs = {**self.default_index_kwargs, **index_kwargs}            
+        _wrapped = self._create_wrapped_index(
+            name=name,
+            dimensions=dimensions,
+            distance_metric=distance_metric,
+            document_db=document_db,
+            embedding_provider=embedding_provider,
+            embedding_model=embedding_model,
+            embed_document_task_type=embed_document_task_type,
+            embed_query_task_type=embed_query_task_type,
+            embed_kwargs=embed_kwargs,
+            **index_kwargs
+        )
+        return self._init_index(
+            _wrapped=_wrapped,
+            _index_type=self.index_type,
+            name=name,
+            dimensions=dimensions,
+            distance_metric=distance_metric,
+            document_db=document_db,
+            embedding_provider=embedding_provider,
+            embedding_model=embedding_model,
+            embed_document_task_type=embed_document_task_type,
+            embed_query_task_type=embed_query_task_type,
+            embed_kwargs=embed_kwargs,
+            **index_kwargs
+        )
 
     def get_index(
             self, 
             name: str,
             dimensions: Optional[int] = None,
-            distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
+            distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None,
             document_db: Optional[DocumentDB] = None,
             embedding_provider: Optional[EmbeddingProvider] = None,
             embedding_model: Optional[str] = None,
@@ -156,14 +179,45 @@ class VectorDBClient(UnifAIAdapter, Retriever):
             embed_kwargs: Optional[dict] = None,
             **index_kwargs
                   ) -> VectorDBIndex:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        
+        if index := self.indexes.get(name):
+            return index        
+        
+        distance_metric = self._validate_distance_metric(distance_metric) if distance_metric else self.default_distance_metric
+        index_kwargs = {**self.default_index_kwargs, **index_kwargs}            
+        _wrapped = self._get_wrapped_index(
+            name=name,
+            dimensions=dimensions,
+            distance_metric=distance_metric,
+            document_db=document_db,
+            embedding_provider=embedding_provider,
+            embedding_model=embedding_model,
+            embed_document_task_type=embed_document_task_type,
+            embed_query_task_type=embed_query_task_type,
+            embed_kwargs=embed_kwargs,
+            **index_kwargs
+        )
+        return self._init_index(
+            _wrapped=_wrapped,
+            _index_type=self.index_type,
+            name=name,
+            dimensions=dimensions,
+            distance_metric=distance_metric,
+            document_db=document_db,
+            embedding_provider=embedding_provider,
+            embedding_model=embedding_model,
+            embed_document_task_type=embed_document_task_type,
+            embed_query_task_type=embed_query_task_type,
+            embed_kwargs=embed_kwargs,
+            **index_kwargs
+        )
 
 
     def get_or_create_index(
             self, 
             name: str,
             dimensions: Optional[int] = None,
-            distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None,
+            distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None,
             document_db: Optional[DocumentDB] = None,
             embedding_provider: Optional[EmbeddingProvider] = None,
             embedding_model: Optional[str] = None,

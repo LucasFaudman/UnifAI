@@ -1,14 +1,12 @@
-from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
+from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Iterable,  Callable, Iterator, Collection, Generator, Self
 
 from unifai.exceptions import DocumentNotFoundError, DocumentWriteError, DocumentDeleteError
 from ._base_document_db import DocumentDB
 
 T = TypeVar("T")
 
-
 class DictDocumentDB(DocumentDB):
     provider = "dict"
-
 
     def __init__(self, documents: dict[str, str]):
         self.documents = documents
@@ -40,4 +38,4 @@ class DictDocumentDB(DocumentDB):
 
     def delete_documents(self, ids: Collection[str]) -> None:
         for id in ids:
-            del self.documents[id]        
+            del self.documents[id]       

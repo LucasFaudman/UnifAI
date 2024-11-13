@@ -20,7 +20,7 @@ class RAGConfig(BaseModel):
     embedding_provider: Optional[str] = None
     embedding_model: Optional[str] = None
     embedding_dimensions: Optional[int] = None
-    embedding_distance_metric: Optional[Literal["cosine", "euclidean", "dotproduct"]] = None
+    embedding_distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None
     
     rerank_provider: Optional[str] = None
     rerank_model: Optional[str] = None
