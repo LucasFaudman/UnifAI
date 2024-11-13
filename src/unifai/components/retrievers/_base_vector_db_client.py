@@ -283,12 +283,12 @@ class VectorDBClient(UnifAIAdapter, Retriever):
         return self.get_index(name).count(**kwargs)
     
 
-    def modify_index(self, 
-                     name: str, 
-                     new_name: Optional[str]=None,
-                     **kwargs
-                     ) -> VectorDBIndex:
-        return self.get_index(name).modify(new_name, **kwargs)   
+    # def modify_index(self, 
+    #                  name: str, 
+    #                  new_name: Optional[str]=None,
+    #                  **kwargs
+    #                  ) -> VectorDBIndex:
+    #     return self.get_index(name).modify(new_name, **kwargs)   
 
 
     def add(self,

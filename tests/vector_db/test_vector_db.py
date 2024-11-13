@@ -6,7 +6,7 @@ from unifai.components.retrievers._base_vector_db_client import VectorDBClient, 
 from unifai.components import DictDocumentDB
 
 from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
-from unifai.exceptions import BadRequestError, NotFoundError
+from unifai.exceptions import BadRequestError, NotFoundError, DocumentNotFoundError
 from basetest import base_test, base_test_vector_dbs_all, PROVIDER_DEFAULTS, VECTOR_DB_PROVIDERS
 from chromadb.errors import InvalidCollectionException
 
@@ -76,7 +76,7 @@ def parameterize_distance_metric(func):
             None, 
             # "cosine", 
             # "euclidean", 
-            # "dotproduct"
+            "dotproduct"
         ]
     )(func)
 

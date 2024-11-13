@@ -71,6 +71,17 @@ PROVIDER_DEFAULTS = {
         {},
         {}
     ),  
+    "dict": (
+        "dict",
+        {},
+        {}
+    ),
+    "sqlite": (
+        "sqlite",
+        {},
+        {}
+    ),
+
 
 }
 
@@ -95,6 +106,16 @@ EMBEDDING_PROVIDER_DEFAULTS = [
     PROVIDER_DEFAULTS["nvidia"]    
 ]
 EMBEDDING_PROVIDERS = [provider[0] for provider in EMBEDDING_PROVIDER_DEFAULTS]
+
+DOCUMENT_DB_PROVIDER_DEFAULTS = [
+    PROVIDER_DEFAULTS["dict"],
+    PROVIDER_DEFAULTS["sqlite"],
+    # PROVIDER_DEFAULTS["firebase"],
+    # PROVIDER_DEFAULTS["mongodb"],
+    # PROVIDER_DEFAULTS["elasticsearch"],
+]
+
+DOCUMENT_DB_PROVIDERS = [provider[0] for provider in DOCUMENT_DB_PROVIDER_DEFAULTS]
 
 
 VECTOR_DB_PROVIDER_DEFAULTS = [
@@ -153,6 +174,9 @@ def base_test_llms_all(func):
 # def base_test_llms_no_cohere(func):
 #     return base_test(*LLM_PROVIDERS, exclude=["cohere"])(func)
 
+# Document DB test decorators
+def base_test_document_dbs_all(func):
+    return base_test(*DOCUMENT_DB_PROVIDERS)(func)
 
 # Embedding test decorators
 def base_test_embeddings_all(func):

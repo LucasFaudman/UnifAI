@@ -8,8 +8,8 @@ T = TypeVar("T")
 class DictDocumentDB(DocumentDB):
     provider = "dict"
 
-    def __init__(self, documents: dict[str, str]):
-        self.documents = documents
+    def __init__(self, documents: Optional[dict[str, str]] = None):
+        self.documents = documents if documents is not None else {}
 
     def get_document(self, id: str) -> str:
         try:

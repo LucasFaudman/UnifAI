@@ -19,6 +19,14 @@ from .api_errors import (
     TeapotError,
     STATUS_CODE_TO_EXCEPTION_MAP,
 )
+from .document_db_errors import (
+    DocumentDBError,
+    DocumentDBAPIError,
+    DocumentReadError,
+    DocumentWriteError,
+    DocumentDeleteError,
+    DocumentNotFoundError,    
+)
 from .embedding_errors import (
     EmbeddingError,
     EmbeddingAPIError,
@@ -52,13 +60,8 @@ from .vector_db_errors import (
     IndexAlreadyExistsError,
     InvalidQueryError,
     DimensionsMismatchError,
-    DocumentDBError,
-    DocumentDBAPIError,
-    DocumentReadError,
-    DocumentWriteError,
-    DocumentDeleteError,
-    DocumentNotFoundError,    
 )
+
 
 from .eval_errors import (
     EvalError,
@@ -114,6 +117,7 @@ __all__ = [
     "IndexAlreadyExistsError",
     "InvalidQueryError",
     "DimensionsMismatchError",
+    
     "DocumentDBError",
     "DocumentDBAPIError",
     "DocumentReadError",
