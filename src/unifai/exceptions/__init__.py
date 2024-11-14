@@ -1,4 +1,7 @@
-from ._base import UnifAIError
+from ._base import (
+    UnifAIError, 
+    UnknownUnifAIError
+)
 from .api_errors import (
     APIError,
     UnknownAPIError,
@@ -52,6 +55,11 @@ from .tool_errors import (
     ToolChoiceError,
     ToolChoiceErrorRetriesExceeded,
 )
+from .tokenizer_errors import (
+    TokenizerError,
+    TokenizerDisallowedSpecialTokenError,
+    TokenizerVocabError,
+)
 from .usage_errors import (
     ContentFilterError,
     TokenLimitExceededError,
@@ -68,6 +76,8 @@ from .vector_db_errors import (
 
 __all__ = [
     "UnifAIError",
+    "UnknownUnifAIError",
+
     "APIError",
     "UnknownAPIError",
     "APIConnectionError",
@@ -96,6 +106,8 @@ __all__ = [
     "ProviderUnsupportedFeatureError",
     "ModelUnsupportedFeatureError",
 
+    "OutputParserError",
+
     "ToolError",
     "ToolValidationError",
     "ToolNotFoundError",
@@ -105,6 +117,10 @@ __all__ = [
     "ToolCallExecutionError",
     "ToolChoiceError",
     "ToolChoiceErrorRetriesExceeded",
+
+    "TokenizerError",
+    "TokenizerDisallowedSpecialTokenError",
+    "TokenizerVocabError",
 
     "ContentFilterError",
     "TokenLimitExceededError",
@@ -123,6 +139,5 @@ __all__ = [
     "DocumentDeleteError",
     "DocumentNotFoundError",
 
-    "OutputParserError",
     
 ]

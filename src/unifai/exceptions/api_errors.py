@@ -1,5 +1,5 @@
 from typing import Optional
-from ._base import UnifAIError
+from ._base import UnifAIError, UnknownUnifAIError
 
 
 class APIError(UnifAIError):
@@ -17,7 +17,7 @@ class APIError(UnifAIError):
         self.error_code = error_code or self.default_error_code
         super().__init__(message, original_exception)
 
-class UnknownAPIError(APIError):
+class UnknownAPIError(APIError, UnknownUnifAIError):
     """
     Raised when an unknown error occurs during an API call
     Cause: Unknown error occurred during API call.

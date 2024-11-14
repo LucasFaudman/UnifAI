@@ -9,3 +9,7 @@ class UnifAIError(Exception):
         self.message = message
         self.original_exception = original_exception
         super().__init__(original_exception)
+
+class UnknownUnifAIError(UnifAIError):
+    """Raised when an unknown error occurs in UnifAI"""
+    pass
