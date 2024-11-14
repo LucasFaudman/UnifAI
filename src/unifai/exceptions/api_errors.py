@@ -17,7 +17,6 @@ class APIError(UnifAIError):
         self.error_code = error_code or self.default_error_code
         super().__init__(message, original_exception)
 
-
 class UnknownAPIError(APIError):
     """
     Raised when an unknown error occurs during an API call
@@ -26,7 +25,6 @@ class UnknownAPIError(APIError):
     """
     default_status_code = -1
     default_error_code = "unknown_error"        
-
 
 class APIConnectionError(APIError):
     """
@@ -37,7 +35,6 @@ class APIConnectionError(APIError):
     default_status_code = 502
     default_error_code = "connection_error"
     
-
 class APITimeoutError(APIConnectionError):
     """
     Raised when a request to the API times out
@@ -46,7 +43,6 @@ class APITimeoutError(APIConnectionError):
     """
     default_status_code = 504
     default_error_code = "timeout_error"
-
 
 class APIResponseValidationError(APIError):
     """
@@ -57,10 +53,8 @@ class APIResponseValidationError(APIError):
     default_status_code = 500
     default_error_code = "response_validation_error"   
     
-
 class APIStatusError(APIError):
     """Raised when an API response has a status code of 4xx or 5xx."""
-
 
 class AuthenticationError(APIStatusError):
     """
@@ -71,7 +65,6 @@ class AuthenticationError(APIStatusError):
     default_status_code = 401
     default_error_code = "authentication_error"
 
-
 class BadRequestError(APIStatusError):
     """
     Raised when a request is malformed or missing required parameters
@@ -80,7 +73,6 @@ class BadRequestError(APIStatusError):
     """
     default_status_code = 400
     default_error_code = "bad_request_error"
-
 
 class ConflictError(APIStatusError):
     """
@@ -91,7 +83,6 @@ class ConflictError(APIStatusError):
     default_status_code = 409
     default_error_code = "conflict_error"
 
-
 class RequestTooLargeError(APIStatusError):
     """
     Raised when the request size exceeds the limit
@@ -100,7 +91,6 @@ class RequestTooLargeError(APIStatusError):
     """
     default_status_code = 413
     default_error_code = "request_too_large_error"
-
 
 class InternalServerError(APIStatusError):
     """
@@ -111,7 +101,6 @@ class InternalServerError(APIStatusError):
     default_status_code = 500
     default_error_code = "internal_server_error"
 
-
 class ServerOverloadedError(APIStatusError):
     """
     Raised when the server is overloaded and cannot process the request
@@ -120,7 +109,6 @@ class ServerOverloadedError(APIStatusError):
     """
     default_status_code = 503
     default_error_code = "server_overloaded_error"
-
 
 class NotFoundError(APIStatusError):
     """
@@ -131,7 +119,6 @@ class NotFoundError(APIStatusError):
     default_status_code = 404
     default_error_code = "not_found_error"
 
-
 class PermissionDeniedError(APIStatusError):
     """
     Raised when access to a resource is denied
@@ -140,7 +127,6 @@ class PermissionDeniedError(APIStatusError):
     """
     default_status_code = 403
     default_error_code = "permission_denied_error"
-
 
 class RateLimitError(APIStatusError):
     """
@@ -151,7 +137,6 @@ class RateLimitError(APIStatusError):
     default_status_code = 429
     default_error_code = "rate_limit_error"
 
-
 class UnprocessableEntityError(APIStatusError):
     """
     Raised when a request cannot be processed despite having the correct format
@@ -160,7 +145,6 @@ class UnprocessableEntityError(APIStatusError):
     """
     default_status_code = 422
     default_error_code = "unprocessable_entity_error"
-
 
 class TeapotError(APIStatusError):
     """

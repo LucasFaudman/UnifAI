@@ -38,6 +38,9 @@ from .feature_errors import (
     ProviderUnsupportedFeatureError,
     ModelUnsupportedFeatureError,
 )
+from .output_parser_errors import (
+    OutputParserError,
+)
 from .tool_errors import (
     ToolError,
     ToolValidationError,
@@ -62,11 +65,6 @@ from .vector_db_errors import (
     DimensionsMismatchError,
 )
 
-
-from .eval_errors import (
-    EvalError,
-    OutputParserError,
-)
 
 __all__ = [
     "UnifAIError",
@@ -117,7 +115,7 @@ __all__ = [
     "IndexAlreadyExistsError",
     "InvalidQueryError",
     "DimensionsMismatchError",
-    
+
     "DocumentDBError",
     "DocumentDBAPIError",
     "DocumentReadError",
@@ -125,7 +123,6 @@ __all__ = [
     "DocumentDeleteError",
     "DocumentNotFoundError",
 
-    "EvalError",
     "OutputParserError",
     
 ]
