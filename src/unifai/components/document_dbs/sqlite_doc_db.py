@@ -1,7 +1,7 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 from json import dumps as json_dumps, loads as json_loads
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, GetResult, QueryResult
 from unifai.exceptions import UnifAIError, DocumentDBAPIError, DocumentNotFoundError, DocumentReadError, DocumentWriteError, DocumentDeleteError
 from ._base_document_db import DocumentDB, Document
 
@@ -61,7 +61,7 @@ class SQLiteDocumentDB(DocumentDB):
 
 
 
-    def get_documents(self, ids: list[str]) -> Iterable[str]:
+    def get_texts(self, ids: list[str]) -> Iterable[str]:
         try:
             cursor = self.connection.cursor()
             cursor.execute(f"SELECT id, document FROM {self.table_name} WHERE id IN ({','.join('?' for _ in ids)})", ids)
@@ -76,7 +76,7 @@ class SQLiteDocumentDB(DocumentDB):
                 raise DocumentNotFoundError(f"Document with id '{id}' not found")
 
 
-    def set_documents(self, ids: list[str], documents: list[str]) -> None:
+    def upsert_texts(self, ids: list[str], documents: list[str]) -> None:
         try:
             for id, document in zip(ids, documents):
                 self.connection.cursor().execute("INSERT OR REPLACE INTO documents (id, document) VALUES (?, ?)", (id, document))
@@ -85,7 +85,7 @@ class SQLiteDocumentDB(DocumentDB):
             raise DocumentWriteError(f"Error writing documents with ids '{ids}'", original_exception=e)
         
 
-    def delete_documents(self, ids: list[str]) -> None:
+    def delete_ids(self, ids: list[str]) -> None:
         try:
             self.connection.cursor().execute(f"DELETE FROM {self.table_name} WHERE id IN ({','.join('?' for _ in ids)})", ids)
             self.connection.commit()
