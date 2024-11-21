@@ -1,27 +1,16 @@
-from typing import Optional, Sequence, Literal, Self, Callable
+from typing import Optional, Sequence, Literal, Self, Callable, Iterator
 from pydantic import BaseModel, RootModel
 
+from .documents import Document
 from .embeddings import Embeddings, Embedding
 from itertools import zip_longest
 
-class VectorDBGetResult(BaseModel):
+class GetResult(BaseModel):
     ids: list[str]
     embeddings: Optional[list[Embedding]]
     documents: Optional[list[str]]
     metadatas: Optional[list[dict]]    
     included: list[Literal["ids", "embeddings", "metadatas", "documents"]]
-
-
-    def __iter__(self):
-        return iter(self.zip())
-    
-
-    def __len__(self):
-        return len(self.ids)
-    
-
-    def zip(self, *include: Literal["ids", "embeddings", "metadatas", "documents"]):
-        return zip(*(getattr(self, attr) for attr in include or self.included))
     
 
     def rerank(self, new_order: Sequence[int]) -> Self:
@@ -33,14 +22,14 @@ class VectorDBGetResult(BaseModel):
         return self
     
 
-    def slice(self, start: Optional[int] = None, end: Optional[int] = None) -> Self:
+    def trim(self, start: Optional[int] = None, end: Optional[int] = None) -> Self:
         for attr in self.included:
             setattr(self, attr, getattr(self, attr)[start:end])
         return self
 
 
     def reduce_to_top_n(self, n: int) -> Self:
-        return self.slice(end=n)
+        return self.trim(end=n)
     
 
     def sort(
@@ -55,8 +44,28 @@ class VectorDBGetResult(BaseModel):
         return self.rerank(new_order)
         
     
+    def zip(self, *include: Literal["ids", "embeddings", "metadatas", "documents"]):
+        return zip(*(getattr(self, attr) for attr in include or self.included))
+    
+    def __len__(self):
+        return len(self.ids)
 
-class VectorDBQueryResult(VectorDBGetResult):
+    def __getitem__(self, index: int) -> Document:
+        return Document(
+            id=self.ids[index],
+            embedding=self.embeddings[index] if self.embeddings else None,
+            metadata=self.metadatas[index] if self.metadatas else None,
+            text=self.documents[index] if self.documents else None
+        )
+
+    def __iter__(self) -> Iterator[Document]:
+        return iter(self[i] for i in range(len(self)))
+    
+    def list(self) -> list[Document]:
+        return list(self)
+    
+
+class QueryResult(GetResult):
     distances: Optional[list[float]]
     included: list[Literal["ids", "embeddings", "metadatas", "documents", "distances"]]
 

@@ -1,4 +1,4 @@
-from .documents import Document, Documents, QueryDocument, QueryDocuments, RerankedDocument, RerankedDocuments
+from .documents import Document, Documents, RankedDocument, RankedDocuments, RerankedDocument, RerankedDocuments
 from .image import Image
 from .message import Message, MessageChunk
 from .embeddings import Embeddings, Embedding
@@ -38,7 +38,7 @@ from .valid_inputs import (
     ResponseFormatInput,
     ReturnOnInput,
 )
-from .vector_db import VectorDBGetResult, VectorDBQueryResult
+from .vector_db import GetResult, QueryResult
 
 __all__ = [
     "Image", 
@@ -78,6 +78,6 @@ __all__ = [
 
     "Embeddings",
     "Embedding",
-    "VectorDBGetResult",
-    "VectorDBQueryResult",
+    "GetResult",
+    "QueryResult",
 ]
