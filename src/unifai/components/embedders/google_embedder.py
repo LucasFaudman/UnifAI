@@ -43,7 +43,7 @@ class GoogleEmbedder(GoogleAdapter, Embedder):
     def validate_task_type(self,
                             model: str,
                             task_type: Optional[EmbeddingTaskTypeInput] = None,
-                            task_type_not_supported: Literal["use_closest_supported", "raise_error"] = "use_closest_supported"
+                            use_closest_supported_task_type: bool = True
                             ) -> Optional[GoogleEmbeddingTaskType]:
         if task_type is None:
             return None
@@ -55,7 +55,7 @@ class GoogleEmbedder(GoogleAdapter, Embedder):
 
         if (_task_type := task_type.upper()) != "IMAGE":
             return _task_type # GoogleAI supports all input types except "image" # type: ignore
-        if task_type_not_supported == "use_closest_supported":
+        if use_closest_supported_task_type:
             return "RETRIEVAL_DOCUMENT"
         raise ProviderUnsupportedFeatureError(
             f"Embedding task_type={task_type} is not supported by Google. "
@@ -68,15 +68,11 @@ class GoogleEmbedder(GoogleAdapter, Embedder):
 
     def _get_embed_response(
             self,            
-            input: Sequence[str],
+            input: list[str],
             model: str,
             dimensions: Optional[int] = None,
             task_type: Optional[GoogleEmbeddingTaskType] = None,
-            input_too_large: Literal[
-                "truncate_end", 
-                "truncate_start", 
-                "raise_error"
-                ] = "truncate_end",
+            truncate: Literal[False, "end", "start"] = False,
             **kwargs
             ) -> Any:
         

@@ -4,17 +4,8 @@ from ..base_adapters._base_adapter import UnifAIAdapter
 
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Usage, Embeddings, EmbeddingTaskTypeInput, Document, Documents
 from ...exceptions import UnifAIError, ProviderUnsupportedFeatureError, EmbeddingDimensionsError
-
+from ...utils import chunk_iterable
 T = TypeVar("T")
-
-from itertools import islice
-def chunk_iterable(iterable: Iterable[T], chunk_size: Optional[int]) -> Iterable[Iterable[T]]:
-    if chunk_size is None:
-        yield iterable
-        return        
-    iterator = iter(iterable)
-    while chunk := tuple(islice(iterator, chunk_size)):
-        yield chunk
 
 class Embedder(UnifAIAdapter):
     provider = "base_embedder"
@@ -35,7 +26,7 @@ class Embedder(UnifAIAdapter):
     # Embeddings    
     def embed(
             self,            
-            input: str | Sequence[str],
+            input: str | list[str],
             model: Optional[str] = None,
             dimensions: Optional[int] = None,
             task_type: Optional[Literal[
@@ -48,44 +39,21 @@ class Embedder(UnifAIAdapter):
                 "fact_verification", 
                 "code_retrieval_query", 
                 "image"]] = None,
-            input_too_large: Literal[
-                "truncate_end", 
-                "truncate_start", 
-                "raise_error"] = "truncate_end",
-            dimensions_too_large: Literal[
-                "reduce_dimensions", 
-                "raise_error"
-            ] = "reduce_dimensions",
-            task_type_not_supported: Literal[
-                "use_closest_supported",
-                "raise_error",
-            ] = "use_closest_supported",            
+            truncate: Literal[False, "end", "start"] = False,
+            reduce_dimensions: bool = False,
+            use_closest_supported_task_type: bool = True,        
             **kwargs
             ) -> Embeddings:
         
-        if input_too_large == "truncate_start" and self.provider not in ("nvidia", "cohere"):
-            provider_title = self.provider.title()
-            raise ProviderUnsupportedFeatureError(
-                f"{provider_title} does not support truncating input at the start. "
-                f"Use 'truncate_end' or 'raise_error' instead with {provider_title}. "
-                "If you require truncating at the start, use Nvidia or Cohere embedding models which support this directly. "
-                f"Or use 'raise_error' to handle truncation manually when the input is too large for {provider_title} {model}."
-                )                
-
         # Add to kwargs for passing to both getter (all) and extractor (needed by some ie Google, some Nvidia models)
         kwargs["input"] = [input] if isinstance(input, str) else input
         kwargs["model"] = (model := model or self.default_embedding_model)
-        if dimensions is not None:
-            # Validate and set dimensions. Raises error if dimensions are invalid or too large for the model
-            dimensions = self.validate_dimensions(model, dimensions, dimensions_too_large)
-        else:
-            dimensions = self.get_model_dimensions(model)
-        kwargs["dimensions"] = dimensions
+        # Validate and set dimensions. Raises error if dimensions are invalid or too large for the model
+        kwargs["dimensions"] = self.validate_dimensions(model, dimensions, reduce_dimensions)
         # Validate and set task type. Raises error if task type is not supported by the provider
-        kwargs["task_type"] = self.validate_task_type(model, task_type, task_type_not_supported)
-        kwargs["input_too_large"] = input_too_large
-        # kwargs["dimensions_too_large"] = dimensions_too_large
-        # kwargs["task_type_not_supported"] = task_type_not_supported
+        kwargs["task_type"] = self.validate_task_type(model, task_type, use_closest_supported_task_type)
+        # Validate and set truncate. Raises error if truncation is not supported by the provider
+        kwargs["truncate"] = self.validate_truncate(model, truncate)
 
         response = self.run_func_convert_exceptions(
             func=self._get_embed_response,
@@ -100,34 +68,34 @@ class Embedder(UnifAIAdapter):
     def validate_dimensions(
             self, 
             model: str, 
-            dimensions: int,
-            dimensions_too_large: Literal["reduce_dimensions", "raise_error"] = "reduce_dimensions"                                      
-            ) -> int:
+            dimensions: Optional[int],
+            reduce_dimensions: bool                                    
+            ) -> Optional[int]:
         
-        if dimensions is not None and dimensions < 1:
+        if dimensions is None:
+            return self.get_model_dimensions(model)
+        if dimensions < 1:
             raise EmbeddingDimensionsError(f"Embedding dimensions must be greater than 0. Got: {dimensions}")
-
+        # Return as is if the model dimensions are unknown or smaller than the requested dimensions
         if ((model_dimensions := self.model_embedding_dimensions.get(model)) is None
             or dimensions <= model_dimensions):
-            # Return as is if the model dimensions are unknown or smaller than the requested dimensions
             return dimensions
-        
-        if dimensions_too_large == "reduce_dimensions":
-            # Reduce the dimensions to the model's maximum if the requested dimensions are too large
+        # Reduce the dimensions to the model's maximum if the requested dimensions are too large                
+        if reduce_dimensions:
             return model_dimensions
-
         # Raise error if requested dimensions are too large for model before calling the API and wasting credits
         raise EmbeddingDimensionsError(
-            f"Model {model} outputs at most {model_dimensions} dimensions, but {dimensions} were requested. Set dimensions_too_large='reduce_dimensions' to reduce the dimensions to {model_dimensions}"
+            f"Model {model} outputs at most {model_dimensions} dimensions, but {dimensions} were requested. Set reduce_dimensions=True to reduce the dimensions to {model_dimensions}"
         )
 
 
     def validate_task_type(self,
                             model: str,
                             task_type: Optional[EmbeddingTaskTypeInput],
-                            task_type_not_supported: Literal["use_closest_supported", "raise_error"] = "use_closest_supported"
-                            ) -> Any:
-        if task_type and task_type_not_supported == "raise_error":
+                            use_closest_supported_task_type: bool
+                            ) -> Optional[EmbeddingTaskTypeInput]:
+        # Default is to only allow task_type=None unless overridden by subclasses
+        if task_type and not use_closest_supported_task_type:
             provider_title = self.provider.title()
             raise ProviderUnsupportedFeatureError(
                 f"Embedding Task Type {task_type} is not supported by {provider_title}. "
@@ -136,6 +104,22 @@ class Embedder(UnifAIAdapter):
             )
         return task_type
         
+    def validate_truncate(
+            self,
+            model: str,
+            truncate: Literal[False, "end", "start"]
+            ) -> Literal[False, "end", "start"]:
+                
+        # Default is to only allow start if provider is Nvidia or Cohere. Can be overridden by subclasses
+        if truncate == "start" and self.provider not in ("nvidia", "cohere"):
+            provider_title = self.provider.title()
+            raise ProviderUnsupportedFeatureError(
+                f"{provider_title} does not support truncating input at the start. "
+                f"Use 'truncate_end' or 'raise_error' instead with {provider_title}. "
+                "If you require truncating at the start, use Nvidia or Cohere embedding models which support this directly. "
+                f"Or use 'raise_error' to handle truncation manually when the input is too large for {provider_title} {model}."
+                )         
+        return truncate
 
     def _get_embed_response(
             self,            
@@ -152,18 +136,7 @@ class Embedder(UnifAIAdapter):
                 "fact_verification", 
                 "code_retrieval_query", 
                 "image"]] = None,
-            input_too_large: Literal[
-                "truncate_end", 
-                "truncate_start", 
-                "raise_error"] = "truncate_end",
-            dimensions_too_large: Literal[
-                "reduce_dimensions", 
-                "raise_error"
-            ] = "reduce_dimensions",
-            task_type_not_supported: Literal[
-                "use_closest_supported",
-                "raise_error",
-            ] = "use_closest_supported",                       
+            truncate: Literal[False, "end", "start"] = False,                  
             **kwargs
             ) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
@@ -194,18 +167,9 @@ class Embedder(UnifAIAdapter):
                 "fact_verification", 
                 "code_retrieval_query", 
                 "image"]] = None,
-            input_too_large: Literal[
-                "truncate_end", 
-                "truncate_start", 
-                "raise_error"] = "truncate_end",
-            dimensions_too_large: Literal[
-                "reduce_dimensions", 
-                "raise_error"
-            ] = "reduce_dimensions",
-            task_type_not_supported: Literal[
-                "use_closest_supported",
-                "raise_error",
-            ] = "use_closest_supported", 
+            truncate: Literal[False, "end", "start"] = False,
+            reduce_dimensions: bool = False,
+            use_closest_supported_task_type: bool = True,      
             batch_size: Optional[int] = None,           
             **kwargs
             ) -> Generator[Document, None, ResponseInfo]:
@@ -214,7 +178,7 @@ class Embedder(UnifAIAdapter):
         for batch in chunk_iterable(documents, batch_size):
             batch = list(batch)
             texts = [document.text or "" for document in batch]
-            embeddings = self.embed(texts, model, dimensions, task_type, input_too_large, dimensions_too_large, task_type_not_supported, **kwargs)
+            embeddings = self.embed(texts, model, dimensions, task_type, truncate, reduce_dimensions, use_closest_supported_task_type, **kwargs)
             response_info += embeddings.response_info
             for document, embedding in zip(batch, embeddings):
                 document.embedding = embedding
@@ -236,31 +200,14 @@ class Embedder(UnifAIAdapter):
                 "fact_verification", 
                 "code_retrieval_query", 
                 "image"]] = None,
-            input_too_large: Literal[
-                "truncate_end", 
-                "truncate_start", 
-                "raise_error"] = "truncate_end",
-            dimensions_too_large: Literal[
-                "reduce_dimensions", 
-                "raise_error"
-            ] = "reduce_dimensions",
-            task_type_not_supported: Literal[
-                "use_closest_supported",
-                "raise_error",
-            ] = "use_closest_supported", 
+            truncate: Literal[False, "end", "start"] = False,
+            reduce_dimensions: bool = False,
+            use_closest_supported_task_type: bool = True,  
             batch_size: Optional[int] = None,           
             **kwargs
             ) -> Documents:
         return Documents.from_generator(self.iembed_documents(
-            documents, model, dimensions, task_type, input_too_large, dimensions_too_large, task_type_not_supported, batch_size, **kwargs
+            documents, model, dimensions, task_type, truncate, reduce_dimensions, use_closest_supported_task_type, batch_size, **kwargs
         ))
-        # documents = list(iembed_gen := self.iembed_documents(
-        #     documents, model, dimensions, task_type, input_too_large, 
-        #     dimensions_too_large, task_type_not_supported, batch_size, **kwargs
-        # ))
-        # response_info = iembed_gen.gi_frame.f_locals['response_info']
-        # documents_object = Documents(documents)
-        # documents_object.response_info = response_info
-        # return documents_object
 
 

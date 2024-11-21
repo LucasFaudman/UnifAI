@@ -13,21 +13,17 @@ class OllamaEmbedder(OllamaAdapter, Embedder):
     # Embeddings
     def _get_embed_response(
             self,            
-            input: Sequence[str],
+            input: list[str],
             model: str,
             dimensions: Optional[int] = None,
             task_type: Optional[str] = None,
-            input_too_large: Literal[
-                "truncate_end", 
-                "truncate_start", 
-                "raise_error"
-                ] = "truncate_end",
+            truncate: Literal[False, "end", "start"] = False,
             **kwargs
             )-> Mapping:
         return self.client.embed(
             input=input,
             model=model,
-            truncate=(input_too_large != "raise_error"),
+            truncate=bool(truncate),
             keep_alive=kwargs.pop('keep_alive', None),
             options=OllamaOptions(**kwargs) if kwargs else None
         )

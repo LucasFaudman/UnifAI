@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Any, ClassVar, TYPE_CHECKING
+from typing import Optional, Any, ClassVar, TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
@@ -8,6 +8,8 @@ if TYPE_CHECKING:
 from ...types import Embeddings, ResponseInfo
 from ..base_adapters.sentence_transformers_base import SentenceTransformersAdapter
 from ._base_embedder import Embedder
+from ...utils import lazy_import
+
 
 class SentenceTransformersEmbedder(SentenceTransformersAdapter, Embedder):
     provider = "sentence_transformers"
@@ -22,6 +24,17 @@ class SentenceTransformersEmbedder(SentenceTransformersAdapter, Embedder):
             input: list[str],
             model: str,
             dimensions: Optional[int] = None,
+            task_type: Optional[Literal[
+                "retrieval_query", 
+                "retrieval_document", 
+                "semantic_similarity", 
+                "classification", 
+                "clustering", 
+                "question_answering", 
+                "fact_verification", 
+                "code_retrieval_query", 
+                "image"]] = None,
+            truncate: Literal[False, "end", "start"] = False,               
             **kwargs
             ) -> Any:
                       
@@ -29,7 +42,7 @@ class SentenceTransformersEmbedder(SentenceTransformersAdapter, Embedder):
         truncate_dim = dimensions or model_init_kwargs.pop("truncate_dim", None)
         if not (st_model := self.st_model_cache.get(model)):
             # st_model = sentence_transformers.SentenceTransformer(
-            st_model = self.lazy_import("sentence_transformers.SentenceTransformer")(
+            st_model = lazy_import("sentence_transformers.SentenceTransformer")(
                 model_name_or_path=model, 
                 truncate_dim=truncate_dim,
                 **model_init_kwargs
