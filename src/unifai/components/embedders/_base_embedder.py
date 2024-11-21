@@ -2,10 +2,19 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Calla
 
 from ..base_adapters._base_adapter import UnifAIAdapter
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Usage, Embeddings, EmbeddingTaskTypeInput
-from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError, EmbeddingDimensionsError
+from ...types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Usage, Embeddings, EmbeddingTaskTypeInput, Document, Documents
+from ...exceptions import UnifAIError, ProviderUnsupportedFeatureError, EmbeddingDimensionsError
 
 T = TypeVar("T")
+
+from itertools import islice
+def chunk_iterable(iterable: Iterable[T], chunk_size: Optional[int]) -> Iterable[Iterable[T]]:
+    if chunk_size is None:
+        yield iterable
+        return        
+    iterator = iter(iterable)
+    while chunk := tuple(islice(iterator, chunk_size)):
+        yield chunk
 
 class Embedder(UnifAIAdapter):
     provider = "base_embedder"
@@ -169,4 +178,89 @@ class Embedder(UnifAIAdapter):
         raise NotImplementedError("This method must be implemented by the subclass")
 
 
-   
+    # Embeddings    
+    def iembed_documents(
+            self,            
+            documents: Iterable[Document],
+            model: Optional[str] = None,
+            dimensions: Optional[int] = None,
+            task_type: Optional[Literal[
+                "retrieval_document", 
+                "retrieval_query", 
+                "semantic_similarity", 
+                "classification", 
+                "clustering", 
+                "question_answering", 
+                "fact_verification", 
+                "code_retrieval_query", 
+                "image"]] = None,
+            input_too_large: Literal[
+                "truncate_end", 
+                "truncate_start", 
+                "raise_error"] = "truncate_end",
+            dimensions_too_large: Literal[
+                "reduce_dimensions", 
+                "raise_error"
+            ] = "reduce_dimensions",
+            task_type_not_supported: Literal[
+                "use_closest_supported",
+                "raise_error",
+            ] = "use_closest_supported", 
+            batch_size: Optional[int] = None,           
+            **kwargs
+            ) -> Generator[Document, None, ResponseInfo]:
+        
+        response_info = ResponseInfo()
+        for batch in chunk_iterable(documents, batch_size):
+            batch = list(batch)
+            texts = [document.text or "" for document in batch]
+            embeddings = self.embed(texts, model, dimensions, task_type, input_too_large, dimensions_too_large, task_type_not_supported, **kwargs)
+            response_info += embeddings.response_info
+            for document, embedding in zip(batch, embeddings):
+                document.embedding = embedding
+                yield document
+        return response_info
+    
+    def embed_documents(
+            self,            
+            documents: Iterable[Document],
+            model: Optional[str] = None,
+            dimensions: Optional[int] = None,
+            task_type: Optional[Literal[
+                "retrieval_document", 
+                "retrieval_query", 
+                "semantic_similarity", 
+                "classification", 
+                "clustering", 
+                "question_answering", 
+                "fact_verification", 
+                "code_retrieval_query", 
+                "image"]] = None,
+            input_too_large: Literal[
+                "truncate_end", 
+                "truncate_start", 
+                "raise_error"] = "truncate_end",
+            dimensions_too_large: Literal[
+                "reduce_dimensions", 
+                "raise_error"
+            ] = "reduce_dimensions",
+            task_type_not_supported: Literal[
+                "use_closest_supported",
+                "raise_error",
+            ] = "use_closest_supported", 
+            batch_size: Optional[int] = None,           
+            **kwargs
+            ) -> Documents:
+        return Documents.from_generator(self.iembed_documents(
+            documents, model, dimensions, task_type, input_too_large, dimensions_too_large, task_type_not_supported, batch_size, **kwargs
+        ))
+        # documents = list(iembed_gen := self.iembed_documents(
+        #     documents, model, dimensions, task_type, input_too_large, 
+        #     dimensions_too_large, task_type_not_supported, batch_size, **kwargs
+        # ))
+        # response_info = iembed_gen.gi_frame.f_locals['response_info']
+        # documents_object = Documents(documents)
+        # documents_object.response_info = response_info
+        # return documents_object
+
+
