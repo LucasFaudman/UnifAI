@@ -1,6 +1,6 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ...types import VectorDBQueryResult
+from ...types import QueryResult
 from ...exceptions import ProviderUnsupportedFeatureError
 from ..base_adapters.cohere_base import CohereAdapter
 from ._base_reranker import Reranker
@@ -14,7 +14,7 @@ class CohereReranker(CohereAdapter, Reranker):
     def _get_rerank_response(
         self,
         query: str,
-        query_result: VectorDBQueryResult,
+        query_result: QueryResult,
         model: str,
         top_n: Optional[int] = None,               
         **kwargs

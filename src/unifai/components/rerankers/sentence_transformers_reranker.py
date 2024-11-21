@@ -6,7 +6,7 @@ from itertools import product
 if TYPE_CHECKING:
     from sentence_transformers import CrossEncoder
 
-from ...types import VectorDBQueryResult
+from ...types import QueryResult
 from ..base_adapters.sentence_transformers_base import SentenceTransformersAdapter
 from ._base_reranker import Reranker
 
@@ -21,7 +21,7 @@ class SentenceTransformersReranker(SentenceTransformersAdapter, Reranker):
     def _get_rerank_response(
         self,
         query: str,
-        query_result: VectorDBQueryResult,
+        query_result: QueryResult,
         model: str,
         top_n: Optional[int] = None,               
         **kwargs

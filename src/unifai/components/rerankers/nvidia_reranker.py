@@ -2,7 +2,7 @@ from typing import Optional
 
 from openai._base_client import make_request_options
 
-from ...types import VectorDBQueryResult
+from ...types import QueryResult
 from ..base_adapters.nvidia_base import NvidiaAdapter, TempBaseURL
 from ._base_reranker import Reranker
 
@@ -31,7 +31,7 @@ class NvidiaReranker(NvidiaAdapter, Reranker):
     def _get_rerank_response(
         self,
         query: str,
-        query_result: VectorDBQueryResult,
+        query_result: QueryResult,
         model: str,
         top_n: Optional[int] = None,               
         **kwargs

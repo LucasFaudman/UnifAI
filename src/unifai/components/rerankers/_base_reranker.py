@@ -2,7 +2,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Colle
 
 from ..base_adapters._base_adapter import UnifAIAdapter, UnifAIComponent
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, VectorDBGetResult, VectorDBQueryResult
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, GetResult, QueryResult
 from unifai.exceptions import UnifAIError, ProviderUnsupportedFeatureError
 from pydantic import BaseModel
 
@@ -19,11 +19,11 @@ class Reranker(UnifAIAdapter):
     def rerank(
         self, 
         query: str, 
-        query_result: VectorDBQueryResult,
+        query_result: QueryResult,
         model: Optional[str] = None,
         top_n: Optional[int] = None,
         **reranker_kwargs
-        ) -> VectorDBQueryResult:
+        ) -> QueryResult:
         
         rerank_response = self.run_func_convert_exceptions(
             func=self._get_rerank_response,
@@ -43,7 +43,7 @@ class Reranker(UnifAIAdapter):
     def _get_rerank_response(
         self,
         query: str,
-        query_result: VectorDBQueryResult,
+        query_result: QueryResult,
         model: str,
         top_n: Optional[int] = None,               
         **kwargs
