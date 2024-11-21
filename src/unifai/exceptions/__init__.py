@@ -73,7 +73,6 @@ from .vector_db_errors import (
     DimensionsMismatchError,
 )
 
-
 __all__ = [
     "UnifAIError",
     "UnknownUnifAIError",
