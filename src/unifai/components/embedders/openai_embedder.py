@@ -5,7 +5,7 @@ from openai.types.create_embedding_response import CreateEmbeddingResponse
 
 from ...types import Embeddings, ResponseInfo, Usage
 from ..base_adapters.openai_base import OpenAIAdapter
-from ._base_embedder import Embedder
+from .._base_components._base_embedder import Embedder
 
 class OpenAIEmbedder(OpenAIAdapter, Embedder):
     provider = "openai"
@@ -15,18 +15,20 @@ class OpenAIEmbedder(OpenAIAdapter, Embedder):
         "text-embedding-3-small": 1536,
         "text-embedding-ada-002": 1536,
     }
+    model_max_tokens = {
+        "text-embedding-3-large": 8191,
+        "text-embedding-3-small": 8191,
+        "text-embedding-ada-002": 8191,
+    }
 
     # Embeddings
     def _get_embed_response(
             self,
-            input: Sequence[str],
+            input: list[str],
             model: str,
             dimensions: Optional[int] = None,
             task_type: Literal["search_query", "search_document", "classification", "clustering", "image"] = "search_query",
-            input_too_large: Literal[
-                "truncate_end", 
-                "truncate_start", 
-                "raise_error"] = "truncate_end",
+            truncate: Literal[False, "end", "start"] = False,                  
             **kwargs
             ) -> CreateEmbeddingResponse:
         

@@ -7,14 +7,16 @@ if TYPE_CHECKING:
     from pinecone.grpc import PineconeGRPC
 from pinecone.exceptions import PineconeException, PineconeApiException
 
-from ...exceptions import UnifAIError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError
-from ...components._base_component import UnifAIComponent
-from ._base_adapter import UnifAIAdapter
+from ...exceptions import UnifAIError, UnknownUnifAIError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, CollectionNotFoundError
+from .._base_components._base_component import UnifAIComponent
+from .._base_components._base_adapter import UnifAIAdapter
 
 class PineconeExceptionConverter(UnifAIComponent):
+    provider = "pinecone"
+    
     def convert_exception(self, exception: PineconeException) -> UnifAIError:
         if not isinstance(exception, PineconeApiException):
-            return UnifAIError(
+            return UnknownUnifAIError(
                 message=str(exception),
                 original_exception=exception
             )
@@ -33,10 +35,13 @@ class PineconeExceptionConverter(UnifAIComponent):
                 message = error.get("message") or body
                 error_code = error.get("code")
             except (JSONDecodeError, KeyError, AttributeError):
-                pass
+                pass # Use the original body if it can't be decoded
         else:
-            message = str(exception)
+            message = str(exception) # Use the original exception message if there is no body
         
+        if status_code == 404 and "Resource" in message and "not found" in message:
+            unifai_exception_type = CollectionNotFoundError
+
         return unifai_exception_type(
             message=message,
             error_code=error_code,

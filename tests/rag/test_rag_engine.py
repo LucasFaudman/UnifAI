@@ -1,15 +1,15 @@
 import pytest
 from typing import Optional, Literal
 
-from unifai import UnifAI, LLMProvider, VectorDBProvider, Provider, RerankProvider, EmbeddingProvider
-from unifai.components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex
+from unifai import UnifAI, ProviderName
+from unifai.components._base_components._base_vector_db import VectorDB, VectorDBCollection
 from unifai.components import DictDocumentDB
-from unifai.components.rerankers._base_reranker import Reranker
+from unifai.components._base_components._base_reranker import Reranker
 
-from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
+from unifai.types import ProviderName, GetResult, QueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError
 from basetest import base_test_rerankers_all, PROVIDER_DEFAULTS, EMBEDDING_PROVIDERS
-from unifai.client.rag_engine import RAGConfig, RAGEngine
+from unifai.client.rag_prompter import RAGPromptConfig, RAGPrompter
 
 from time import sleep
 
@@ -33,10 +33,10 @@ from time import sleep
     ("nvidia", None),
 ])
 def test_rag_engine_simple(
-        vector_db_provider: VectorDBProvider,                           
-        embedding_provider: EmbeddingProvider,
+        vector_db_provider: ProviderName,                           
+        embedding_provider: ProviderName,
         embedding_model: str,
-        rerank_provider: RerankProvider,
+        rerank_provider: ProviderName,
         rerank_model: str
     ):
 
@@ -76,7 +76,7 @@ def test_rag_engine_simple(
         **func_kwargs
     )
 
-    assert isinstance(index, VectorDBIndex)
+    assert isinstance(index, VectorDBCollection)
     assert index.name == "rag-test"
     assert index.provider == vector_db_provider
     assert index.embedding_provider == embedding_provider
@@ -94,9 +94,9 @@ def test_rag_engine_simple(
     if vector_db_provider == 'pinecone': sleep(20)
     assert index.count() == len(documents)
 
-    rag_spec = RAGConfig(
+    rag_spec = RAGPromptConfig(
         name="test_rag_spec",
-        index_name="rag-test",
+        vector_db_index_name="rag-test",
         vector_db_provider=vector_db_provider,
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
@@ -108,20 +108,20 @@ def test_rag_engine_simple(
         document_db_kwargs={"documents": document_db.documents if document_db else None},
     )
 
-    rag_engine = ai.get_rag_engine(rag_spec)
-    assert isinstance(rag_engine, RAGEngine)
+    rag_engine = ai.get_rag_prompter(rag_spec)
+    assert isinstance(rag_engine, RAGPrompter)
 
     query_result = rag_engine.retrieve(query, top_k=5)
     assert query_result
-    assert isinstance(query_result, VectorDBQueryResult)
+    assert isinstance(query_result, QueryResult)
     assert query_result.ids
-    assert query_result.documents
+    assert query_result.texts
     assert query_result.metadatas
     assert len(query_result) == 5
 
     rerank_result = rag_engine.rerank(query, query_result, top_n=3)
     assert rerank_result
-    assert isinstance(rerank_result, VectorDBQueryResult)
+    assert isinstance(rerank_result, QueryResult)
     assert len(rerank_result) == len(query_result) == 3
 
     ragify_str = rag_engine.construct_rag_prompt(query, query_result, top_n=3)
@@ -132,9 +132,9 @@ def test_rag_engine_simple(
     assert "CONTEXT:" in ragify_str
     assert "RESPONSE:" in ragify_str
     assert query in ragify_str
-    assert all(doc in ragify_str for doc in query_result.documents)
-    assert rerank_result.documents
-    assert all(doc in ragify_str for doc in rerank_result.documents)
+    assert all(doc in ragify_str for doc in query_result.texts)
+    assert rerank_result.texts
+    assert all(doc in ragify_str for doc in rerank_result.texts)
     assert ragify_str.count("DOCUMENT:") == 3
 
     ragify_resp = rag_engine.ragify(query)

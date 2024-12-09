@@ -1,10 +1,11 @@
-from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
+from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
-from ...types import VectorDBQueryResult
-from ._base_reranker import Reranker
+from ...types import QueryResult
+from .._base_components._base_reranker import Reranker
 
 class RankBM25Reranker(Reranker):
     provider = "rank_bm25"
+    can_get_components = True
     default_reranking_model = "BM25Okapi"
     
 
@@ -35,19 +36,19 @@ class RankBM25Reranker(Reranker):
     def _get_rerank_response(
         self,
         query: str,
-        query_result: VectorDBQueryResult,
+        query_result: QueryResult,
         model: str,
         top_n: Optional[int] = None,               
         **kwargs
         ) -> Any:
 
-        if not query_result.documents:
+        if not query_result.texts:
             raise ValueError("Cannot rerank an empty query result")
 
         if not (algo_cls := getattr(self.client, model, None)):
             raise ValueError(f"Invalid BM25 model: {model}. Must be one of {self.list_models()}")
 
-        tokenized_documents = [self.tokenize(doc) for doc in query_result.documents]
+        tokenized_documents = [self.tokenize(doc) for doc in query_result.texts]
         bm25 = algo_cls(
             corpus=tokenized_documents,
             # tokenizer=self.tokenize, # Setting tokenizer uses multiprocessing.Pool 
@@ -55,14 +56,13 @@ class RankBM25Reranker(Reranker):
         )
         return bm25.get_scores(self.tokenize(query))
 
-
-    def _extract_reranked_order(
-        self,
-        response: Any,
-        top_n: Optional[int] = None,        
-        **kwargs
-        ) -> list[int]:
+    # def _extract_reranked_order(
+    #     self,
+    #     response: Any,
+    #     top_n: Optional[int] = None,        
+    #     **kwargs
+    #     ) -> list[int]:
         
-        # return argsort(response, **kwargs)[::-1][:top_n].tolist()
-        return [index for index, score in sorted(enumerate(response), key=lambda x: x[1], reverse=True)[:top_n]]
+    #     # return argsort(response, **kwargs)[::-1][:top_n].tolist()
+    #     return [index for index, score in sorted(enumerate(response), key=lambda x: x[1], reverse=True)[:top_n]]
 

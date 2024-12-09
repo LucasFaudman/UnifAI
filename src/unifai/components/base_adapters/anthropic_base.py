@@ -22,7 +22,7 @@ from ...exceptions import (
     APIResponseValidationError,
     STATUS_CODE_TO_EXCEPTION_MAP,
 )
-from ._base_adapter import UnifAIAdapter
+from .._base_components._base_adapter import UnifAIAdapter
 
 class AnthropicAdapter(UnifAIAdapter):
     provider = "anthropic"

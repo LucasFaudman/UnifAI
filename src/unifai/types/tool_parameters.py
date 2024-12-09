@@ -1,5 +1,5 @@
 from typing import Optional, Union, Sequence, Any, Literal, Mapping, Collection
-from pydantic import BaseModel
+from ._base_model import BaseModel
 
 
 ToolParameterType = Literal["object", "array", "string", "integer", "number", "boolean", "null"]

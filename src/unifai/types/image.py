@@ -1,7 +1,8 @@
 from typing import Literal, Optional, Type, TypeVar
 from pathlib import Path
 from base64 import b64encode, b64decode
-from pydantic import BaseModel
+
+from ._base_model import BaseModel
 
 
 T = TypeVar('T', bytes, str)

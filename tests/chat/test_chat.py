@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAI, LLMProvider
+from unifai import UnifAI, ProviderName
 from unifai.types import Message, Tool
 from basetest import base_test_llms_all
 
@@ -111,9 +111,9 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
 
 
 @base_test_llms_all
-def test_chat_simple(provider: LLMProvider, client_kwargs: dict, func_kwargs: dict):
+def test_chat_simple(provider: ProviderName, client_kwargs: dict, func_kwargs: dict):
 
-    ai = UnifAI(provider_configs={provider: client_kwargs})
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
     chat = ai.chat(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,
@@ -161,7 +161,7 @@ def test_chat_simple(provider: LLMProvider, client_kwargs: dict, func_kwargs: di
 ])
 def test_chat_tools_simple(
     # ai: UnifAIClient, 
-    provider: LLMProvider, 
+    provider: ProviderName, 
     client_kwargs: dict,
     func_kwargs: dict,
     messages: list,
@@ -169,14 +169,13 @@ def test_chat_tools_simple(
     tool_callables: dict
     ):
 
-    ai = UnifAI(
-        {provider: client_kwargs},
-        tool_callables=tool_callables
-    )
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+
     chat = ai.chat(
         messages=messages,
         provider=provider,
         tools=tools,
+        tool_callables=tool_callables,
         **func_kwargs
     )
     messages = chat.messages
@@ -208,7 +207,7 @@ def test_chat_tools_simple(
 ])
 def test_chat_return_on(
     # ai: UnifAIClient, 
-    provider: LLMProvider, 
+    provider: ProviderName, 
     client_kwargs: dict,
     func_kwargs: dict,
     messages: list,
@@ -216,10 +215,8 @@ def test_chat_return_on(
     tool_callables: dict, 
     ):
 
-    ai = UnifAI(
-        {provider: client_kwargs},
-        tool_callables=tool_callables
-    )
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+
 
     return_ons = ["content"]
     if tool_names := [tool["function"]["name"] for tool in tools]:
@@ -235,6 +232,7 @@ def test_chat_return_on(
             provider=provider,
             tools=tools,
             return_on=return_on,
+            tool_callables=tool_callables,
             **func_kwargs
         )
         new_messages = chat.messages
@@ -288,7 +286,7 @@ def test_chat_return_on(
 ])
 def test_chat_enforce_tool_choice(
     # ai: UnifAIClient, 
-    provider: LLMProvider, 
+    provider: ProviderName, 
     client_kwargs: dict,
     func_kwargs: dict,
     messages: list,
@@ -297,10 +295,8 @@ def test_chat_enforce_tool_choice(
     tool_choice: str
     ):
 
-    ai = UnifAI(
-        {provider: client_kwargs},
-        tool_callables=tool_callables
-    )
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+
 
     for _ in range(1):
         chat = ai.chat(
@@ -308,6 +304,7 @@ def test_chat_enforce_tool_choice(
             provider=provider,
             tools=tools,
             tool_choice=tool_choice,
+            tool_callables=tool_callables,
             return_on="message",
             enforce_tool_choice=True,
             **func_kwargs
@@ -356,7 +353,7 @@ def test_chat_enforce_tool_choice(
 ])
 def test_chat_enforce_tool_choice_sequence(
     # ai: UnifAIClient, 
-    provider: LLMProvider, 
+    provider: ProviderName, 
     client_kwargs: dict,
     func_kwargs: dict,
     messages: list,
@@ -365,17 +362,15 @@ def test_chat_enforce_tool_choice_sequence(
     tool_choice: list[str]
     ):
 
-    ai = UnifAI(
-        {provider: client_kwargs},
-        tool_callables=tool_callables
-    )
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
 
     for _ in range(1):
         chat = ai.chat(
             messages=messages,
             provider=provider,
             tools=tools,
-            tool_choice=tool_choice,
+            tool_chice=tool_choice,
+                    tool_callables=tool_callables,
             return_on=tool_choice[-1],
             enforce_tool_choice=True,
             **func_kwargs
@@ -444,7 +439,7 @@ def test_chat_enforce_tool_choice_sequence(
 ])
 def test_chat_send_message(
     # ai: UnifAIClient, 
-    provider: LLMProvider, 
+    provider: ProviderName, 
     client_kwargs: dict,
     func_kwargs: dict,
     system_prompt: str|None,
@@ -454,17 +449,14 @@ def test_chat_send_message(
     tool_choice: list[str]
     ):    
 
-    ai = UnifAI(
-        {provider: client_kwargs},
-        tool_callables=tool_callables
-    )
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
     chat = ai.chat(
         messages=message_lists[0],
         provider=provider,
         system_prompt=system_prompt,
         tools=tools,
         tool_choice=tool_choice,
-
+        tool_callables=tool_callables,
         return_on=tool_choice[-1],
         enforce_tool_choice=True,
         **func_kwargs
@@ -522,7 +514,7 @@ def test_chat_send_message(
     
     ])
 def test_chat_options(
-    provider: LLMProvider, 
+    provider: ProviderName, 
     client_kwargs: dict, 
     func_kwargs: dict,
     extra_kwargs: dict

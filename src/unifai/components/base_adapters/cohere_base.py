@@ -1,10 +1,10 @@
-from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
+from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 
 from cohere import ClientV2
 from cohere.core import ApiError as CohereAPIError
 
 from ...exceptions import UnifAIError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError
-from ._base_adapter import UnifAIAdapter
+from .._base_components._base_adapter import UnifAIAdapter
 
 T = TypeVar("T")
 

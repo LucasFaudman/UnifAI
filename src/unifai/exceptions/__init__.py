@@ -22,14 +22,17 @@ from .api_errors import (
     TeapotError,
     STATUS_CODE_TO_EXCEPTION_MAP,
 )
-from .document_db_errors import (
-    DocumentDBError,
-    DocumentDBAPIError,
-    DocumentReadError,
-    DocumentWriteError,
-    DocumentDeleteError,
-    DocumentNotFoundError,    
+from .db_errors import (
+    DBError,
+    DBAPIError,
+    CollectionNotFoundError,
+    CollectionAlreadyExistsError,
+    DocumentNotFoundError,
+    DocumentAlreadyExistsError,
+    InvalidQueryError,
+    DimensionsMismatchError,
 )
+
 from .embedding_errors import (
     EmbeddingError,
     EmbeddingAPIError,
@@ -64,16 +67,6 @@ from .usage_errors import (
     ContentFilterError,
     TokenLimitExceededError,
 )
-from .vector_db_errors import (
-    VectorDBError,
-    VectorDBAPIError,
-    IndexNotFoundError,
-    IndexAlreadyExistsError,
-    InvalidQueryError,
-    DimensionsMismatchError,
-)
-
-
 __all__ = [
     "UnifAIError",
     "UnknownUnifAIError",
@@ -125,19 +118,10 @@ __all__ = [
     "ContentFilterError",
     "TokenLimitExceededError",
 
-    "VectorDBError",
-    "VectorDBAPIError",
-    "IndexNotFoundError",
-    "IndexAlreadyExistsError",
+    "DBError",
+    "DBAPIError",
+    "CollectionNotFoundError",
+    "CollectionAlreadyExistsError",
     "InvalidQueryError",
-    "DimensionsMismatchError",
-
-    "DocumentDBError",
-    "DocumentDBAPIError",
-    "DocumentReadError",
-    "DocumentWriteError",
-    "DocumentDeleteError",
-    "DocumentNotFoundError",
-
-    
+    "DimensionsMismatchError",    
 ]

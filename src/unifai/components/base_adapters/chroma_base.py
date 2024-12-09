@@ -2,20 +2,37 @@ from typing import Any
 
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings as ChromaSettings
 from chromadb.db.base import UniqueConstraintError
-from chromadb.errors import ChromaError
+from chromadb.errors import ChromaError, InvalidCollectionException, InvalidDimensionException
 from chromadb.api import ClientAPI as ChromaClientAPI
 
-from ...exceptions import UnifAIError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, IndexAlreadyExistsError, IndexNotFoundError
-from .._base_component import UnifAIComponent
-from ._base_adapter import UnifAIAdapter
+from ...exceptions import UnifAIError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, CollectionAlreadyExistsError, CollectionNotFoundError, EmbeddingDimensionsError
+from .._base_components._base_component import UnifAIComponent
+from .._base_components._base_adapter import UnifAIAdapter
  
 
 class ChromaExceptionConverter(UnifAIComponent):
+    provider = "chroma"
+
     def convert_exception(self, exception: ChromaError|UniqueConstraintError) -> UnifAIError:
+        if isinstance(exception, InvalidCollectionException):
+            return CollectionNotFoundError(
+                message=exception.message(),
+                original_exception=exception,
+                status_code=exception.code(),
+                error_code=exception.name()
+            )
+        if isinstance(exception, InvalidDimensionException):
+            return EmbeddingDimensionsError(
+                message=exception.message(),
+                original_exception=exception,
+                status_code=exception.code(),
+                error_code=exception.name()
+            )
+
         if isinstance(exception, UniqueConstraintError):
             message = exception.args[0]
             if "Collection" in message and "already exists" in message:
-                return IndexAlreadyExistsError(
+                return CollectionAlreadyExistsError(
                     message=message,
                     original_exception=exception
                 )
@@ -24,13 +41,13 @@ class ChromaExceptionConverter(UnifAIComponent):
                 original_exception=exception
             )
         
-        status_code=exception.code()
+        status_code=getattr(exception, "code", -1)
         unifai_exception_type = STATUS_CODE_TO_EXCEPTION_MAP.get(status_code, UnknownAPIError)
         return unifai_exception_type(
-            message=exception.message(), 
+            message=getattr(exception, "message", str(exception)),
             status_code=status_code,
             original_exception=exception
-        )   
+        )
 
 
 class ChromaAdapter(UnifAIAdapter, ChromaExceptionConverter):

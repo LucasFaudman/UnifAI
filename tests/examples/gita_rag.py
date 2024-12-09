@@ -1,6 +1,6 @@
 from unifai import UnifAI, tool
 from unifai.client.specs import RAGSpec, DEFAULT_RAG_PROMPT_TEMPLATE
-from unifai.types import VectorDBQueryResult
+from unifai.types import QueryResult
 from _provider_defaults import PROVIDER_DEFAULTS
 
 import pygame
@@ -36,20 +36,20 @@ def play_speech(text, voice="fable"):
         pass
 
 
-def format_gita_query_result(result: VectorDBQueryResult) -> str:
+def format_gita_query_result(result: QueryResult) -> str:
     formatted_result = ""
-    for metadata, document in zip(result.metadatas, result.documents):
+    for metadata, document in zip(result.metadatas, result.texts):
         if document:
             formatted_result += f"Chapter {metadata['chapter_number']} {metadata['chapter']}, Line {metadata['line_number']}:\n"
             formatted_result += f"{document}\n\n"
     return formatted_result
 
 gita_prompt_template = DEFAULT_RAG_PROMPT_TEMPLATE
-gita_prompt_template.value_formatters[VectorDBQueryResult] = format_gita_query_result
+gita_prompt_template.value_formatters[QueryResult] = format_gita_query_result
 
 
 def gita_chat():
-    rag_engine = ai.get_rag_engine(RAGSpec(
+    rag_engine = ai.get_rag_prompter(RAGSpec(
         index_name="gita",
         top_k=50,
         top_n=15,

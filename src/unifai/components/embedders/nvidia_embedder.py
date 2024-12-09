@@ -10,7 +10,7 @@ from .openai_embedder import OpenAIEmbedder
 
 class NvidiaEmbedder(NvidiaAdapter, OpenAIEmbedder):
     provider = "nvidia"    
-    default_embedding_model = "nvidia/nv-embed-v1" #NV-Embed-QA
+    default_model = "nvidia/nv-embed-v1" #NV-Embed-QA
 
     model_embedding_dimensions = {
         "baai/bge-m3": 1024,
@@ -27,12 +27,12 @@ class NvidiaEmbedder(NvidiaAdapter, OpenAIEmbedder):
     def validate_task_type(self,
                             model: str,
                             task_type: Optional[EmbeddingTaskTypeInput] = None,
-                            task_type_not_supported: Literal["use_closest_supported", "raise_error"] = "use_closest_supported"
+                            use_closest_supported_task_type: bool = True,        
                             ) -> Literal["query", "passage"]:
-
+        
         if task_type == "retrieval_query":
             return "query"        
-        elif task_type == "retrieval_document" or task_type is None or task_type_not_supported == "use_closest_supported":
+        elif task_type in ("retrieval_document", None) or use_closest_supported_task_type:
             return "passage"     
         raise ProviderUnsupportedFeatureError(
              f"Embedding task_type={task_type} is not supported by Nvidia. "
@@ -41,25 +41,16 @@ class NvidiaEmbedder(NvidiaAdapter, OpenAIEmbedder):
         
     def _get_embed_response(
             self,
-            input: Sequence[str],
+            input: list[str],
             model: str,
             dimensions: Optional[int] = None,
             task_type: Literal["passage", "query"] = "passage",
-            input_too_large: Literal[
-                "truncate_end", 
-                "truncate_start", 
-                "raise_error"] = "truncate_end",
+            truncate: Literal[False, "end", "start"] = False,
             **kwargs
             ) -> CreateEmbeddingResponse:
         
         extra_body = {"input_type": task_type}
-        if input_too_large == "truncate_end":
-            extra_body["truncate"] = "END"
-        elif input_too_large == "truncate_start":
-            extra_body["truncate"] = "START"
-        else:
-            extra_body["truncate"] = "NONE" # Raise error if input is too large
-        
+        extra_body["truncate"] = truncate.upper() if truncate else "NONE"
         # Use the model specific base URL if required
         with TempBaseURL(self.client, self.model_base_urls.get(model), self.default_base_url):
             return self.client.embeddings.create(input=input, model=model, extra_body=extra_body, **kwargs)

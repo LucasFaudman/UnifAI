@@ -1,5 +1,5 @@
 from typing import Optional, Union, Sequence, Any, Literal, Callable, Mapping, Collection
-from pydantic import BaseModel
+from ._base_model import BaseModel
 
 from .tool_parameters import ToolParameter, ObjectToolParameter, ToolParameterExcludableKeys, EXCLUDE_NONE
 

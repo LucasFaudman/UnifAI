@@ -12,6 +12,8 @@ NVIDIA_API_KEY = getenv("_NVIDIA_API_KEY")
 
 PROVIDER_DEFAULTS = {
     # "provider": (provider, client_kwargs, func_kwargs)
+
+    # llms
     "anthropic": (
         "anthropic", 
         {"api_key": ANTHROPIC_API_KEY},
@@ -38,6 +40,7 @@ PROVIDER_DEFAULTS = {
         {"keep_alive": "10m", 'model': 'llama3.1-8b-num_ctx-8192:latest'}
     ),
 
+    # vector dbs
     "chroma": (
         "chroma",
         {
@@ -55,6 +58,7 @@ PROVIDER_DEFAULTS = {
             }
     ),   
 
+    # reraankers
     "cohere": (
         "cohere",
         {"api_key": COHERE_API_KEY},
@@ -71,6 +75,8 @@ PROVIDER_DEFAULTS = {
         {},
         {}
     ),  
+
+    # document dbs    
     "dict": (
         "dict",
         {},
@@ -81,6 +87,50 @@ PROVIDER_DEFAULTS = {
         {},
         {}
     ),
+
+    # document chunkers
+    "count_chars_chunker": ("count_chars_chunker", {}, {}),
+    "count_tokens_chunker": ("count_tokens_chunker", {}, {}),
+    "count_words_chunker": ("count_words_chunker", {}, {}),
+
+    # document loaders
+    "csv_loader": ("csv_loader", {}, {}),
+    "document_db_loader": ("document_db_loader", {}, {}),
+    "html_loader": ("html_loader", {}, {}),
+    "json_loader": ("json_loader", {}, {}),
+    "markdown_loader": ("markdown_loader", {}, {}),
+    "ms_office_loader": ("ms_office_loader", {}, {}),
+    "pdf_loader": ("pdf_loader", {}, {}),
+    "text_file_loader": ("text_file_loader", {}, {}),
+    "url_loader": ("url_loader", {}, {}),
+
+    # tokenizers
+    "str_split": (
+        "str_split",
+        {"support_encode_decode": True},
+        {}
+    ),
+
+    "tiktoken":  (
+        "tiktoken",
+        {},
+        {}
+    ),
+
+    "huggingface":  (
+        "huggingface",
+        {},
+        {}
+    ),
+
+    "voyage":  (
+        "voyage",
+        {},
+        {}
+    ),
+
+
+
 
 
 }
@@ -107,15 +157,38 @@ EMBEDDING_PROVIDER_DEFAULTS = [
 ]
 EMBEDDING_PROVIDERS = [provider[0] for provider in EMBEDDING_PROVIDER_DEFAULTS]
 
+DOCUMENT_CHUNKER_PROVIDER_DEFAULTS = [
+    PROVIDER_DEFAULTS["count_chars_chunker"], 
+    PROVIDER_DEFAULTS["count_tokens_chunker"],
+    PROVIDER_DEFAULTS["count_words_chunker"],
+    # PROVIDER_DEFAULTS["sentence_chunker"]
+
+]
+DOCUMENT_CHUNKER_PROVIDERS = [provider[0] for provider in DOCUMENT_CHUNKER_PROVIDER_DEFAULTS]
+
+
 DOCUMENT_DB_PROVIDER_DEFAULTS = [
     PROVIDER_DEFAULTS["dict"],
-    PROVIDER_DEFAULTS["sqlite"],
+    # PROVIDER_DEFAULTS["sqlite"],
     # PROVIDER_DEFAULTS["firebase"],
     # PROVIDER_DEFAULTS["mongodb"],
     # PROVIDER_DEFAULTS["elasticsearch"],
 ]
-
 DOCUMENT_DB_PROVIDERS = [provider[0] for provider in DOCUMENT_DB_PROVIDER_DEFAULTS]
+
+
+DOCUMENT_LOADER_PROVIDER_DEFAULTS = [
+    # PROVIDER_DEFAULTS["csv_loader"],
+    # PROVIDER_DEFAULTS["document_db_loader"],
+    # PROVIDER_DEFAULTS["html_loader"],
+    # PROVIDER_DEFAULTS["json_loader"],
+    # PROVIDER_DEFAULTS["markdown_loader"],
+    # PROVIDER_DEFAULTS["ms_office_loader"],
+    # PROVIDER_DEFAULTS["pdf_loader"],
+    PROVIDER_DEFAULTS["text_file_loader"],
+    # PROVIDER_DEFAULTS["url_loader"],
+]
+DOCUMENT_LOADER_PROVIDERS = [provider[0] for provider in DOCUMENT_LOADER_PROVIDER_DEFAULTS]
 
 
 VECTOR_DB_PROVIDER_DEFAULTS = [
@@ -132,6 +205,14 @@ RERANKER_PROVIDER_DEFAULTS = [
     PROVIDER_DEFAULTS["nvidia"]    
 ]
 RERANKER_PROVIDERS = [provider[0] for provider in RERANKER_PROVIDER_DEFAULTS]
+
+TOKENIZER_PROVIDER_DEFAULTS = [
+    PROVIDER_DEFAULTS["huggingface"],
+    PROVIDER_DEFAULTS["str_split"],
+    PROVIDER_DEFAULTS["tiktoken"],
+    # PROVIDER_DEFAULTS["voyage"]
+]
+TOKENIZER_PROVIDERS = [provider[0] for provider in TOKENIZER_PROVIDER_DEFAULTS]
 
 def decorator_with_params(param1, param2):
     def decorator(func):
@@ -174,9 +255,17 @@ def base_test_llms_all(func):
 # def base_test_llms_no_cohere(func):
 #     return base_test(*LLM_PROVIDERS, exclude=["cohere"])(func)
 
+# Document Chunker test decorators
+def base_test_document_chunkers_all(func):
+    return base_test(*DOCUMENT_CHUNKER_PROVIDERS)(func)
+
 # Document DB test decorators
 def base_test_document_dbs_all(func):
     return base_test(*DOCUMENT_DB_PROVIDERS)(func)
+
+# Document Loader test decorators
+def base_test_document_loaders_all(func):
+    return base_test(*DOCUMENT_LOADER_PROVIDERS)(func)
 
 # Embedding test decorators
 def base_test_embeddings_all(func):
@@ -190,6 +279,9 @@ def base_test_vector_dbs_all(func):
 def base_test_rerankers_all(func):
     return base_test(*RERANKER_PROVIDERS)(func)
 
+# Tokenizer test decorators
+def base_test_tokenizers_all(func):
+    return base_test(*TOKENIZER_PROVIDERS)(func)
 
 # def base_test_all_llms(func):
 #     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", LLM_PROVIDER_DEFAULTS[:])(func)

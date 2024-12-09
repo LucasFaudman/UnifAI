@@ -1,5 +1,7 @@
-from typing import Optional, Literal, Union, Self, Any, TypeVar, Generic, List
-from pydantic import BaseModel, Field, RootModel
+from typing import Optional, Literal, Union, Self, Any, TypeVar, ClassVar, Generic, List, Generator, Type
+from ._base_model import BaseModel, RootModel, Field
+
+T = TypeVar('T')
 
 class Usage(BaseModel):
     input_tokens: int = 0
@@ -22,7 +24,7 @@ class Usage(BaseModel):
 
     
 class ResponseInfo(BaseModel):
-    provider: Optional[str] = None
+    provider: str = "default"
     model: Optional[str] = None
     usage: Usage = Field(default_factory=Usage)
     done_reason: Optional[Literal["stop", "tool_calls", "max_tokens", "content_filter", "error"]] = None
@@ -41,9 +43,6 @@ class ResponseInfo(BaseModel):
             usage=self.usage + other.usage,
             done_reason=self.done_reason or other.done_reason
         )
-
-
-T = TypeVar('T')
 
 class ListWithResponseInfo(RootModel[List[T]], Generic[T]):
     """Generic base class for lists that include response info"""
@@ -108,3 +107,15 @@ class ListWithResponseInfo(RootModel[List[T]], Generic[T]):
             self.response_info += other.response_info
         else:
             self.root.extend(other)    
+
+    @classmethod
+    def from_generator(cls: Type[Self], generator: Generator[T, None, ResponseInfo]) -> Self:
+        """Create a ListWithResponseInfo from a generator"""
+        root = list(generator)
+        try:
+            generator.send(None)
+        except StopIteration as e:
+            response_info = e.value                
+        instance = cls(root)
+        instance.response_info = response_info
+        return instance

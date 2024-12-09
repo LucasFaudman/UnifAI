@@ -2,7 +2,7 @@ import pytest
 
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 
-from unifai import UnifAI, LLMProvider, PromptTemplate
+from unifai import UnifAI, ProviderName, PromptTemplate
 from unifai.types import Message, Tool
 from basetest import base_test_llms_all
 

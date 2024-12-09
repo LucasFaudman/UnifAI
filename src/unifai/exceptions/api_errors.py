@@ -173,3 +173,35 @@ STATUS_CODE_TO_EXCEPTION_MAP: dict[int, type[APIError]] = {
     504: APITimeoutError,  
     505: APIConnectionError,    
 }
+
+def unifai_exception_from_status_code(status_code: Optional[int]) -> type[APIError]:
+    if status_code == 400:
+        return BadRequestError
+    elif status_code == 401:
+        return AuthenticationError
+    elif status_code == 403:
+        return PermissionDeniedError
+    elif status_code == 404:
+        return NotFoundError
+    elif status_code == 409:
+        return ConflictError
+    elif status_code == 413:
+        return RequestTooLargeError
+    elif status_code == 418:
+        return TeapotError
+    elif status_code == 422:
+        return UnprocessableEntityError
+    elif status_code == 429:
+        return RateLimitError
+    elif status_code == 500:
+        return InternalServerError
+    elif status_code == 502:
+        return APIConnectionError
+    elif status_code == 503:
+        return ServerOverloadedError
+    elif status_code == 504:
+        return APITimeoutError
+    elif status_code == 505:
+        return APIConnectionError
+    else:
+        return UnknownAPIError

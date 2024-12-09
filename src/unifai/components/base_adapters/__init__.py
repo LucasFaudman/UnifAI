@@ -1,1 +1,1 @@
-from ._base_adapter import UnifAIAdapter
+from .._base_components._base_adapter import UnifAIAdapter
