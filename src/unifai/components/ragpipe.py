@@ -115,9 +115,6 @@ class RAGPipe(UnifAIComponent[RAGConfig]):
         if self.config.reranker:
             self._reranker = self._get_component("reranker", self.config.reranker)
         return self._reranker
-        # if not self.config.reranker:
-        #     raise ValueError("reranker is required. Set reranker in the config or provide an instance at runtime.")
-        # return self._get_component("reranker", self.config.reranker)
     
     @reranker.setter
     def reranker(self, value: "Optional[Reranker | RerankerConfig | ProviderName | tuple[ProviderName, ComponentName]]") -> None:

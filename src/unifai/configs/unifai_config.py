@@ -30,17 +30,3 @@ class UnifAIConfig(BaseModel):
     # tool_callers: Optional[list[ToolCallerConfig]] = None
     # vector_dbs: Optional[list[VectorDBConfig]] = None
 
-UnifAIConfig(
-    provider_configs=[
-        ProviderConfig(
-            provider="openai", 
-            api_key="123", 
-            client_init_kwargs={"base_url": "https://api.openai.com/v1"}
-        ),
-        ProviderConfig(
-            provider="google", 
-            # api_key="456", 
-            # client_init_kwargs={"base_url": "https://api.google.com/v1"}
-        ),
-    ]
-)
