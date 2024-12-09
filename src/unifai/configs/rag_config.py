@@ -35,7 +35,7 @@ class RAGConfig(ComponentConfig):
     prompt_template: PromptTemplate = PromptTemplate(
         "{query}\n\nCONTEXT:\n{result}",
         value_formatters={ 
-            QueryResult: lambda result: "\n".join(f"DOCUMENT: {doc.id}\n{doc.text}" for doc in result)
+            QueryResult: lambda result: "\n".join(f"DOCUMENT: {doc.id}\n{doc.text}\n" for doc in result)
         },
     )
     prompt_template_kwargs: Optional[dict[str, Any]] = None

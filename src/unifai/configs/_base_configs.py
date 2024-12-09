@@ -5,17 +5,17 @@ from ..types import (BaseModel, Field, ComponentName, ModelName,  ProviderName, 
 
 
 class BaseConfig(BaseModel):
-    name: ComponentName = "default"
+    name: ComponentName = Field(default="default")
 
 class ProviderConfig(BaseModel):    
-    provider: ProviderName
+    provider: ProviderName = Field(default="default")
     api_key: Optional[str] = None
     init_kwargs: dict[str, Any] = Field(default_factory=dict)
     share_client: bool = True
 
 class ComponentConfig(BaseConfig):
     component_type: ClassVar = "component"    
-    provider: ProviderName
+    provider: ProviderName = Field(default="default")
     init_kwargs: dict[str, Any] = Field(default_factory=dict)
 
     def _get_other_component_type(self, other: "ComponentConfig") -> str:

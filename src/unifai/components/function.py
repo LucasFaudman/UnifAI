@@ -133,7 +133,7 @@ class Function(BaseChat[FunctionConfig[InputT, OutputT, ReturnT]], Generic[Input
                 input_str = prompt_template if isinstance(prompt_template, str) else prompt_template()
         
         if self.ragpipe:
-            prompt = self.ragpipe.ragify(query=input_str)
+            prompt = self.ragpipe.prompt(query=input_str)
         else:
             prompt = input_str
                 

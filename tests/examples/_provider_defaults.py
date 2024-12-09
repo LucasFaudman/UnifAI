@@ -2,12 +2,21 @@ from os import getenv
 from dotenv import load_dotenv
 
 load_dotenv()
-ANTHROPIC_API_KEY = getenv("_ANTHROPIC_API_KEY")
-GOOGLE_API_KEY = getenv("_GOOGLE_API_KEY")
-OPENAI_API_KEY = getenv("_OPENAI_API_KEY")
-PINECONE_API_KEY = getenv("_PINECONE_API_KEY")
-COHERE_API_KEY = getenv("_COHERE_API_KEY")
-NVIDIA_API_KEY = getenv("_NVIDIA_API_KEY")
+ANTHROPIC_API_KEY = getenv("_ANTHROPIC_API_KEY", "")
+GOOGLE_API_KEY = getenv("_GOOGLE_API_KEY", "")
+OPENAI_API_KEY = getenv("_OPENAI_API_KEY", "")
+PINECONE_API_KEY = getenv("_PINECONE_API_KEY", "")
+COHERE_API_KEY = getenv("_COHERE_API_KEY", "")
+NVIDIA_API_KEY = getenv("_NVIDIA_API_KEY", "")
+
+API_KEYS = {
+    "anthropic": ANTHROPIC_API_KEY,
+    "google": GOOGLE_API_KEY,
+    "openai": OPENAI_API_KEY,
+    "pinecone": PINECONE_API_KEY,
+    "cohere": COHERE_API_KEY,
+    "nvidia": NVIDIA_API_KEY    
+}
 
 PROVIDER_DEFAULTS = {
     # "provider": (provider, init_kwargs, func_kwargs)

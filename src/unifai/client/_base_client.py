@@ -7,6 +7,7 @@ from os import getenv
 
 from ..types.annotations import ComponentType, ComponentName, ProviderName
 from ..components._import_component import import_component
+from ..components._base_components._base_component import UnifAIComponent
 from ..configs._base_configs import ProviderConfig, ComponentConfig
 from ..configs import UnifAIConfig, COMPONENT_CONFIGS
 from ..utils import _next, combine_dicts
@@ -125,12 +126,24 @@ class BaseClient:
 
     def register_component(
         self,
+        component_class: Type[UnifAIComponent]|Type[Any]|Callable[..., Any],
         *,
-        component_type: ComponentType,
-        provider: ProviderName,
-        component_class: Type[Any]|Callable[..., Any],
-        config_class: Type[ComponentConfig] = ComponentConfig,
+        config_class: Optional[Type[ComponentConfig]] = None,
+        component_type: Optional[ComponentType] = None,
+        provider: Optional[ProviderName] = None,
+        can_get_components: Optional[bool] = None
     ) -> None:
+        
+        if not (component_type := getattr(component_class, "component_type", None) or component_type):
+            raise ValueError(f"component_class must have a component_type attribute or pass component_type as an argument")
+        if not (provider := getattr(component_class, "provider", None) or provider):
+            raise ValueError(f"component_class must have a provider attribute or pass provider as an argument")
+        if not (config_class := getattr(component_class, "config_class", None) or config_class):
+            raise ValueError(f"component_class must have a config_class attribute or pass config_class as an argument")
+        if (can_get_components := getattr(component_class, "can_get_components", can_get_components)) is None:
+            raise ValueError(f"component_class must have a can_get_components attribute or pass can_get_components as an argument")
+        elif not hasattr(component_class, "can_get_components"):
+            setattr(component_class, "can_get_components", can_get_components)
         
         # For registering new component types
         if component_type not in self._component_types:
@@ -182,7 +195,7 @@ class BaseClient:
                         ) -> Any:
         if (component_class := self._component_types[component_type].get(provider)) is None:
             component_class = import_component(component_type, provider)
-            self.register_component(component_type=component_type, provider=provider, component_class=component_class)
+            self.register_component(component_class)
 
         component_kwargs: dict[str, Any] = {"config": component_config}        
         if api_key := provider_config.api_key:

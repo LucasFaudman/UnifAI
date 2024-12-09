@@ -2,7 +2,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Class
 from pathlib import Path
 
 from ._base_component import UnifAIComponent
-from ...utils import stringify_content, sha256_hash, clean_text
+from ...utils import stringify_content, sha256_hash, clean_text, _next
 from ...types import Document, Documents
 from ...configs.document_loader_config import DocumentLoaderConfig
 
@@ -68,13 +68,13 @@ class DocumentLoader(UnifAIComponent[DocumentLoaderConfig], Generic[SourceT, Loa
         return loaded_metadata    
 
     def _process_text(self, source: SourceT, loaded_source: LoadedSourceT, loaded_metadata: dict|None, *args, **kwargs) -> str:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return str(loaded_source) if not isinstance(loaded_source, str) else loaded_source
             
     def _process_metadata(self, source: SourceT, loaded_source: LoadedSourceT, loaded_metadata: dict|None, *args, **kwargs) -> dict|None:
-        raise NotImplementedError("This method must be implemented by the subclass")    
+        return loaded_metadata
         
     def _process_id(self, source: SourceT, loaded_source: LoadedSourceT, loaded_metadata: dict|None, *args, **kwargs) -> str:
-        raise NotImplementedError("This method must be implemented by the subclass")    
+        return self._source_id_func(source)
     
     def _load_document(self, source: SourceT, metadata: SourceT|dict|None, *args, **kwargs) -> Document|None|Exception:
         loaded_source = load_source_exception = None
@@ -162,4 +162,11 @@ class DocumentLoader(UnifAIComponent[DocumentLoaderConfig], Generic[SourceT, Loa
             ) -> list[Document]|Documents:
         return list(self.iload_documents(sources, *args, metadatas=metadatas, **kwargs))
 
-
+    def load_document(
+            self, 
+            source: SourceT, 
+            *args, 
+            metadata: SourceT|dict|None = None,  
+            **kwargs
+            ) -> Document|None:
+        return _next(self.iload_documents([source], *args, metadatas=[metadata], **kwargs))

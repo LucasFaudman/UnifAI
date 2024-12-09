@@ -32,6 +32,7 @@ from ._base_components._base_component import UnifAIComponent
 class RAGPipe(UnifAIComponent[RAGConfig]):
     component_type = "ragpipe"
     provider = "default"
+    config_class = RAGConfig
 
     can_get_components = True
 
@@ -271,7 +272,7 @@ class RAGPipe(UnifAIComponent[RAGConfig]):
             # TODO: maybe move to VectorDBCollection
             query_result.trim_by_distance(max_distance)
 
-        if self.reranker:
+        if self.reranker and query_result.ids:
             reranker_model = reranker_model or self.config.reranker_model
             rerank_kwargs = combine_dicts(self._extra_kwargs.get("rerank"), rerank_kwargs)
             query_result = self.reranker.rerank(
@@ -295,7 +296,7 @@ class RAGPipe(UnifAIComponent[RAGConfig]):
         prompt_template_kwargs = combine_dicts(self.config.prompt_template_kwargs, prompt_template_kwargs)
         return prompt_template.format(query=query, result=query_result, **prompt_template_kwargs)  
 
-    def ragify(
+    def prompt(
             self, 
             query: str,
             top_k: Optional[int] = None,

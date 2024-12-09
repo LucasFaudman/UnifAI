@@ -14,7 +14,7 @@ from .annotations import (
     ResponseFormatInput,
     ReturnOnInput,
 )
-from .documents import Document, Documents, RankedDocument, RankedDocuments, RerankedDocument, RerankedDocuments
+from .documents import Document, Documents, RankedDocument, RankedDocuments, RerankedDocument, RerankedDocuments, DocumentChunk, DocumentChunks
 from .image import Image
 from .message import Message, MessageChunk
 from .embeddings import Embeddings, Embedding
@@ -56,6 +56,15 @@ __all__ = [
     "ResponseFormatInput",
     "ReturnOnInput",
 
+    "Document",
+    "Documents",
+    "RankedDocument",
+    "RankedDocuments",
+    "RerankedDocument",
+    "RerankedDocuments",
+    "DocumentChunk",
+    "DocumentChunks",
+    
     "Image", 
     "Message", 
     "MessageChunk",

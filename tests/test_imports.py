@@ -29,8 +29,8 @@ def test_init_ai_components(provider, init_kwargs):
     # assert isinstance(client, wrapper)    
     assert ai._components["llm"][provider] is client
     assert ai._get_component(provider) is client
-    assert ai.get_llm_client() is client
-    assert ai.get_llm_client(provider) is client
+    assert ai.get_llm() is client
+    assert ai.get_llm(provider) is client
 
     
 

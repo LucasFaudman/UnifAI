@@ -156,5 +156,5 @@ def test_ragpipe():
         print("Ingested Document #", i)#, end="\r")
 
     prompt = 'How can I make a POST request proxied over tor?'
-    rag_prompt = ragpipe.ragify(prompt)
+    rag_prompt = ragpipe.prompt(prompt)
     print(rag_prompt)

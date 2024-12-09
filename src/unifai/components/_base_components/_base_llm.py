@@ -15,9 +15,10 @@ T = TypeVar("T")
 class LLM(UnifAIAdapter[LLMConfig]):
     component_type = "llm"
     provider = "base"    
-    default_model = "default"
+    config_class = LLMConfig
     can_get_components = True
-
+    default_model = "default"
+    
     _system_prompt_input_type: Literal["first_message", "kwarg"] = "first_message"
 
     # List Models

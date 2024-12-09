@@ -30,7 +30,7 @@ class ChatConfig(ComponentConfig):
     enforce_tool_choice: bool = True
     tool_choice_error_retries: int = 3
     tool_callables: Optional[dict[ToolName, Callable[..., Any]]] = None
-    tool_caller: ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName] = "default"
+    tool_caller: Optional[ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]] = "default"
 
     # response_format: Optional[Literal["text", "json"] | Type[BaseModel] | Tool | dict[Literal["json_schema"], dict[str, str] | Type[BaseModel] | Tool]] = None
     response_format: Optional[Literal["text", "json"] | dict[Literal["json_schema"], dict[str, str] | Type[BaseModel] | Tool]] = None

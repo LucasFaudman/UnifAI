@@ -36,12 +36,12 @@ from ..utils import update_kwargs_with_locals
 
 class UnifAIChatClient(BaseClient):
 
-    def get_llm_client(
+    def get_llm(
             self, 
             provider_config_or_name: "ProviderName | LLMConfig | tuple[ProviderName, ComponentName]" = "default",
             **init_kwargs
             ) -> "LLM":
-        return self._get_component("llm", provider_config_or_name, **init_kwargs)
+        return self._get_component("llm", provider_config_or_name, init_kwargs)
     
     def configure(
         self,

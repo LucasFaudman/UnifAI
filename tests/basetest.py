@@ -1,6 +1,7 @@
 import pytest
 from os import getenv
 from dotenv import load_dotenv
+from unifai import ProviderConfig
 
 load_dotenv()
 ANTHROPIC_API_KEY = getenv("_ANTHROPIC_API_KEY")
@@ -9,6 +10,15 @@ OPENAI_API_KEY = getenv("_OPENAI_API_KEY")
 PINECONE_API_KEY = getenv("_PINECONE_API_KEY")
 COHERE_API_KEY = getenv("_COHERE_API_KEY")
 NVIDIA_API_KEY = getenv("_NVIDIA_API_KEY")
+
+api_keys = {
+    "anthropic": ANTHROPIC_API_KEY,
+    "google": GOOGLE_API_KEY,
+    "openai": OPENAI_API_KEY,
+    "pinecone": PINECONE_API_KEY,
+    "cohere": COHERE_API_KEY,
+    "nvidia": NVIDIA_API_KEY    
+}
 
 PROVIDER_DEFAULTS = {
     # "provider": (provider, init_kwargs, func_kwargs)
@@ -214,16 +224,6 @@ TOKENIZER_PROVIDER_DEFAULTS = [
 ]
 TOKENIZER_PROVIDERS = [provider[0] for provider in TOKENIZER_PROVIDER_DEFAULTS]
 
-def decorator_with_params(param1, param2):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            print(f"Decorator parameters: {param1}, {param2}")
-            print("Before function execution")
-            result = func(*args, **kwargs)
-            print("After function execution")
-            return result
-        return wrapper
-    return decorator
 
 def base_test(*providers, exclude=[]):
     def decorator(func):
@@ -239,21 +239,6 @@ def base_test(*providers, exclude=[]):
 # LLM test decorators
 def base_test_llms_all(func):
     return base_test(*LLM_PROVIDERS)(func)
-
-# def base_test_llms_no_anthropic(func):
-#     return base_test(*LLM_PROVIDERS, exclude=["anthropic"])(func)
-
-# def base_test_llms_no_google(func):
-#     return base_test(*LLM_PROVIDERS, exclude=["google"])(func)
-
-# def base_test_llms_no_openai(func):
-#     return base_test(*LLM_PROVIDERS, exclude=["openai"])(func)
-
-# def base_test_llms_no_ollama(func):
-#     return base_test(*LLM_PROVIDERS, exclude=["ollama"])(func)
-
-# def base_test_llms_no_cohere(func):
-#     return base_test(*LLM_PROVIDERS, exclude=["cohere"])(func)
 
 # Document Chunker test decorators
 def base_test_document_chunkers_all(func):
@@ -283,28 +268,7 @@ def base_test_rerankers_all(func):
 def base_test_tokenizers_all(func):
     return base_test(*TOKENIZER_PROVIDERS)(func)
 
-# def base_test_all_llms(func):
-#     return pytest.mark.parametrize("provider, init_kwargs, func_kwargs", LLM_PROVIDER_DEFAULTS[:])(func)
 
-# def base_test_no_anthropic(func):
-#     return pytest.mark.parametrize("provider, init_kwargs, func_kwargs", [
-#         defaults for defaults in LLM_PROVIDER_DEFAULTS if defaults[0] != "anthropic"
-#     ])(func)
-
-# def base_test_no_google(func):
-#     return pytest.mark.parametrize("provider, init_kwargs, func_kwargs", [
-#         defaults for defaults in LLM_PROVIDER_DEFAULTS if defaults[0] != "google"
-#     ])(func)
-
-# def base_test_no_openai(func):
-#     return pytest.mark.parametrize("provider, init_kwargs, func_kwargs", [
-#         defaults for defaults in LLM_PROVIDER_DEFAULTS if defaults[0] != "openai"
-#     ])(func)
-
-# def base_test_no_ollama(func):
-#     return pytest.mark.parametrize("provider, init_kwargs, func_kwargs", [
-#         defaults for defaults in LLM_PROVIDER_DEFAULTS if defaults[0] != "ollama"
-#     ])(func)
 
 
 
