@@ -10,15 +10,17 @@ from openai.types.chat.chat_completion_message import ChatCompletionMessage
 from openai.types.chat.chat_completion_message_tool_call import ChatCompletionMessageToolCall
 
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo
-from unifai.type_conversions import stringify_content
+from ...types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo
+from ...utils import stringify_content
 from ..base_adapters.openai_base import OpenAIAdapter
-from ._base_llm_client import LLMClient
+from .._base_components._base_llm import LLM
 
-class OpenAILLM(OpenAIAdapter, LLMClient):
+class OpenAILLM(OpenAIAdapter, LLM):
     provider = "openai"
     default_model = "gpt-4o"
-   
+
+    _system_prompt_input_type = "first_message"
+    
     def _create_completion(self, kwargs) -> ChatCompletion|Stream[ChatCompletionChunk]:
         # As as separate method to allow for easier overriding in subclasses (Nvidia, more in the future)
         return self.client.chat.completions.create(**kwargs)
@@ -139,29 +141,29 @@ class OpenAILLM(OpenAIAdapter, LLMClient):
         return {"role": "system", "content": message.content}
 
 
-    def format_messages_and_system_prompt(self, 
-                                              messages: list[Message], 
-                                              system_prompt_arg: Optional[str] = None
-                                              ) -> tuple[list, Optional[str]]:
-        if system_prompt_arg:
-            system_prompt = system_prompt_arg
-            if messages and messages[0].role == "system":
-                messages[0].content = system_prompt
-            else:
-                messages.insert(0, Message(role="system", content=system_prompt))
-        elif messages and messages[0].role == "system":
-            system_prompt = messages[0].content
-        else:
-            system_prompt = None
+    # def format_messages_and_system_prompt(self, 
+    #                                           messages: list[Message], 
+    #                                           system_prompt_arg: Optional[str] = None
+    #                                           ) -> tuple[list, Optional[str]]:
+    #     if system_prompt_arg:
+    #         system_prompt = system_prompt_arg
+    #         if messages and messages[0].role == "system":
+    #             messages[0].content = system_prompt
+    #         else:
+    #             messages.insert(0, Message(role="system", content=system_prompt))
+    #     elif messages and messages[0].role == "system":
+    #         system_prompt = messages[0].content
+    #     else:
+    #         system_prompt = None
 
-        client_messages = []
-        for message in messages:
-            if message.role != "tool":
-                client_messages.append(self.format_message(message))
-            else:
-                client_messages.extend(map(self.format_message, self.split_tool_message(message)))
+    #     client_messages = []
+    #     for message in messages:
+    #         if message.role != "tool":
+    #             client_messages.append(self.format_message(message))
+    #         else:
+    #             client_messages.extend(map(self.format_message, self.split_tool_message(message)))
 
-        return client_messages, system_prompt
+    #     return client_messages, system_prompt
 
 
         # Images
@@ -256,7 +258,7 @@ class OpenAILLM(OpenAIAdapter, LLMClient):
         created_at = datetime.fromtimestamp(response.created) if response.created else datetime.now()
         response_info = self.parse_response_info(response, **kwargs)       
         
-        std_message = Message(
+        unifai_message = Message(
             role=client_message.role,
             content=client_message.content,            
             tool_calls=tool_calls,
@@ -264,7 +266,7 @@ class OpenAILLM(OpenAIAdapter, LLMClient):
             created_at=created_at,
             response_info=response_info,
         )   
-        return std_message, client_message
+        return unifai_message, client_message
 
 
     def parse_stream(self, response: Stream[ChatCompletionChunk], **kwargs) -> Generator[MessageChunk, None, tuple[Message, ChatCompletionMessage]]:        
@@ -327,13 +329,13 @@ class OpenAILLM(OpenAIAdapter, LLMClient):
                     
                 
         response_info = ResponseInfo(model=model, done_reason=done_reason, usage=usage)
-        std_message = Message(
+        unifai_message = Message(
             role="assistant",
             content=content,
             tool_calls=tool_calls,
             response_info=response_info
         )
-        return std_message, self.format_message(std_message)
+        return unifai_message, self.format_message(unifai_message)
 
 
 

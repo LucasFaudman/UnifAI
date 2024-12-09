@@ -1,7 +1,7 @@
 import pytest
 from basetest import base_test_llms_all
 
-from unifai import UnifAI, LLMProvider
+from unifai import UnifAI, ProviderName
 from unifai.types import Message, Tool, StringToolParameter, ToolCall
 from unifai.exceptions import (
     UnifAIError,
@@ -63,7 +63,7 @@ bad_messages = [
     # (UnknownAPIError, {}, {}),
 ])
 def test_api_exceptions(
-    provider: LLMProvider, 
+    provider: ProviderName, 
     client_kwargs: dict, 
     func_kwargs: dict,
     expected_exception: type[UnifAIError],

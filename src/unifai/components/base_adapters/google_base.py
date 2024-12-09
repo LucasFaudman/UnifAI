@@ -33,7 +33,7 @@ from ...exceptions import (
     ModelUnsupportedFeatureError
 )
 
-from ._base_adapter import UnifAIAdapter
+from .._base_components._base_adapter import UnifAIAdapter
 
 class GoogleAdapter(UnifAIAdapter):
     provider = "google"
@@ -44,8 +44,10 @@ class GoogleAdapter(UnifAIAdapter):
 
 
     def init_client(self, **client_kwargs):
+        if client_kwargs:
+            self.client_kwargs.update(client_kwargs)        
         self._client = self.import_client()
-        self._client.configure(**client_kwargs)
+        self._client.configure(**self.client_kwargs)
         return self._client
 
 

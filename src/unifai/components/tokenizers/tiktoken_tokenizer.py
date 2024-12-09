@@ -5,8 +5,10 @@ from typing import TYPE_CHECKING, Type, Optional, Sequence, Any, Union, Literal,
 import tiktoken
 
 from ...exceptions import UnifAIError, UnknownUnifAIError, TokenizerVocabError, TokenizerDisallowedSpecialTokenError
-from .._base_component import convert_exceptions
-from ._base_tokenizer import TokenizerAdapter
+from .._base_components._base_component import convert_exceptions
+from .._base_components._base_tokenizer import TokenizerAdapter
+from ...utils import lazy_import
+
 
 T = TypeVar("T")
 
@@ -20,7 +22,7 @@ class TikTokenTokenizer(TokenizerAdapter):
     _encoding_cache: ClassVar[dict[str, tiktoken.Encoding]] = {}
 
     def import_client(self):
-        return self.lazy_import("tiktoken")
+        return lazy_import("tiktoken")
 
     def init_client(self, **client_kwargs):
         if (allowed_special := client_kwargs.get("allowed_special") or client_kwargs.pop("default_allowed_special", None)) is not None:

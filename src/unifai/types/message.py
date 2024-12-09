@@ -1,7 +1,7 @@
 from typing import Optional, Literal, Union, Sequence, Any
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from ._base_model import BaseModel, Field
 
 from .image import Image
 from .tool_call import ToolCall
@@ -16,6 +16,9 @@ class Message(BaseModel):
     
     created_at: datetime = Field(default_factory=datetime.now)
     response_info: Optional[ResponseInfo] = None
+
+    def get_content(self) -> str:
+        return self.content or ""
 
 
 class MessageChunk(Message):

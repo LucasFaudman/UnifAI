@@ -1,5 +1,5 @@
 from typing import Optional, Mapping, Any
-from pydantic import BaseModel, Field
+from ._base_model import BaseModel, Field
 
 
 class ToolCall(BaseModel):

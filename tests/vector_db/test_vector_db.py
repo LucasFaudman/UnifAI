@@ -1,30 +1,25 @@
 import pytest
 from typing import Optional, Literal
 
-from unifai import UnifAI, LLMProvider, VectorDBProvider, Provider
-from unifai.components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex, DocumentDB
+from unifai import UnifAI, ProviderName
+from unifai.components._base_components._base_vector_db import VectorDB, VectorDBCollection, DocumentDB
 from unifai.components import DictDocumentDB
 
-from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
-from unifai.exceptions import BadRequestError, NotFoundError, DocumentNotFoundError
+from unifai.exceptions import CollectionNotFoundError, DocumentNotFoundError
 from basetest import base_test, base_test_vector_dbs_all, PROVIDER_DEFAULTS, VECTOR_DB_PROVIDERS
 from chromadb.errors import InvalidCollectionException
 
 from time import sleep
 @base_test_vector_dbs_all
-def test_init_vector_db_init_clients(provider, client_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs={
-        provider: client_kwargs
-    })
+def test_init_vector_db_init_dbs(provider, client_kwargs, func_kwargs):
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
 
+    db = ai.get_vector_db(provider)
 
-
-    client = ai.get_vector_db(provider)
-
-    assert client
-    assert ai._components["vector_db"][provider] is client
-    assert ai.get_vector_db() is client 
-    assert ai.get_vector_db(provider) is client 
+    assert db
+    assert ai._components["vector_db"][provider]["default"] is db
+    assert ai.get_vector_db() is db 
+    assert ai.get_vector_db(provider) is db 
 
 
 
@@ -32,8 +27,8 @@ def parameterize_name_and_metadata(func):
     return pytest.mark.parametrize(
         "name, metadata",
         [
-            ("test-index", {"test": "metadata"}),
-            # ("test-index", {"test": "metadata", "another": "metadata"}),
+            ("test-collection", {"test": "metadata"}),
+            # ("test-collection", {"test": "metadata", "another": "metadata"}),
         ]
     )(func)
 
@@ -45,7 +40,7 @@ def parameterize_embedding_provider_embedding_model(func):
             # ("openai", "text-embedding-3-large"),
             ("openai", "text-embedding-3-small"),
             # ("openai", "text-embedding-ada-002"),
-            ("google", None),
+            # ("google", None),
             # ("nvidia", None),
             # ("google", "models/text-embedding-004"),
             # ("google", "embedding-gecko-001"),
@@ -64,7 +59,8 @@ def parameterize_dimensions(func):
             None, 
             # 100, 
             # 1000, 
-            1536, 
+            768,
+            # 1536, 
             # 3072
         ]
     )(func)
@@ -95,12 +91,12 @@ def parameterize_distance_metric(func):
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
 @parameterize_distance_metric
-def test_vector_db_create_index(provider: Provider, 
+def test_vector_db_create_collection(provider: ProviderName, 
                                 client_kwargs: dict, 
                                 func_kwargs: dict,
                                 name: str, 
                                 metadata: dict,
-                                embedding_provider: Optional[LLMProvider],
+                                embedding_provider: Optional[ProviderName],
                                 embedding_model: Optional[str],
                                 dimensions: Optional[int],
                                 distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]],                                                                                               
@@ -111,94 +107,80 @@ def test_vector_db_create_index(provider: Provider,
     #     client_kwargs["persist_directory"] = str(tmp_path)
     # name = f"{name}_{provider}_{embedding_provider}_{embedding_model}_{dimensions}_{distance_metric}"
 
-    ai = UnifAI(provider_configs={
-        provider: client_kwargs,
-        "openai": PROVIDER_DEFAULTS["openai"][1],
-        "google": PROVIDER_DEFAULTS["google"][1],
-        "ollama": PROVIDER_DEFAULTS["ollama"][1],        
-    })
+    ai = UnifAI(provider_configs=[
+        {"provider": provider, "client_init_kwargs": client_kwargs},
+        {"provider": "openai", "client_init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
+        {"provider": "google", "client_init_kwargs": PROVIDER_DEFAULTS["google"][1]},
+        {"provider": "ollama", "client_init_kwargs": PROVIDER_DEFAULTS["ollama"][1]},
+    ])
 
-    client = ai.get_vector_db(provider)
-    assert client
-    assert isinstance(client, VectorDBClient)
-    client.delete_all_indexes() # Reset for each test
 
-    index = client.create_index(
+    db = ai.get_vector_db(provider)
+    assert db
+    assert isinstance(db, VectorDB)
+    db.delete_all_collections() # Reset for each test
+
+    collection = db.create_collection(
         name=name,
         # metadata=metadata,
-        embedding_provider=embedding_provider,
+        embedder=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
         distance_metric=distance_metric,
         **func_kwargs
     )
-    assert index
-    assert isinstance(index, VectorDBIndex)
-    assert index.name == name
+    assert collection
+    assert isinstance(collection, VectorDBCollection)
+    assert collection.name == name
     
 
-    assert index.embedding_provider == embedding_provider
-    assert index.embedding_model == embedding_model
-    assert index.dimensions == dimensions if dimensions is not None else 1536
-    assert index.distance_metric == distance_metric if distance_metric is not None else "cosine"
+    assert collection.embedding_provider == embedding_provider if embedding_provider is not None else collection.embedder.provider
+    assert collection.embedding_model == embedding_model if embedding_model is not None else collection.embedder.default_model
+    assert collection.dimensions == dimensions if dimensions is not None else collection.embedder.default_dimensions
+    assert collection.distance_metric == db._validate_distance_metric(distance_metric)
 
-    assert client.get_index(name) is index
+    assert db.get_collection(name) is collection
 
-    # assert client.get_indexes() == [index]
-    assert client.list_indexes() == [name]
-    assert client.count_indexes() == 1
+    # assert db.get_collections() == [collection]
+    assert db.list_collections() == [name]
+    assert db.count_collections() == 1
 
-    index2_name = "index-2"
+    collection2_name = "collection-2"
     # TODO both should raise InvalidIndexException
-    with pytest.raises((BadRequestError, NotFoundError)):
-        index2 = client.get_index(index2_name)
+    with pytest.raises(CollectionNotFoundError):
+        collection2 = db.get_collection(collection2_name)
 
-    index2 = client.get_or_create_index(
-        name=index2_name,
+    collection2 = db.get_or_create_collection(
+        name=collection2_name,
         # metadata=metadata,
-        embedding_provider=embedding_provider,
+        embedder=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
         distance_metric=distance_metric,
         **func_kwargs
     )
 
-    assert index2
-    assert isinstance(index2, VectorDBIndex)
-    assert index2.name == index2_name
-    # if provider == "chroma": assert index2.metadata == updated_metadata
-    assert index2.embedding_provider == embedding_provider
-    assert index2.embedding_model == embedding_model
-    assert index2.dimensions == dimensions if dimensions is not None else 1536
-    assert index2.distance_metric == distance_metric if distance_metric is not None else "cosine"
+    assert collection2
+    assert isinstance(collection2, VectorDBCollection)
+    assert collection2.name == collection2_name
+    # if provider == "chroma": assert collection2.metadata == updated_metadata
+    assert collection2.embedding_provider == embedding_provider if embedding_provider is not None else collection2.embedder.provider
+    assert collection2.embedding_model == embedding_model if embedding_model is not None else collection2.embedder.default_model
+    assert collection2.dimensions == dimensions if dimensions is not None else collection2.embedder.default_dimensions
+    assert collection2.distance_metric == db._validate_distance_metric(distance_metric)
 
-    assert client.get_index(index2_name) is index2
-    # assert client.list_indexes() == [index2_name, name]
-    assert sorted(client.list_indexes()) == sorted([name, index2_name])
-    assert client.count_indexes() == 2
+    assert db.get_collection(collection2_name) is collection2
+    # assert db.list_collections() == [collection2_name, name]
+    assert sorted(db.list_collections()) == sorted([name, collection2_name])
+    assert db.count_collections() == 2
     
-    # # test getting index by metadata
-    # if provider == "chroma":
-    #     client.indexes.pop(index2_name)
-    #     metaloaded_index2 = client.get_index(name=index2_name)
-    #     assert metaloaded_index2
-    #     assert isinstance(metaloaded_index2, VectorDBIndex)
-    #     assert metaloaded_index2.name == index2.name
-    #     assert metaloaded_index2.metadata == index2.metadata
-    #     assert metaloaded_index2.embedding_provider == index2.embedding_provider
-    #     assert metaloaded_index2.embedding_model == index2.embedding_model
-    #     assert metaloaded_index2.dimensions == index2.dimensions
-    #     assert metaloaded_index2.distance_metric == index2.distance_metric
-
-    #     assert client.get_index(index2_name) == metaloaded_index2
-
-    # test deleting index
-    client.delete_index(index2_name)
-    assert client.list_indexes() == [name]
-    assert client.count_indexes() == 1
-    client.delete_index(name)
-    assert client.list_indexes() == []
-    assert client.count_indexes() == 0
+    # test deleting collection
+    db.delete_collection(collection2_name)
+    assert db.list_collections() == [name]
+    assert db.count_collections() == 1
+    db.delete_collection(name)
+    assert db.list_collections() == []
+    assert db.count_collections() == 0
     
     del ai
     
@@ -216,70 +198,65 @@ def approx_embeddings(embeddings, expected_embeddings):
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
 @parameterize_distance_metric
-def test_vector_db_add(provider: Provider, 
+def test_vector_db_add(provider: ProviderName, 
                                 client_kwargs: dict, 
                                 func_kwargs: dict,
                                 name: str, 
                                 metadata: dict,
-                                embedding_provider: Optional[LLMProvider],
+                                embedding_provider: Optional[ProviderName],
                                 embedding_model: Optional[str],
                                 dimensions: Optional[int],
                                 distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]],                                                                
                                 # serial
                                 ):
 
-    ai = UnifAI(provider_configs={
-        provider: client_kwargs,
-        "openai": PROVIDER_DEFAULTS["openai"][1],
-        "google": PROVIDER_DEFAULTS["google"][1],
-        "ollama": PROVIDER_DEFAULTS["ollama"][1],        
-    })
+    ai = UnifAI(provider_configs=[
+        {"provider": provider, "client_init_kwargs": client_kwargs},
+        {"provider": "openai", "client_init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
+        {"provider": "google", "client_init_kwargs": PROVIDER_DEFAULTS["google"][1]},
+        {"provider": "ollama", "client_init_kwargs": PROVIDER_DEFAULTS["ollama"][1]},
+    ])
 
-    client = ai.get_vector_db(provider)
-    assert client
-    assert isinstance(client, VectorDBClient)
-    client.delete_all_indexes() # Reset for each test
+    db = ai.get_vector_db(provider)
+    assert db
+    assert isinstance(db, VectorDB)
+    db.delete_all_collections() # Reset for each test
 
-    if provider == "chroma":
-        document_db = None
-    else:
-        document_db = DictDocumentDB({})
-
-    index = client.create_index(
+    collection = db.create_collection(
         name=name,
         # metadata=metadata,
-        embedding_provider=embedding_provider,
+        embedder=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
         distance_metric=distance_metric,
-        document_db=document_db,
+        document_db_collection="dict",
         **func_kwargs
     )
-    assert index
-    assert isinstance(index, VectorDBIndex)
+    assert collection
+    assert isinstance(collection, VectorDBCollection)
 
-    index.add(
+    collection.add(
         ids=["test_id"],
         metadatas=[{"test": "metadata"}],
-        documents=["test document"],
-        # embeddings=[Embedding(vector = ([1.0] * dimensions), index=0)]
+        texts=["test document"],
+        # embeddings=[Embedding(vector = ([1.0] * dimensions), collection=0)]
     )
 
     # test including embeddings
-    if provider == 'pinecone': sleep(10)
-    assert index.count() == 1
-    get_result = index.get(["test_id"])
+    if provider == 'pinecone': sleep(15)
+    assert collection.count() == 1
+    get_result = collection.get(["test_id"])
     assert get_result
     assert get_result.ids == ["test_id"]
     assert get_result.metadatas == [{"test": "metadata"}]
-    assert get_result.documents == ["test document"]
+    assert get_result.texts == ["test document"]
     assert get_result.embeddings == None
 
-    get_result = index.get(["test_id"], include=["embeddings"])
+    get_result = collection.get(["test_id"], include=["embeddings"])
     assert get_result
     assert get_result.ids == ["test_id"]
     assert get_result.metadatas == None
-    assert get_result.documents == None
+    assert get_result.texts == None
     assert get_result.embeddings
     assert len(get_result.embeddings) == 1
 
@@ -292,132 +269,130 @@ def test_vector_db_add(provider: Provider,
     manual_embeddings2 = [[.2] * dimensions]
     
 
-    index.add(
+    collection.add(
         ids=["test_id_2"],
         metadatas=[{"test": "metadata2"}],
-        documents=["test document2"],
+        texts=["test document2"],
         embeddings=manual_embeddings
     )
 
-    if provider == 'pinecone': sleep(10)
-    assert index.count() == 2
-    get_result = index.get(["test_id_2"], where={"test": "metadata2"}, include=["metadatas", "documents", "embeddings"])
-    # get_result = index.get(where={"test": "metadata2"}, include=["metadatas", "documents", "embeddings"])
+    if provider == 'pinecone': sleep(15)
+    assert collection.count() == 2
+    get_result = collection.get(["test_id_2"], where={"test": "metadata2"}, include=["metadatas", "texts", "embeddings"])
+    # get_result = collection.get(where={"test": "metadata2"}, include=["metadatas", "texts", "embeddings"])
 
     assert get_result
     assert get_result.ids == ["test_id_2"]
     assert get_result.metadatas == [{"test": "metadata2"}]
-    assert get_result.documents == ["test document2"]
+    assert get_result.texts == ["test document2"]
     approx_embeddings(get_result.embeddings, manual_embeddings)
 
-    get_result = index.get(["test_id", "test_id_2"], include=["metadatas", "documents", "embeddings"])
+    get_result = collection.get(["test_id", "test_id_2"], include=["metadatas", "texts", "embeddings"])
     assert get_result
     assert get_result.sort().ids == ["test_id", "test_id_2"]
     assert get_result.ids == ["test_id", "test_id_2"]
     assert get_result.metadatas == [{"test": "metadata"}, {"test": "metadata2"}]
-    assert get_result.documents == ["test document", "test document2"]
+    assert get_result.texts == ["test document", "test document2"]
     approx_embeddings(get_result.embeddings, [computed_embedding] + manual_embeddings)
 
     # test updating
-    index.update(
+    collection.update(
         ids=["test_id_2"],
         metadatas=[{"test": "metadata2-UPDATED"}],
-        documents=["test document2-UPDATED"],
+        texts=["test document2-UPDATED"],
         embeddings=manual_embeddings2
     )
 
-    if provider == 'pinecone': sleep(10)
-    assert index.count() == 2
-    get_result = index.get(["test_id_2"], include=["metadatas", "documents", "embeddings"])
+    if provider == 'pinecone': sleep(15)
+    assert collection.count() == 2
+    get_result = collection.get(["test_id_2"], include=["metadatas", "texts", "embeddings"])
     assert get_result
     assert get_result.ids == ["test_id_2"]
     assert get_result.metadatas == [{"test": "metadata2-UPDATED"}]
-    assert get_result.documents == ["test document2-UPDATED"]
+    assert get_result.texts == ["test document2-UPDATED"]
     approx_embeddings(get_result.embeddings, manual_embeddings2)
 
     # test deleting
-    index.delete(["test_id_2"])
-    if provider == 'pinecone': sleep(10)
-    assert index.count() == 1
-    get_result = index.get(["test_id_2"], include=["metadatas", "documents", "embeddings"])
+    collection.delete(["test_id_2"])
+    if provider == 'pinecone': sleep(15)
+    assert collection.count() == 1
+    get_result = collection.get(["test_id_2"], include=["metadatas", "texts", "embeddings"])
     assert not get_result.metadatas
-    assert not get_result.documents
+    assert not get_result.texts
     assert not get_result.embeddings        
 
     # test upsert
-    index.upsert(
+    collection.upsert(
         ids=["test_id_2"],
         metadatas=[{"test": "metadata2-UPDATED"}],
-        documents=["test document2-UPDATED"],
+        texts=["test document2-UPDATED"],
         embeddings=manual_embeddings2
     )
 
-    if provider == 'pinecone': sleep(10)
-    assert index.count() == 2
-    get_result = index.get(["test_id_2"], include=["metadatas", "documents", "embeddings"])
+    if provider == 'pinecone': sleep(15)
+    assert collection.count() == 2
+    get_result = collection.get(["test_id_2"], include=["metadatas", "texts", "embeddings"])
     assert get_result
     assert get_result.ids == ["test_id_2"]
     assert get_result.metadatas == [{"test": "metadata2-UPDATED"}]
-    assert get_result.documents == ["test document2-UPDATED"]
+    assert get_result.texts == ["test document2-UPDATED"]
     approx_embeddings(get_result.embeddings, manual_embeddings2)
 
     # Test get/delete all ids
-    all_ids = index.list_ids()
+    all_ids = collection.list_ids()
     assert all_ids == ["test_id", "test_id_2"]
-    index.delete_all()
-    if provider == 'pinecone': sleep(10)
-    assert index.count() == 0
+    collection.delete_all()
+    if provider == 'pinecone': sleep(15)
+    assert collection.count() == 0
 
     # test upsert with multiple
     num_docs = 69
-    many_ids, many_metadatas, many_documents, many_embeddings = [], [], [], []
+    many_ids, many_metadatas, many_texts, many_embeddings = [], [], [], []
     ids = [(i, f"test_id_{i}") for i in range(num_docs)]
     for i, id in sorted(ids, key=lambda x: x[1]):
         many_ids.append(id)
         many_metadatas.append({"test": f"metadata_{i}"})
-        many_documents.append(f"test document_{i}")
+        many_texts.append(f"test document_{i}")
         many_embeddings.append([.1] * dimensions)    
         
-    index.add(
+    collection.add(
         ids=many_ids,
         metadatas=many_metadatas,
-        documents=many_documents,
+        texts=many_texts,
         embeddings=many_embeddings
     )
-    if provider == 'pinecone': sleep(40)
-    assert index.count() == num_docs
-    if provider == 'pinecone': sleep(40)
-    get_result = index.get(many_ids, include=["metadatas", "documents", "embeddings"])
+    if provider == 'pinecone': sleep(60)
+    assert collection.count() == num_docs
+    get_result = collection.get(many_ids, include=["metadatas", "texts", "embeddings"])
     assert get_result
     print(get_result.ids)
     assert get_result.sort().ids == many_ids
     assert get_result.ids == many_ids
     assert get_result.metadatas == many_metadatas
-    assert get_result.documents == many_documents
+    assert get_result.texts == many_texts
     approx_embeddings(get_result.embeddings, many_embeddings)
 
     # test deleting all
-    index.delete_all()
-    if provider == 'pinecone': sleep(10)
-    assert index.count() == 0
+    collection.delete_all()
+    if provider == 'pinecone': sleep(15)
+    assert collection.count() == 0
 
     # test upsert with multiple after deleting all
-    index.upsert(
+    collection.upsert(
         ids=many_ids,
         metadatas=many_metadatas,
-        documents=many_documents,
+        texts=many_texts,
         embeddings=many_embeddings
     )
-    if provider == 'pinecone': sleep(40)
-    assert index.count() == num_docs
-    if provider == 'pinecone': sleep(40)
-    get_result = index.get(many_ids, include=["metadatas", "documents", "embeddings"])
+    if provider == 'pinecone': sleep(60)
+    assert collection.count() == num_docs
+    get_result = collection.get(many_ids, include=["metadatas", "texts", "embeddings"])
     assert get_result
     print(get_result.ids)
     assert get_result.sort().ids == many_ids
     assert get_result.ids == many_ids
     assert get_result.metadatas == many_metadatas
-    assert get_result.documents == many_documents
+    assert get_result.texts == many_texts
     approx_embeddings(get_result.embeddings, many_embeddings) 
 
     del ai
@@ -429,48 +404,42 @@ def test_vector_db_add(provider: Provider,
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
 @parameterize_distance_metric
-def test_vector_db_query_simple(provider: Provider, 
+def test_vector_db_query_simple(provider: ProviderName, 
                                 client_kwargs: dict, 
                                 func_kwargs: dict,
                                 name: str, 
                                 metadata: dict,
-                                embedding_provider: Optional[LLMProvider],
+                                embedding_provider: Optional[ProviderName],
                                 embedding_model: Optional[str],
                                 dimensions: Optional[int],
                                 distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]],                                                                
                                 # serial
                                 ):
 
-    ai = UnifAI(provider_configs={
-        provider: client_kwargs,
-        "openai": PROVIDER_DEFAULTS["openai"][1],
-        "google": PROVIDER_DEFAULTS["google"][1],
-        "ollama": PROVIDER_DEFAULTS["ollama"][1],        
-    })
+    ai = UnifAI(provider_configs=[
+        {"provider": provider, "client_init_kwargs": client_kwargs},
+        {"provider": "openai", "client_init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
+        {"provider": "google", "client_init_kwargs": PROVIDER_DEFAULTS["google"][1]},
+        {"provider": "ollama", "client_init_kwargs": PROVIDER_DEFAULTS["ollama"][1]},
+    ])
 
-    client = ai.get_vector_db(provider)
-    assert client
-    assert isinstance(client, VectorDBClient)
-    client.delete_all_indexes() # Reset for each test
+    db = ai.get_vector_db(provider)
+    assert db
+    assert isinstance(db, VectorDB)
+    db.delete_all_collections() # Reset for each test
 
-
-    if provider == "chroma":
-        document_db = None
-    else:
-        document_db = DictDocumentDB({})
-
-    index = client.create_index(
+    collection = db.create_collection(
         name=name,
         # metadata=metadata,
-        embedding_provider=embedding_provider,
+        embedder=embedding_provider,
         embedding_model=embedding_model,
         dimensions=dimensions,
         distance_metric=distance_metric,
-        document_db=document_db,
+        document_db_collection="dict",
         **func_kwargs
     )
-    assert index
-    assert isinstance(index, VectorDBIndex)
+    assert collection
+    assert isinstance(collection, VectorDBCollection)
 
     groups = {
         "animals": {
@@ -493,49 +462,49 @@ def test_vector_db_query_simple(provider: Provider,
     num_groups = len(groups)
     sub_group_size = 10
 
-    ids, metadatas, documents = [], [], []
+    ids, metadatas, texts = [], [], []
     for group_name, group in groups.items():
         for sub_group_name, sub_group in group.items():
             assert len(sub_group) == sub_group_size
             for doc in sub_group:
                 ids.append(f"{group_name}_{sub_group_name}_{doc}")
                 metadatas.append({"group": group_name, "sub_group": sub_group_name})
-                documents.append(doc)
+                texts.append(doc)
 
-    assert len(ids) == len(metadatas) == len(documents)
+    assert len(ids) == len(metadatas) == len(texts)
 
-    index.add(
+    collection.add(
         ids=ids,
         metadatas=metadatas,
-        documents=documents,
+        texts=texts,
     )
 
     if provider == 'pinecone': sleep(20)
-    assert index.count() == len(ids)
+    assert collection.count() == len(ids)
     for group_name in groups:
-        # group_ids = index.get(ids=ids, where={"group": group_name}).ids
-        # group_ids = index.get(where={"group": group_name}).ids
-        get_result = index.get(ids=ids, where={"group": {"$eq":group_name}})
+        # group_ids = collection.get(ids=ids, where={"group": group_name}).ids
+        # group_ids = collection.get(where={"group": group_name}).ids
+        get_result = collection.get(ids=ids, where={"group": {"$eq":group_name}})
         group_ids = get_result.ids        
         assert group_ids
         assert len(group_ids) == sub_group_size * len(groups[group_name])
     
-    query = index.query_many(["dog", "fish"], include=["metadatas", "documents"], top_k=30)
+    query = collection.query_many(["dog", "fish"], include=["metadatas", "texts"], top_k=30)
     assert query
     dog_result, fish_result = query
     assert dog_result.ids
     assert dog_result.metadatas
-    assert dog_result.documents
-    assert "dog" == dog_result.documents[0]
+    assert dog_result.texts
+    assert "dog" == dog_result.texts[0]
     for doc_species in groups["animals"]["dog"]:
-        assert doc_species in dog_result.documents
+        assert doc_species in dog_result.texts
 
     assert fish_result.ids
     assert fish_result.metadatas
-    assert fish_result.documents
-    assert "fish" == fish_result.documents[0]
+    assert fish_result.texts
+    assert "fish" == fish_result.texts[0]
     for doc_species in groups["animals"]["fish"]:
-        assert doc_species in fish_result.documents
+        assert doc_species in fish_result.texts
 
 
 

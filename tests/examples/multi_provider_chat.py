@@ -34,7 +34,7 @@ class SimpleChat:
         return f"""
 Total Chats: {len(self.chats)}
 Current chat: {self.current_chat}
-Current provider: {self.current_chat.provider}
+Current provider: {self.current_chat.llm_provider}
 Current model: {self.current_chat.model}
 Current system prompt: {self.current_chat.system_prompt}
 Current tool choice: {self.current_chat.std_tool_choice}
@@ -114,7 +114,7 @@ Select a provider: """
             return
         
         menu = """Models:\n"""
-        models = dict(enumerate(self.ai.list_models(provider=self.current_chat.provider), start=1))
+        models = dict(enumerate(self.ai.list_models(provider=self.current_chat.llm_provider), start=1))
         menu += '\n'.join([f"{i}. {model}" for i, model in models.items()])
         model_index = int(input(menu).strip())
         model = models[model_index]

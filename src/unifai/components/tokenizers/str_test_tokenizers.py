@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Iterable,  Callable, Iterator, Iterable, Generator, Self, AbstractSet, Collection
 from ...exceptions import ProviderUnsupportedFeatureError
-from ._base_tokenizer import Tokenizer
+from .._base_components._base_tokenizer import Tokenizer
 
 T = TypeVar("T")
 
@@ -8,12 +8,10 @@ class StrFuncTestingTokenizer(Tokenizer):
     provider = "str_test_tokenizer"
     default_sep = None
 
-    def __init__(self,
-                 sep: Optional[str] = None,
-                 support_encode_decode: bool = True,
-                 ):
-        self.sep = sep or self.default_sep
-        self.support_encode_decode = support_encode_decode
+    def _setup(self) -> None:
+        super()._setup()
+        self.sep = self.client_kwargs.get("sep") or self.default_sep
+        self.support_encode_decode = self.client_kwargs.get("support_encode_decode", True)
         if self.support_encode_decode:
             self._ints_to_tokens: dict[int, str] = {}
             self._tokens_to_ints: dict[str, int] = {}

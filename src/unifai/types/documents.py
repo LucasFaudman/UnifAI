@@ -1,7 +1,6 @@
 from typing import Optional, Literal, Union, Self, Any
 
-from pydantic import BaseModel
-
+from ._base_model import BaseModel
 from .embeddings import Embedding
 from .response_info import ListWithResponseInfo
 
@@ -11,13 +10,13 @@ class Document(BaseModel):
 
     Args:
         id (str): The document ID.
-        text (Optional[str]): The document text. Defaults to None.
         metadata (Optional[dict[str, Any]]): The document metadata. Defaults to None.
+        text (Optional[str]): The document text. Defaults to None.
         embedding (Optional[Embedding]): The document embedding. Defaults to None.
     """
     id: str
-    text: Optional[str] = None
     metadata: Optional[dict[str, Any]] = None
+    text: Optional[str] = None
     embedding: Optional[Embedding] = None
 
 class RankedDocument(Document):
@@ -26,35 +25,35 @@ class RankedDocument(Document):
     
     Args:
         id (str): The document chunk ID.
-        text (Optional[str]): The document chunk text. Defaults to None.
         metadata (Optional[dict[str, Any]]): The document chunk metadata. Defaults to None.
+        text (Optional[str]): The document chunk text. Defaults to None.
         embedding (Optional[Embedding]): The document chunk embedding. Defaults to None.
         rank (int): The document rank.
-        distance (float): The document distance.
+        distance (Optional[float]): The document distance. Defaults to None.
         query (Optional[str|Embedding]): The query. Defaults to None.        
     """
     rank: int
-    distance: float
+    distance: Optional[float] = None
     query: Optional[str]|Embedding = None
 
 
 class RerankedDocument(RankedDocument):
     """
-    A reranked document with an id, rank, distance, original rank, similarity, and optional text, metadata, embeddings and query.
+    A reranked document with an id, rank, distance, original rank, similarity_score, and optional text, metadata, embeddings and query.
 
     Args:
         id (str): The document chunk ID.
-        text (Optional[str]): The document chunk text. Defaults to None.
         metadata (Optional[dict[str, Any]]): The document chunk metadata. Defaults to None.
+        text (Optional[str]): The document chunk text. Defaults to None.
         embedding (Optional[Embedding]): The document chunk embedding. Defaults to None.
         rank (int): The document rank.
-        distance (float): The document distance.
+        distance (Optional[float]): The document distance. Defaults to None.
         query (Optional[str|Embedding]): The query. Defaults to None.
-        original_rank (int): The original document rank.
-        similarity (float): The document similarity.
+        # original_rank (int): The original document rank.
+        similarity_score (float): The document similarity_score.
     """
-    original_rank: int
-    similarity: float
+    # original_rank: int
+    similarity_score: float
 
 class DocumentChunk(Document):
     """
@@ -63,8 +62,8 @@ class DocumentChunk(Document):
 
     Args:
         id (str): The document chunk ID.
-        text (Optional[str]): The document chunk text. Defaults to None.
         metadata (Optional[dict[str, Any]]): The document chunk metadata. Defaults to None.
+        text (Optional[str]): The document chunk text. Defaults to None.
         embedding (Optional[Embedding]): The document chunk embedding. Defaults to None.
         parent_document_id (str): The parent document ID.        
         chunk_size (Optional[int]): The document chunk size. Defaults to None.
@@ -83,11 +82,11 @@ class RankedDocumentChunk(DocumentChunk, RankedDocument):
 
     Args:
         id (str): The document chunk ID.
-        text (Optional[str]): The document chunk text. Defaults to None.
         metadata (Optional[dict[str, Any]]): The document chunk metadata. Defaults to None.
+        text (Optional[str]): The document chunk text. Defaults to None.
         embedding (Optional[Embedding]): The document chunk embedding. Defaults to None.
         rank (int): The document rank.
-        distance (float): The document distance.
+        distance (Optional[float]): The document distance. Defaults to None.
         query (Optional[str|Embedding]): The query. Defaults to None.        
         parent_document_id (str): The parent document ID.        
         chunk_size (Optional[int]): The document chunk size. Defaults to None.
@@ -97,19 +96,19 @@ class RankedDocumentChunk(DocumentChunk, RankedDocument):
 
 class RerankedDocumentChunk(RankedDocumentChunk, RerankedDocument):
     """
-    A reranked document chunk with an id, rank, distance, original rank, similarity, parent document id, and optional text, metadata, 
+    A reranked document chunk with an id, rank, distance, original rank, similarity_score, parent document id, and optional text, metadata, 
     embeddings, chunk size, start and end indices.
 
     Args:
         id (str): The document chunk ID.
-        text (Optional[str]): The document chunk text. Defaults to None.
         metadata (Optional[dict[str, Any]]): The document chunk metadata. Defaults to None.
+        text (Optional[str]): The document chunk text. Defaults to None.
         embedding (Optional[Embedding]): The document chunk embedding. Defaults to None.
         rank (int): The document rank.
-        distance (float): The document distance.
+        distance (Optional[float]): The document distance. Defaults to None.
         query (Optional[str|Embedding]): The query. Defaults to None.
-        original_rank (int): The original document rank.
-        similarity (float): The document similarity.
+        # original_rank (int): The original document rank.
+        similarity_score (float): The document similarity_score.
         parent_document_id (str): The parent document ID.        
         chunk_size (Optional[int]): The document chunk size. Defaults to None.
         start_index (Optional[int]): The start index of the document chunk. Defaults to None.

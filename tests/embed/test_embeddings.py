@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAI, LLMProvider
+from unifai import UnifAI, ProviderName
 from unifai.types import Message, Tool, Embeddings, Embedding, ResponseInfo, Usage
 from unifai.exceptions import ProviderUnsupportedFeatureError, BadRequestError, EmbeddingDimensionsError
 from basetest import base_test_llms_all, base_test_embeddings_all, base_test
@@ -18,13 +18,13 @@ from basetest import base_test_llms_all, base_test_embeddings_all, base_test
     "nvidia",
 )
 def test_embeddings_simple(
-    provider: LLMProvider, 
+    provider: ProviderName, 
     client_kwargs: dict, 
     func_kwargs: dict,
     input: str|list[str]
     ):
 
-    ai = UnifAI(provider_configs={provider: client_kwargs})
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
 
     if provider == "anthropic":
         with pytest.raises((ProviderUnsupportedFeatureError, AttributeError)):
@@ -87,18 +87,19 @@ def test_embeddings_simple(
 ])
 @base_test_embeddings_all
 def test_embeddings_dimensions(
-    provider: LLMProvider, 
+    provider: ProviderName, 
     client_kwargs: dict, 
     func_kwargs: dict,
     input: str|list[str],
     dimensions: int
     ):
 
-    ai = UnifAI(provider_configs={provider: client_kwargs})
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
 
     result = ai.embed(input, 
                       provider=provider, 
                       dimensions=dimensions,
+                      reduce_dimensions=True,
                       **func_kwargs)     
     
     assert isinstance(result, Embeddings)
@@ -113,27 +114,24 @@ def test_embeddings_dimensions(
     ("Embed this negative", -1),
     ("Embed this huge", 1000000),
 ])
-@pytest.mark.parametrize("dimensions_too_large", [
-    "reduce_dimensions",
-    "raise_error"
-])
+@pytest.mark.parametrize("reduce_dimensions", [True, False])
 @base_test_embeddings_all
 def test_embeddings_dimensions_errors(
-    provider: LLMProvider, 
+    provider: ProviderName, 
     client_kwargs: dict, 
     func_kwargs: dict,
     input: str|list[str],
     dimensions: int,
-    dimensions_too_large: str    
+    reduce_dimensions: bool    
     ):
 
-    ai = UnifAI(provider_configs={provider: client_kwargs})
-    if dimensions >= 1 and dimensions_too_large == "reduce_dimensions":
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    if dimensions >= 1 and reduce_dimensions:
         result = ai.embed(
             input, 
             provider=provider, 
             dimensions=dimensions,
-            dimensions_too_large=dimensions_too_large,
+            reduce_dimensions=reduce_dimensions,
             **func_kwargs
         )            
         assert isinstance(result, Embeddings)
@@ -148,7 +146,7 @@ def test_embeddings_dimensions_errors(
                 input, 
                 provider=provider, 
                 dimensions=dimensions,
-                dimensions_too_large=dimensions_too_large,
+                reduce_dimensions=reduce_dimensions,
                 **func_kwargs
             )
     

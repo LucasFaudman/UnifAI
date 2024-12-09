@@ -3,7 +3,7 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 from ...types import Tool, ToolCall
 from ...exceptions.tool_errors import ToolCallExecutionError, ToolCallableNotFoundError, ToolCallArgumentValidationError
 from ..concurrent_executor import ConcurrentExecutor
-from ._base_tool_caller import ToolCaller
+from .._base_components._base_tool_caller import ToolCaller
 
 class ConcurrentToolCaller(ToolCaller):
     def __init__(
@@ -13,8 +13,8 @@ class ConcurrentToolCaller(ToolCaller):
             tools: Optional[list[Tool]] = None,
             tool_execution_error_retries: int = 0,            
             concurrency_type: Optional[Literal["thread", "process", "main", False]] = "thread",
-            max_workers: Optional[int] = None,
-            chunksize: int = 1,
+            max_workers: Optional[int] = None, # Default is None, which means use the number of CPUs
+            chunk_size: int = 1,
             timeout: Optional[int] = None,
             shutdown: bool = True,
             wait: bool = True,
@@ -32,7 +32,7 @@ class ConcurrentToolCaller(ToolCaller):
             concurrency_type=concurrency_type,
             results_order="submitted", # Preserve order of results as submitted tool calls
             max_workers=max_workers,
-            chunksize=chunksize,
+            chunk_size=chunk_size,
             timeout=timeout,
             shutdown=shutdown,
             wait=wait,

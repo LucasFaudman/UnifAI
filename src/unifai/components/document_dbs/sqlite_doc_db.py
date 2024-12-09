@@ -1,9 +1,10 @@
-from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Collection,  Callable, Iterator, Iterable, Generator, Self
+from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 from json import dumps as json_dumps, loads as json_loads
 
-from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, LLMProvider, GetResult, QueryResult
-from unifai.exceptions import UnifAIError, DocumentDBAPIError, DocumentNotFoundError, DocumentReadError, DocumentWriteError, DocumentDeleteError
-from ._base_document_db import DocumentDB, Document
+from unifai.types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, ProviderName, GetResult, QueryResult
+from unifai.exceptions import UnifAIError, DBAPIError, DocumentNotFoundError
+from .._base_components._base_document_db import DocumentDB, DocumentDBCollection
+
 
 from sqlite3 import connect as sqlite_connect, Error as SQLiteError
 
@@ -34,7 +35,7 @@ class SQLiteDocumentDB(DocumentDB):
         try:
             self._connection = sqlite_connect(self.db_path, **self.connection_kwargs)
         except SQLiteError as e:
-            raise DocumentDBAPIError(f"Error connecting to SQLite database at '{self.db_path}'", original_exception=e)
+            raise DBAPIError(f"Error connecting to SQLite database at '{self.db_path}'", original_exception=e)
 
     @property
     def connection(self):
@@ -46,7 +47,7 @@ class SQLiteDocumentDB(DocumentDB):
         try:
             self.connection.close()
         except SQLiteError as e:
-            raise DocumentDBAPIError(f"Error closing connection to SQLite database at '{self.db_path}'", original_exception=e)
+            raise DBAPIError(f"Error closing connection to SQLite database at '{self.db_path}'", original_exception=e)
 
     def __del__(self):
         self.close()
@@ -57,7 +58,7 @@ class SQLiteDocumentDB(DocumentDB):
             cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name or self.table_name} (id TEXT PRIMARY KEY, document TEXT)")
             self.connection.commit()
         except SQLiteError as e:
-            raise DocumentDBAPIError(f"Error creating document table '{table_name or self.table_name}'", original_exception=e)
+            raise DBAPIError(f"Error creating document table '{table_name or self.table_name}'", original_exception=e)
 
 
 
@@ -67,7 +68,7 @@ class SQLiteDocumentDB(DocumentDB):
             cursor.execute(f"SELECT id, document FROM {self.table_name} WHERE id IN ({','.join('?' for _ in ids)})", ids)
             documents_dict = {row[0]: row[1] for row in cursor.fetchall()}
         except SQLiteError as e:
-            raise DocumentReadError(f"Error reading documents with ids '{ids}'", original_exception=e)
+            raise DBAPIError(f"Error reading documents with ids '{ids}'", original_exception=e)
         
         for id in ids:
             if id in documents_dict:
@@ -82,7 +83,7 @@ class SQLiteDocumentDB(DocumentDB):
                 self.connection.cursor().execute("INSERT OR REPLACE INTO documents (id, document) VALUES (?, ?)", (id, document))
             self.connection.commit()
         except SQLiteError as e:
-            raise DocumentWriteError(f"Error writing documents with ids '{ids}'", original_exception=e)
+            raise DBAPIError(f"Error writing documents with ids '{ids}'", original_exception=e)
         
 
     def delete_ids(self, ids: list[str]) -> None:
@@ -90,7 +91,7 @@ class SQLiteDocumentDB(DocumentDB):
             self.connection.cursor().execute(f"DELETE FROM {self.table_name} WHERE id IN ({','.join('?' for _ in ids)})", ids)
             self.connection.commit()
         except SQLiteError as e:
-            raise DocumentDeleteError(f"Error deleting documents with ids '{ids}'", original_exception=e)
+            raise DBAPIError(f"Error deleting documents with ids '{ids}'", original_exception=e)
 
     # def create_document_table(self, table_name: Optional[str] = None):
     #     try:
@@ -104,7 +105,7 @@ class SQLiteDocumentDB(DocumentDB):
     #         """)
     #         self.connection.commit()
     #     except SQLiteError as e:
-    #         raise DocumentDBAPIError(f"Error creating document table '{table_name or self.table_name}'", original_exception=e)
+    #         raise DBAPIError(f"Error creating document table '{table_name or self.table_name}'", original_exception=e)
 
     # def get_documents(self, ids: Collection[str]) -> Iterable[Document]:
     #     try:

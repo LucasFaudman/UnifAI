@@ -59,12 +59,14 @@ from unifai.exceptions import (
 
 
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
-from ...type_conversions import stringify_content
+from ...utils import stringify_content
 from ..base_adapters.anthropic_base import AnthropicAdapter
-from ._base_llm_client import LLMClient
+from .._base_components._base_llm import LLM
     
-class AnthropicLLM(AnthropicAdapter, LLMClient):
+class AnthropicLLM(AnthropicAdapter, LLM):
     default_model = "claude-3-5-sonnet-20240620"
+
+    _system_prompt_input_type = "kwarg"
 
     # List Models
     def list_models(self) -> list[str]:
@@ -189,20 +191,20 @@ class AnthropicLLM(AnthropicAdapter, LLMClient):
         raise ProviderUnsupportedFeatureError("Anthropic does not support system messages")
     
 
-    def format_messages_and_system_prompt(self, 
-                                              messages: list[Message], 
-                                              system_prompt_arg: Optional[str] = None
-                                              ) -> tuple[list, Optional[str]]:
-        system_prompt = system_prompt_arg
-        if messages and messages[0].role == "system":
-            # Remove the first system message from the list since Anthropic does not support system messages
-            system_message = messages.pop(0)
-            # Set the system prompt to the content of the first system message if not set by the argument
-            if not system_prompt:
-                system_prompt = system_message.content 
+    # def format_messages_and_system_prompt(self, 
+    #                                           messages: list[Message], 
+    #                                           system_prompt_arg: Optional[str] = None
+    #                                           ) -> tuple[list, Optional[str]]:
+    #     system_prompt = system_prompt_arg
+    #     if messages and messages[0].role == "system":
+    #         # Remove the first system message from the list since Anthropic does not support system messages
+    #         system_message = messages.pop(0)
+    #         # Set the system prompt to the content of the first system message if not set by the argument
+    #         if not system_prompt:
+    #             system_prompt = system_message.content 
 
-        client_messages = [self.format_message(message) for message in messages]
-        return client_messages, system_prompt        
+    #     client_messages = [self.format_message(message) for message in messages]
+    #     return client_messages, system_prompt        
 
 
         # Images
@@ -292,14 +294,14 @@ class AnthropicLLM(AnthropicAdapter, LLMClient):
         images = None # TODO: Implement image extraction  
         response_info = self.parse_response_info(response)
 
-        std_message = Message(
+        unifai_message = Message(
             role=response.role,
             content=content or None,
             tool_calls=tool_calls or None,
             images=images or None,
             response_info=response_info,
         )
-        return std_message, client_message 
+        return unifai_message, client_message 
 
     
     def parse_stream(self, response: Stream[AnthropicRawMessageStreamEvent], **kwargs) -> Generator[MessageChunk, None, tuple[Message, AnthropicMessageParam]]:

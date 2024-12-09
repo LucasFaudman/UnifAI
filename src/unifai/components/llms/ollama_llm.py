@@ -16,24 +16,17 @@ from ollama._types import (
 
 
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo
-from ...type_conversions import stringify_content
+from ...utils import stringify_content, generate_random_id
 from ..base_adapters.ollama_base import OllamaAdapter
-from ._base_llm_client import LLMClient
+from .._base_components._base_llm import LLM
 
 
-from random import choices as random_choices
-from string import ascii_letters, digits
-ASCII_LETTERS_AND_DIGITS = ascii_letters + digits
-
-def generate_random_id(length: int = 8, chars: str = ASCII_LETTERS_AND_DIGITS):
-    return ''.join(random_choices(chars, k=length))
-
-
-class OllamaLLM(OllamaAdapter, LLMClient):
+class OllamaLLM(OllamaAdapter, LLM):
     provider = "ollama"
     default_model = "mistral:7b-instruct"
 
-          
+    _system_prompt_input_type = "first_message"
+
     # Chat
     def _get_chat_response(
             self,
@@ -150,23 +143,23 @@ class OllamaLLM(OllamaAdapter, LLMClient):
         return OllamaMessage(role='system', content=message.content or '')
     
 
-    def format_messages_and_system_prompt(self, 
-                                              messages: list[Message], 
-                                              system_prompt_arg: Optional[str] = None
-                                              ) -> tuple[list, Optional[str]]:
-        if system_prompt_arg:
-            system_prompt = system_prompt_arg
-            if messages and messages[0].role == "system":
-                messages[0].content = system_prompt
-            else:
-                messages.insert(0, Message(role="system", content=system_prompt))
-        elif messages and messages[0].role == "system":
-            system_prompt = messages[0].content
-        else:
-            system_prompt = None
+    # def format_messages_and_system_prompt(self, 
+    #                                           messages: list[Message], 
+    #                                           system_prompt_arg: Optional[str] = None
+    #                                           ) -> tuple[list, Optional[str]]:
+    #     if system_prompt_arg:
+    #         system_prompt = system_prompt_arg
+    #         if messages and messages[0].role == "system":
+    #             messages[0].content = system_prompt
+    #         else:
+    #             messages.insert(0, Message(role="system", content=system_prompt))
+    #     elif messages and messages[0].role == "system":
+    #         system_prompt = messages[0].content
+    #     else:
+    #         system_prompt = None
 
-        client_messages = [self.format_message(message) for message in messages]
-        return client_messages, system_prompt
+    #     client_messages = [self.format_message(message) for message in messages]
+    #     return client_messages, system_prompt
     
        
         # Images
@@ -261,7 +254,7 @@ class OllamaLLM(OllamaAdapter, LLMClient):
         created_at = datetime.strptime(f'{response["created_at"][:26]}Z', '%Y-%m-%dT%H:%M:%S.%fZ')
         response_info = self.parse_response_info(response)        
 
-        std_message = Message(
+        unifai_message = Message(
             role=client_message['role'],
             content=client_message.get('content'),            
             tool_calls=tool_calls,
@@ -269,7 +262,7 @@ class OllamaLLM(OllamaAdapter, LLMClient):
             created_at=created_at,
             response_info=response_info
         )
-        return std_message, client_message
+        return unifai_message, client_message
     
 
     def parse_stream(self, response: Iterator[OllamaChatResponse], **kwargs) -> Generator[MessageChunk, None, tuple[Message, OllamaMessage]]:
@@ -321,10 +314,10 @@ class OllamaLLM(OllamaAdapter, LLMClient):
                         )
                 
         response_info = ResponseInfo(model=model, done_reason=done_reason, usage=usage)
-        std_message = Message(
+        unifai_message = Message(
             role="assistant",
             content=content,
             tool_calls=tool_calls,
             response_info=response_info
         )
-        return std_message, self.format_assistant_message(std_message)
+        return unifai_message, self.format_assistant_message(unifai_message)

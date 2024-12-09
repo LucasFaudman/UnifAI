@@ -4,7 +4,7 @@ from openai._base_client import make_request_options
 
 from ...types import QueryResult
 from ..base_adapters.nvidia_base import NvidiaAdapter, TempBaseURL
-from ._base_reranker import Reranker
+from .._base_components._base_reranker import Reranker
 
 # Entire point of this is to have a castable type subclassing OpenAI's BaseModel so it does not
 # raise TypeError("Pydantic models must subclass our base model type, e.g. `from openai import BaseModel`")
@@ -37,11 +37,11 @@ class NvidiaReranker(NvidiaAdapter, Reranker):
         **kwargs
         ) -> NvidiaRerankResponse:
 
-        assert query_result.documents, "No documents to rerank"
+        assert query_result.texts, "No documents to rerank"
         body = {
             "model": model,
             "query": {"text": query},
-            "passages": [{"text": document} for document in query_result.documents],
+            "passages": [{"text": document} for document in query_result.texts],
         }
 
         options = {}
@@ -70,12 +70,17 @@ class NvidiaReranker(NvidiaAdapter, Reranker):
                 stream_cls=None,
             )
 
-
-    def _extract_reranked_order(
+    def _extract_similarity_scores(
         self,
-        response,
-        top_n: Optional[int] = None,
+        response: NvidiaRerankResponse,
         **kwargs
-        ) -> list[int]:
-        return [item.index for item in response.rankings]
-  
+        ) -> list[float]:
+        return [item.logit for item in sorted(response.rankings, key=lambda item: item.index)]
+    
+    # def _extract_reranked_order(
+    #     self,
+    #     response,
+    #     top_n: Optional[int] = None,
+    #     **kwargs
+    #     ) -> list[int]:
+    #     return [item.index for item in response.rankings]    

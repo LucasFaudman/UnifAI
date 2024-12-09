@@ -1,5 +1,7 @@
-from typing import Any, Sequence, Union, Optional, Literal, Type, TypeVar
-from unifai.types import (
+from typing import Any, Iterable, Union, Optional, Literal, Type, TypeVar
+from pydantic import BaseModel
+from ..types import (
+    
     Message,
     MessageInput,
     Tool,
@@ -7,9 +9,7 @@ from unifai.types import (
     ToolChoice,
     ResponseFormatInput,
 )
-from .tool_from_dict import tool_from_dict
-from .tool_from_func import tool_from_func
-from .tool_from_pydantic import tool_from_pydantic, BaseModel
+from .tools import tool_from_dict, tool_from_func, tool_from_pydantic
 
 T = TypeVar("T")
 
@@ -23,7 +23,7 @@ def standardize_message(message: MessageInput) -> Message:
     raise ValueError(f"Invalid message type: {type(message)}")
 
 
-def standardize_messages(messages: Sequence[MessageInput]) -> list[Message]:
+def standardize_messages(messages: Iterable[MessageInput]) -> list[Message]:
     return [standardize_message(message) for message in messages]
 
 
@@ -45,7 +45,7 @@ def standardize_tool(tool: ToolInput, tool_dict: Optional[dict[str, Tool]] = Non
         raise ValueError(f"Invalid tool type: {type(tool)}") 
 
 
-def standardize_tools(tools: Sequence[ToolInput], tool_dict: Optional[dict[str, Tool]] = None) -> dict[str, Tool]:
+def standardize_tools(tools: Iterable[ToolInput], tool_dict: Optional[dict[str, Tool]] = None) -> dict[str, Tool]:
     return {tool.name: tool for tool in (standardize_tool(tool, tool_dict) for tool in tools)}
 
 
@@ -57,10 +57,10 @@ def standardize_tools(tools: Sequence[ToolInput], tool_dict: Optional[dict[str, 
 #     if isinstance(tool_choice, dict):
 #         tool_type = tool_choice['type']
 #         return tool_choice[tool_type]['name']
-#     if isinstance(tool_choice, Sequence):
+#     if isinstance(tool_choice, Iterable):
 #         tool_choice_str_sequence = []
 #         for tool_choice_item in tool_choice:
-#             if not isinstance(tool_choice_item, str) and isinstance(tool_choice_item, Sequence):
+#             if not isinstance(tool_choice_item, str) and isinstance(tool_choice_item, Iterable):
 #                 raise ValueError(f"Invalid tool_choice_item type: {type(tool_choice_item)}. Nested sequences are NOT supported.")            
 #             tool_choice_str_sequence.append(standardize_tool_choice(tool_choice_item))
                 
@@ -102,5 +102,3 @@ def standardize_configs(
     for name, config in configs.items():
         std_configs[name] = standardize_config(config, config_type)
     return std_configs    
-        
-     

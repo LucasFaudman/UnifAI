@@ -1,6 +1,6 @@
 from typing import Optional, List, Union, Literal, Iterable, Iterator, Any, Callable, Type, Collection
 
-from ._base_document_chunker import DocumentChunker
+from .._base_components._base_document_chunker import DocumentChunker
 
 class CountTokensDocumentChunker(DocumentChunker):
     """

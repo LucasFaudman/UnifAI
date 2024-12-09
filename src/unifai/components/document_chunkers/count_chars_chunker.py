@@ -1,8 +1,8 @@
 from typing import Optional, List, Union, Literal, Iterable, Iterator, Any, Callable, Type, Collection
 
-from ..tokenizers._base_tokenizer import Tokenizer
+from .._base_components._base_tokenizer import Tokenizer
 from ..tokenizers.str_test_tokenizers import StrLenTokenizer
-from ._base_document_chunker import DocumentChunker
+from .._base_components._base_document_chunker import DocumentChunker
 
 class CountCharsDocumentChunker(DocumentChunker):
     """
@@ -25,7 +25,7 @@ class CountCharsDocumentChunker(DocumentChunker):
             regex: bool = False,            
             strip_chars: str|Literal[False] = " \n\t",
             deepcopy_metadata: bool = True,
-            add_to_metadata: Optional[Collection[Literal["parent_id", "chunk_size", "start_index", "end_index"]]] = None,
+            add_to_metadata: Optional[Collection[Literal["source_id", "chunk_size", "start_index", "end_index"]]] = None,
             default_base_id: str = "doc",
             **kwargs
     ) -> None:
@@ -42,7 +42,7 @@ class CountCharsDocumentChunker(DocumentChunker):
             regex: Whether to treat separators as regular expressions. Default is False
             strip_chars: Argument to pass to str.strip() to strip characters from the start and end of chunks. Default is " \n\t"
             deepcopy_metadata: Whether to deepcopy metadata for each chunk. Default is True
-            add_to_metadata: List of metadata fields to add to each chunk. Options are "parent_id", "chunk_size", "start_index", and "end_index"
+            add_to_metadata: List of metadata fields to add to each chunk. Options are "source_id", "chunk_size", "start_index", and "end_index"
             default_base_id: Base ID to use for documents when no ID is provided. Default is "doc"
             **kwargs: Additional keyword arguments for subclasses of DocumentChunker
         """

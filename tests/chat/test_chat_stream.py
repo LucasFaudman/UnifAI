@@ -1,14 +1,14 @@
 import pytest
-from unifai import UnifAI, LLMProvider, tool
+from unifai import UnifAI, ProviderName, tool
 from unifai.types import Message, Tool, MessageChunk
 from basetest import base_test_llms_all, PROVIDER_DEFAULTS
 
 
 
 @base_test_llms_all
-def test_chat_stream_simple(provider: LLMProvider, client_kwargs: dict, func_kwargs: dict):
+def test_chat_stream_simple(provider: ProviderName, client_kwargs: dict, func_kwargs: dict):
 
-    ai = UnifAI(provider_configs={provider: client_kwargs})
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
     stream = ai.chat_stream(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,
@@ -60,9 +60,9 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
 
 
 @base_test_llms_all
-def test_chat_stream_tools(provider: LLMProvider, client_kwargs: dict, func_kwargs: dict):
+def test_chat_stream_tools(provider: ProviderName, client_kwargs: dict, func_kwargs: dict):
 
-    ai = UnifAI(provider_configs={provider: client_kwargs})
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
     stream = ai.chat_stream(
         messages=[{"role": "user", "content": "What's the weather in San Francisco, Tokyo, and Paris?"}],
         tools=[get_current_weather],

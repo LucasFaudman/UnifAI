@@ -1,135 +1,56 @@
-from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Iterable,  Callable, Iterator, Iterable, Generator, Self, IO, Pattern 
+from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Iterable,  Callable, Iterator, Iterable, Generator, Self, IO, Pattern 
 
-from .._base_component import UnifAIComponent
+from .._base_components._base_component import UnifAIComponent
 from ...types import Document, Documents
-from ._base_document_loader import DocumentLoader
+from .._base_components._base_document_loader import DocumentLoader
 
-from itertools import zip_longest
 from pathlib import Path
-import json
 
-
-T = TypeVar("T")
-
-class TextFileDocumentLoader(DocumentLoader):
+URIIOTuple = tuple[str, IO]
+URITextTuple = tuple[str, str]
+PathStrOrURIIOTuple = Union[Path, str, URIIOTuple]
+class TextFileDocumentLoader(DocumentLoader[PathStrOrURIIOTuple, URITextTuple]):
     provider = "text_file_loader"
 
-    @staticmethod
-    def get_mimetype_with_builtin_mimetypes(path: Path) -> Optional[str]:
-        import mimetypes
-        return mimetypes.guess_type(path.as_uri())[0]
-
-    @staticmethod
-    def get_mimetype_with_magic(Path: Path) -> Optional[str]:
-        import magic
-        return magic.from_file(str(Path), mime=True)
-
-    @staticmethod
-    def get_id_from_path_leave_text_and_metadata_as_is(path: Path, text: str, metadata: Optional[dict]) -> tuple[str, str, Optional[dict]]:
-        return str(path), text, metadata    
-
-    def __init__(
-            self, 
-            processor_func: Optional[Callable[[Path, str, Optional[dict]], tuple[str, str, Optional[dict]]]] = get_id_from_path_leave_text_and_metadata_as_is,
-            metadata_load_func: Optional[Callable[[IO], dict]] = json.load,   
-            mimetype_func: Optional[Callable[[Path], str|None]] = get_mimetype_with_builtin_mimetypes,
-            include_path_in_metadata: bool = True,
-            include_mimetype_in_metadata: bool = False,
-            encoding: str = "utf-8",
-            open_kwargs: Optional[dict] = None,           
-            raise_on_file_read_error: bool = True,
-            raise_on_metadata_load_error: bool = True,
-            replacements: Optional[dict[str|Pattern, str]|Literal[False]] = {
-                r'.\x08': '', # Remove backspace formatting
-                r'[\x00-\x08\x0B-\x1F\x7F-\x9F]+': ' ', # Replace common control chars with space
-                r'[\t\n\r]+': ' ', # Replace tabs and newlines with space            
-                r'\s+': ' ', # Normalize whitespace (including Unicode whitespace)
-            },             
-            **kwargs
-            ):
-        self.processor_func = processor_func
-        self.metadata_load_func = metadata_load_func      
-        self.mimetype_func = mimetype_func  
-        self.include_path_in_metadata = include_path_in_metadata
-        self.include_mimetype_in_metadata = include_mimetype_in_metadata
-        self.encoding = encoding
-        self.open_kwargs = open_kwargs or {}
-        self.raise_on_file_read_error = raise_on_file_read_error
-        self.raise_on_metadata_load_error = raise_on_metadata_load_error
-        self.replacements = replacements
+    def _load_source(self, source: PathStrOrURIIOTuple, *args, **kwargs) -> URITextTuple:
+        if isinstance(source, str):
+            source = Path(source)
+        if isinstance(source, Path):
+            return str(source), source.read_text(encoding=self.config.encoding)
+        uri, source_io = source
+        out = source_io.read()
+        if isinstance(out, bytes):
+            out = out.decode(self.config.encoding)
+        return uri, out
+    
+    def _load_metadata(self, source: PathStrOrURIIOTuple, loaded_source: URITextTuple, metadata: PathStrOrURIIOTuple|dict|None, *args, **kwargs) -> dict|None:
+        if metadata is None or isinstance(metadata, dict):
+            return metadata # metadata already loaded or None
         
+        if isinstance(metadata, str):
+            metadata = Path(metadata)
+        if isinstance(metadata, Path):
+            metadata_io = metadata.open(encoding=self.config.encoding)
+        else:
+            metadata_io = metadata[1] # metadata is a URIIOTuple     
 
-    def iload_documents(
-            self,
-            paths: Iterable[Path|str],
-            metadatas: Optional[Iterable[dict|Path|str]] = None,
-            processor_func: Optional[Callable[[Path, str, Optional[dict]], tuple[str, str, Optional[dict]]]] = None,
-            metadata_load_func: Optional[Callable[[IO], dict]] = None,    
-            mimetype_func: Optional[Callable[[Path], str|None]] = None,        
-            include_path_in_metadata: Optional[bool] = None,
-            include_mimetype_in_metadata: Optional[bool] = None,
-            encoding: Optional[str] = None,
-            open_kwargs: Optional[dict] = None,            
-            raise_on_file_read_error: Optional[bool] = None,
-            raise_on_metadata_load_error: Optional[bool] = None,
-            replacements: Optional[dict[str|Pattern, str]|Literal[False]] = None,
-            **kwargs
-    ) -> Iterable[Document]:
+        loaded_metadata = self._metadata_load_func(metadata_io)
+        if not metadata_io.closed and not metadata_io.seekable():
+            metadata_io.close()
+        return loaded_metadata
 
-        processor_func = processor_func if processor_func is not None else self.processor_func
-        metadata_load_func = metadata_load_func if metadata_load_func is not None else self.metadata_load_func        
-        mimetype_func = mimetype_func if mimetype_func is not None else self.mimetype_func
-        include_path_in_metadata = include_path_in_metadata if include_path_in_metadata is not None else self.include_path_in_metadata
-        include_mimetype_in_metadata = include_mimetype_in_metadata if include_mimetype_in_metadata is not None else self.include_mimetype_in_metadata
-        encoding = encoding if encoding is not None else self.encoding
-        raise_on_file_read_error = raise_on_file_read_error if raise_on_file_read_error is not None else self.raise_on_file_read_error
-        raise_on_metadata_load_error = raise_on_metadata_load_error if raise_on_metadata_load_error is not None else self.raise_on_metadata_load_error        
-        replacements = replacements if replacements is not None else self.replacements
+    def _add_to_metadata(self, source: PathStrOrURIIOTuple, loaded_source: URITextTuple, loaded_metadata: dict, *args, **kwargs) -> dict:
+        loaded_metadata = super()._add_to_metadata(source, loaded_source, loaded_metadata, *args, **kwargs)
+        if self.config.add_to_metadata and "mimetype" in self.config.add_to_metadata:
+            loaded_metadata["mimetype"] = self._mimetype_func(loaded_source[0])
+        return loaded_metadata
 
-        open_kwargs = open_kwargs if open_kwargs is not None else self.open_kwargs
-        open_kwargs = {**open_kwargs, "mode": "r", "encoding": encoding}
-        init_metadata_if_none = include_path_in_metadata or include_mimetype_in_metadata
-
-        for path, metadata in zip_longest(paths, metadatas or ()):
-            if isinstance(path, str):
-                path = Path(path)
-            try:
-                with path.open(**open_kwargs) as f:
-                    text = f.read()
-            except Exception as e:
-                if raise_on_file_read_error:
-                    raise e
-                continue
-
-            if metadata is None:
-                if init_metadata_if_none:
-                    metadata = {}
-            if isinstance(metadata, str):
-                metadata = Path(metadata)
-            if isinstance(metadata, Path):
-                if metadata_load_func is None:
-                    raise ValueError("metadata_load_func must be provided if metadata is a str|Path object")
-                try:
-                    with metadata.open(**open_kwargs) as f:
-                        metadata = metadata_load_func(f)
-                except Exception as e:
-                    if raise_on_metadata_load_error:
-                        raise e
-                    metadata = {}
+    def _process_text(self, source: PathStrOrURIIOTuple, loaded_source: URITextTuple, loaded_metadata: dict|None, *args, **kwargs) -> str:
+        return loaded_source[1]
             
-            if include_path_in_metadata:
-                metadata["path"] = str(path)
-            if include_mimetype_in_metadata:       
-                if mimetype_func is None:
-                    raise ValueError("mimetype_func must be provided if include_mimetype_in_metadata is True")         
-                metadata["mimetype"] = mimetype_func(path)
-            
-            if replacements is not False:
-                text = self.clean_text(text, replacements)
-
-            if processor_func is not None:
-                _id, text, metadata = processor_func(path, text, metadata)
-            else:
-                _id = str(path)                    
-            yield Document(id=_id, text=text, metadata=metadata)
+    def _process_metadata(self, source: PathStrOrURIIOTuple, loaded_source: URITextTuple, loaded_metadata: dict|None, *args, **kwargs) -> dict|None:
+        return loaded_metadata
+        
+    def _process_id(self, source: PathStrOrURIIOTuple, loaded_source: URITextTuple, loaded_metadata: dict|None, *args, **kwargs) -> str:
+        return self._source_id_func(loaded_source[0]) 
     

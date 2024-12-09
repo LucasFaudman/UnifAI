@@ -1,9 +1,7 @@
 from typing import Optional, Literal, Union, Self, Any, List, TypeVar
 
-from pydantic import BaseModel, RootModel, ConfigDict
-
 from .response_info import ListWithResponseInfo, ResponseInfo
-from unifai.exceptions.embedding_errors import EmbeddingDimensionsError
+from ..exceptions.embedding_errors import EmbeddingDimensionsError
 
 T = TypeVar('T')
 Embedding = list[float]

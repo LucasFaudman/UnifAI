@@ -72,17 +72,15 @@ from unifai.types import (
     RefToolParameter,
 )
 from ..base_adapters.google_base import GoogleAdapter
-from ._base_llm_client import LLMClient
+from .._base_components._base_llm import LLM
 
+from ...utils import generate_random_id
 
-from random import choices as random_choices
-from string import ascii_letters, digits
-def generate_random_id(length=8):
-    return ''.join(random_choices(ascii_letters + digits, k=length))
-
-class GoogleLLM(GoogleAdapter, LLMClient):
+class GoogleLLM(GoogleAdapter, LLM):
     provider = "google"
     default_model = "gemini-1.5-flash-latest"
+
+    _system_prompt_input_type = "kwarg"    
     
     # Chat
     def _get_chat_response(
@@ -188,21 +186,21 @@ class GoogleLLM(GoogleAdapter, LLMClient):
         raise ValueError("GoogleAI does not support system messages")
     
 
-    def format_messages_and_system_prompt(self, 
-                                              messages: list[Message], 
-                                              system_prompt_arg: Optional[str] = None
-                                              ) -> tuple[list, Optional[str]]:
+    # def format_messages_and_system_prompt(self, 
+    #                                           messages: list[Message], 
+    #                                           system_prompt_arg: Optional[str] = None
+    #                                           ) -> tuple[list, Optional[str]]:
         
-        system_prompt = system_prompt_arg
-        if messages and messages[0].role == "system":
-            # Remove the first system message from the list since Anthropic does not support system messages
-            system_message = messages.pop(0)
-            # Set the system prompt to the content of the first system message if not set by the argument
-            if not system_prompt:
-                system_prompt = system_message.content 
+    #     system_prompt = system_prompt_arg
+    #     if messages and messages[0].role == "system":
+    #         # Remove the first system message from the list since Anthropic does not support system messages
+    #         system_message = messages.pop(0)
+    #         # Set the system prompt to the content of the first system message if not set by the argument
+    #         if not system_prompt:
+    #             system_prompt = system_message.content 
 
-        client_messages = [self.format_message(message) for message in messages]
-        return client_messages, system_prompt   
+    #     client_messages = [self.format_message(message) for message in messages]
+    #     return client_messages, system_prompt   
 
 
         # Images
@@ -354,14 +352,14 @@ class GoogleLLM(GoogleAdapter, LLMClient):
         client_message = response.candidates[0].content
         content, tool_calls, images = self._extract_parts(client_message.parts)
         response_info = self.parse_response_info(response, tools_called=bool(tool_calls), **kwargs)
-        std_message = Message(
+        unifai_message = Message(
             role="assistant",
             content=content,
             tool_calls=tool_calls,
             images=images,
             response_info=response_info
         )        
-        return std_message, client_message
+        return unifai_message, client_message
 
     
     def parse_stream(self, response: GenerateContentResponse, **kwargs) -> Generator[MessageChunk, None, tuple[Message, Content]]:

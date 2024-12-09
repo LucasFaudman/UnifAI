@@ -3,7 +3,7 @@ from typing import Optional, Union, Sequence, Any, Literal, Mapping,  Iterator, 
 from ollama._types import Options as OllamaOptions
 from ...types import Embeddings, ResponseInfo, Usage
 from ..base_adapters.ollama_base import OllamaAdapter
-from ._base_embedder import Embedder
+from .._base_components._base_embedder import Embedder
 
 
 class OllamaEmbedder(OllamaAdapter, Embedder):

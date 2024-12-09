@@ -12,7 +12,7 @@ from unifai.types import (
     Usage,
 )
 from ..base_adapters.google_base import GoogleAdapter
-from ._base_embedder import Embedder, EmbeddingTaskTypeInput
+from .._base_components._base_embedder import Embedder, EmbeddingTaskTypeInput
 
 
 GoogleEmbeddingTaskType = Literal[

@@ -25,7 +25,7 @@ def execute_concurrently(
     concurrency_type: Optional[Literal["thread", "process", "main", False]] = "thread",
     results_order: Literal["completed", "submitted"] = "completed",
     max_workers: Optional[int] = None,
-    chunksize: int = 1,
+    chunk_size: int = 1,
     timeout: Optional[int] = None,
     shutdown: bool = True,
     wait: bool = True,
@@ -41,7 +41,7 @@ def execute_concurrently(
         concurrency_type: Concurrency type used to execute function. (Multithreading, Multiprocessing, or Main/Single Thread) Defaults to "thread".
         results_order: Order to yield results. Either in order completed or order submitted. Defaults to "completed".
         max_workers: Maximum number of threads or processes to use. Defaults to None (number of CPUs).
-        chunksize: The size of the chunks the iterable will be broken into before being passed to a child process. Only used when concurrency_type is "process". Defaults to 1.
+        chunk_size: The size of the chunks the iterable will be broken into before being passed to a child process. Only used when concurrency_type is "process". Defaults to 1.
         timeout: The maximum number of seconds to wait. If None, then there is no limit on the wait time.
         shutdown: Whether to shutdown executor after completion or to return it for reuse. Defaults to True. If False, returns executor instance on StopIteration.
         wait: Whether to wait for executor to shutdown. Defaults to True.
@@ -66,7 +66,7 @@ def execute_concurrently(
 
     if "submit" in results_order:
         # Yield results in order of submission
-        yield from executor.map(func, *iterables, timeout=timeout, chunksize=chunksize)
+        yield from executor.map(func, *iterables, timeout=timeout, chunk_size=chunk_size)
     else:
         # Yield results in order of completion
         futures_generator = submit_and_yield_futures(func, *iterables, executor=executor)
@@ -85,7 +85,7 @@ class ConcurrentExecutor:
         concurrency_type: Optional[Literal["thread", "process", "main", False]] = "thread",
         results_order: Literal["completed", "submitted"] = "completed",
         max_workers: Optional[int] = None,
-        chunksize: int = 1,
+        chunk_size: int = 1,
         timeout: Optional[int] = None,
         shutdown: bool = True,
         wait: bool = True,
@@ -96,7 +96,7 @@ class ConcurrentExecutor:
         self.concurrency_type = concurrency_type
         self.results_order = results_order
         self.max_workers = max_workers
-        self.chunksize = chunksize
+        self.chunk_size = chunk_size
         self.timeout = timeout
         self._shutdown = shutdown
         self.wait = wait
@@ -112,7 +112,7 @@ class ConcurrentExecutor:
                 "concurrency_type": self.concurrency_type,
                 "results_order": self.results_order,
                 "max_workers": self.max_workers,
-                "chunksize": self.chunksize,
+                "chunk_size": self.chunk_size,
                 "shutdown": self._shutdown,
                 "timeout": self.timeout,
                 "wait": self.wait,
@@ -141,4 +141,4 @@ class ConcurrentExecutor:
         self.shutdown()
 
     def __repr__(self) -> str:
-        return f"CuncurrentExecutor(concurrency_type={self.concurrency_type}, results_order={self.results_order}, max_workers={self.max_workers}, chunksize={self.chunksize}, timeout={self.timeout}, shutdown={self._shutdown}, wait={self.wait}, cancel_pending={self.cancel_pending}, executor={self.executor}, executor_init_kwargs={self.executor_init_kwargs})"
+        return f"CuncurrentExecutor(concurrency_type={self.concurrency_type}, results_order={self.results_order}, max_workers={self.max_workers}, chunk_size={self.chunk_size}, timeout={self.timeout}, shutdown={self._shutdown}, wait={self.wait}, cancel_pending={self.cancel_pending}, executor={self.executor}, executor_init_kwargs={self.executor_init_kwargs})"

@@ -1,23 +1,23 @@
 import pytest
 from typing import Optional, Literal
 
-from unifai import UnifAI, LLMProvider, VectorDBProvider, Provider, RerankProvider
-from unifai.components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex
-from unifai.components.rerankers._base_reranker import Reranker
+from unifai import UnifAI, ProviderName
+from unifai.components._base_components._base_vector_db import VectorDB, VectorDBCollection
+from unifai.components._base_components._base_reranker import Reranker
 
-from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
+from unifai.types import ProviderName, GetResult, QueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError
 from basetest import base_test_rerankers_all, PROVIDER_DEFAULTS
 
 
 @base_test_rerankers_all
 def test_init_rerankers(
-        provider: RerankProvider,
+        provider: ProviderName,
         client_kwargs: dict,
         func_kwargs: dict
     ):
-    ai = UnifAI(provider_configs={provider: client_kwargs})
-    reranker = ai._get_component(provider, "reranker", **client_kwargs)
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    reranker = ai.get_reranker(provider)
     assert isinstance(reranker, Reranker)
     assert reranker.provider == provider
     assert reranker.client_kwargs == client_kwargs
@@ -26,25 +26,25 @@ def test_init_rerankers(
 
 @base_test_rerankers_all
 def test_rerank_simple(
-        provider: RerankProvider,
+        provider: ProviderName,
         client_kwargs: dict,
         func_kwargs: dict
     ):
 
-    ai = UnifAI(provider_configs={
-        provider: client_kwargs,
-        "openai": PROVIDER_DEFAULTS["openai"][1],
-        "chroma": PROVIDER_DEFAULTS["chroma"][1],
-    })
+    ai = UnifAI(provider_configs=[
+        {"provider": provider, "client_init_kwargs": client_kwargs},
+        {"provider": "openai", "client_init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
+        {"provider": "chroma", "client_init_kwargs": PROVIDER_DEFAULTS["chroma"][1]},
+    ])    
 
-    reranker = ai._get_component(provider, "reranker", **client_kwargs)
+    reranker = ai.get_reranker(provider)
     assert isinstance(reranker, Reranker)
     assert reranker.provider == provider
     assert reranker.client_kwargs == client_kwargs    
 
 
-    documents = [
-        'This is a list which containing sample documents.',
+    texts = [
+        'This is a list which containing sample texts.',
         'Keywords are important for keyword-based search.',
         'Document analysis involves extracting keywords.',
         'Keyword-based search relies on sparse embeddings.',
@@ -55,51 +55,51 @@ def test_rerank_simple(
     ]
     query = "Natural language processing techniques enhance keyword extraction efficiency."
 
-    # index = ai.get_or_create_index(
+    # collection = ai.get_or_create_collection(
     #     name="reranker_test",
     #     vector_db_provider="chroma",
     #     embedding_provider="openai",
     #     embedding_model="text-embedding-3-large",
     # )
     vector_db = ai.get_vector_db("chroma")
-    vector_db.delete_all_indexes() # Clear any existing indexes before testing in case previous tests failed to clean up
+    vector_db.delete_all_collections() # Clear any existing collections before testing in case previous tests failed to clean up
 
-    index = vector_db.get_or_create_index(
+    collection = vector_db.get_or_create_collection(
         name="reranker_test",
-        embedding_provider="openai",
+        embedder="openai",
         embedding_model="text-embedding-3-large",
     )
 
-    assert isinstance(index, VectorDBIndex)
-    assert index.name == "reranker_test"
-    assert index.provider == "chroma"
-    assert index.embedding_provider == "openai"
-    assert index.embedding_model == "text-embedding-3-large"
+    assert isinstance(collection, VectorDBCollection)
+    assert collection.name == "reranker_test"
+    assert collection.provider == "chroma"
+    assert collection.embedding_provider == "openai"
+    assert collection.embedding_model == "text-embedding-3-large"
 
-    assert index.count() == 0
-    doc_ids = [f"doc_{i}" for i in range(len(documents))]
-    index.upsert(
+    assert collection.count() == 0
+    doc_ids = [f"doc_{i}" for i in range(len(texts))]
+    collection.upsert(
         ids=doc_ids,
-        metadatas=[{"doc_index": i} for i in range(len(documents))],
-        documents=documents,
+        metadatas=[{"doc_collection": i} for i in range(len(texts))],
+        texts=texts,
     )
-    assert index.count() == len(documents)
+    assert collection.count() == len(texts)
 
 
-    query_result = index.query(query_text=query, top_k=6)
-    assert isinstance(query_result, VectorDBQueryResult)
+    query_result = collection.query(query_input=query, top_k=6)
+    assert isinstance(query_result, QueryResult)
     assert len(query_result) == 6
-    assert query_result.ids and query_result.metadatas and query_result.documents
+    assert query_result.ids and query_result.metadatas and query_result.texts
 
     # Intentionally unorder the query result to force reranker to reorder
     query_result.ids = query_result.ids[::-1]
     query_result.metadatas = query_result.metadatas[::-1]
-    query_result.documents = query_result.documents[::-1]
+    query_result.texts = query_result.texts[::-1]
 
     # Save the original query result (before rerank) for comparison
     old_ids = query_result.ids.copy()
     old_metadatas = query_result.metadatas.copy()
-    old_documents = query_result.documents.copy()
+    old_texts = query_result.texts.copy()
 
     
     # for top_n in (6, 3, 1):
@@ -110,18 +110,18 @@ def test_rerank_simple(
         top_n=top_n,
         )
     
-    assert isinstance(reranked_result, VectorDBQueryResult)
+    assert isinstance(reranked_result, QueryResult)
     assert len(reranked_result) == top_n
     assert old_ids != reranked_result.ids
     assert old_metadatas != reranked_result.metadatas
-    assert old_documents != reranked_result.documents
+    assert old_texts != reranked_result.texts
 
-    assert reranked_result.documents
+    assert reranked_result.texts
     for i in range(top_n):
-        print(f"Rank {i}:\nOLD {old_ids[i]}: {old_documents[i]}\nNEW {reranked_result.ids[i]}: {reranked_result.documents[i]}\n\n")
+        print(f"Rank {i}:\nOLD {old_ids[i]}: {old_texts[i]}\nNEW {reranked_result.ids[i]}: {reranked_result.texts[i]}\n\n")
 
     # Reset for next test
-    vector_db.delete_all_indexes()
+    vector_db.delete_all_collections()
 
     
         

@@ -1,40 +1,49 @@
 import pytest
 from typing import Optional, Literal
 
-from unifai import UnifAI, LLMProvider, VectorDBProvider, Provider
-from unifai.components.retrievers._base_vector_db_client import VectorDBClient, VectorDBIndex, DocumentDB
+from unifai import UnifAI
 from unifai.components.document_dbs import DocumentDB, DictDocumentDB, SQLiteDocumentDB
+from unifai.types import Document
 
-from unifai.types import VectorDBProvider, VectorDBGetResult, VectorDBQueryResult, Embedding, Embeddings, ResponseInfo
-from unifai.exceptions import BadRequestError, NotFoundError, DocumentNotFoundError
+from unifai.exceptions import BadRequestError, NotFoundError, DocumentNotFoundError, CollectionNotFoundError
 from basetest import base_test, base_test_document_dbs_all, PROVIDER_DEFAULTS, VECTOR_DB_PROVIDERS
 from chromadb.errors import InvalidCollectionException
 
 @base_test_document_dbs_all
 def test_init_document_db_clients(provider, client_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs={
-        provider: client_kwargs
-    })
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
 
-    client = ai.get_document_db(provider)
-    assert isinstance(client, DocumentDB)
+    db = ai.get_document_db(provider)
+    assert isinstance(db, DocumentDB)
     
 
 @base_test_document_dbs_all
 def test_get_set_documents(provider, client_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs={
-        provider: client_kwargs
-    })
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
 
-    client = ai.get_document_db(provider)
-    client.set_document("test_id", "test_document")
-    assert client.get_document("test_id") == "test_document"
-    client.delete_document("test_id")
+    db = ai.get_document_db()
+    db.upsert(
+        collection="default_collection", 
+        ids=["test_id"], 
+        texts=["test_document"], 
+        metadatas=[{"test_key": "test_value"}]
+    )
 
-    with pytest.raises(DocumentNotFoundError):
-        client.get_document("test_id")    
-    with pytest.raises(NotFoundError):
-        client.get_document("test_id")
+    document = db.get_document(collection="default_collection", id="test_id")
+    assert isinstance(document, Document)
+
+    db.delete("default_collection", ["test_id"])
+    with pytest.raises(NotFoundError) as e:
+        db.get("default_collection", ["test_id"])    
+    assert isinstance(e.value, DocumentNotFoundError)
+
+    db.delete_collection("default_collection")
+    print(db.list_collections())
+
+    with pytest.raises(NotFoundError) as e:
+        db.get_collection("default_collection")
+    assert isinstance(e.value, CollectionNotFoundError)
+  
 
 
 @base_test_document_dbs_all
@@ -48,19 +57,26 @@ def test_get_set_documents(provider, client_kwargs, func_kwargs):
                              100000
                         ])
 def test_many_documents(provider, client_kwargs, func_kwargs, num_documents):
-    ai = UnifAI(provider_configs={
-        provider: client_kwargs
-    })
+    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
 
-    client = ai.get_document_db(provider)        
-
-    documents = {f"test_id_{i}": f"test_document_{i}" for i in range(num_documents)}
-    client.set_documents(documents.keys(), documents.values())
+    db = ai.get_document_db(provider)        
+    assert isinstance(db, DictDocumentDB)
+    documents = {f"test_id_{i}": Document(id=f"test_id_{i}", text=f"test_document_{i}") for i in range(num_documents)}
+    
+    collection = db.get_or_create_collection("default_collection")
+    collection.upsert_documents(documents.values())
     for id, document in documents.items():
-        assert client.get_document(id) == document
+        assert collection.get_document(id) == document
     for id in documents.keys():
-        client.delete_document(id)
+        collection.delete(id)
     for id in documents.keys():
         with pytest.raises(DocumentNotFoundError):
-            client.get_document(id)
+            collection.get(id)
+    for id, document in documents.items():
+        collection.upsert(document.id, {"oldkey":"oldval"}, document.text)
+        assert collection.get_document(id).metadata == {"oldkey":"oldval"}
+    collection.update(list(documents.keys()), [{"newkey":"newval"}]*num_documents)
+    for document in collection.get_all_documents():
+        assert document.metadata == {"newkey":"newval"}
+            
     

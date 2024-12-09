@@ -74,12 +74,24 @@ class PromptTemplate(BaseModel):
         
         global_formatter = resolved_value_formatters.get("*")
         for key, value in resolved_kwargs.items():       
-            if formatter := (
-                resolved_value_formatters.get(key) 
-                or resolved_value_formatters.get(type(value))
-                or global_formatter
-                ):
-                resolved_kwargs[key] = formatter(value)
+            if key_formatter := resolved_value_formatters.get(key):
+                resolved_kwargs[key] = key_formatter(value)
+                continue
+            if type_formatter := resolved_value_formatters.get(type(value)):
+                resolved_kwargs[key] = type_formatter(value)
+                continue            
+            used_parent_type_formatter = False
+            for formatter_key, parent_type_formatter in resolved_value_formatters.items():
+                if isinstance(formatter_key, type) and isinstance(value, formatter_key):
+                    resolved_kwargs[key] = parent_type_formatter(value)
+                    used_parent_type_formatter = True
+                    break
+            if used_parent_type_formatter:
+                continue
+            if global_formatter:
+                resolved_kwargs[key] = global_formatter(value)
+                continue
+            
         return resolved_kwargs
     
 

@@ -1,5 +1,5 @@
 import pytest
-from unifai import UnifAI, LLMProvider
+from unifai import UnifAI, ProviderName
 from unifai.types import Message, Tool, Image, StringToolParameter
 from basetest import base_test_llms_all, LLM_PROVIDERS, base_test
 
@@ -65,7 +65,7 @@ for image_name, image_formats in TEST_IMAGES.items():
     "dog"
 ])
 def test_image_input_animals(
-    provider: LLMProvider, 
+    provider: ProviderName, 
     client_kwargs: dict, 
     func_kwargs: dict,
     image_source: str,
@@ -156,7 +156,7 @@ def test_image_input_animals(
     "dog"
 ])
 def test_image_and_tools_input_animals(
-    provider: LLMProvider, 
+    provider: ProviderName, 
     client_kwargs: dict, 
     func_kwargs: dict,
     image_source: str,

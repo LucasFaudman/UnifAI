@@ -2,7 +2,8 @@ from typing import TYPE_CHECKING, Type, Optional, Sequence, Any, Union, Literal,
 
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 from ...exceptions import UnifAIError, UnknownUnifAIError, TokenizerVocabError, TokenizerDisallowedSpecialTokenError
-from ._base_tokenizer import TokenizerAdapter
+from .._base_components._base_tokenizer import TokenizerAdapter
+from ...utils import lazy_import
 
 T = TypeVar("T")
 
@@ -16,7 +17,7 @@ class HuggingFaceTokenizer(TokenizerAdapter):
     _cache: ClassVar[dict[str, PreTrainedTokenizerBase]] = {}
     
     def import_client(self):
-        return self.lazy_import("transformers.AutoTokenizer")
+        return lazy_import("transformers.AutoTokenizer")
 
     def init_client(self, **client_kwargs):
         self.client_kwargs.update(client_kwargs)
