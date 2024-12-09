@@ -17,7 +17,7 @@ from ollama._types import (
 
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo
 from ...utils import stringify_content, generate_random_id
-from ..base_adapters.ollama_base import OllamaAdapter
+from ..adapters.ollama_adapter import OllamaAdapter
 from .._base_components._base_llm import LLM
 
 

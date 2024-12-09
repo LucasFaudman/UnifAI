@@ -4,7 +4,7 @@ from typing import Optional, Union, Any, Literal, Mapping, Iterator, Sequence, G
 from openai.types.create_embedding_response import CreateEmbeddingResponse
 
 from ...types import Embeddings, ResponseInfo, Usage
-from ..base_adapters.openai_base import OpenAIAdapter
+from ..adapters.openai_adapter import OpenAIAdapter
 from .._base_components._base_embedder import Embedder
 
 class OpenAIEmbedder(OpenAIAdapter, Embedder):

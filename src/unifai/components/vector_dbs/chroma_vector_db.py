@@ -11,7 +11,7 @@ from ...configs import VectorDBCollectionConfig
 from .._base_components._base_component import convert_exceptions
 from .._base_components._base_vector_db_collection import VectorDBCollection
 from .._base_components._base_vector_db import VectorDB
-from ..base_adapters.chroma_base import ChromaExceptionConverter, ChromaAdapter
+from ..adapters.chroma_adapter import ChromaExceptionConverter, ChromaAdapter
 
 from itertools import zip_longest
 

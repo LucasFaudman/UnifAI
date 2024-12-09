@@ -11,7 +11,7 @@ from unifai.types import (
     ResponseInfo, 
     Usage,
 )
-from ..base_adapters.google_base import GoogleAdapter
+from ..adapters.google_adapter import GoogleAdapter
 from .._base_components._base_embedder import Embedder, EmbeddingTaskTypeInput
 
 

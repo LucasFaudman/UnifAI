@@ -12,7 +12,7 @@ from openai.types.chat.chat_completion_message_tool_call import ChatCompletionMe
 
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo
 from ...utils import stringify_content
-from ..base_adapters.openai_base import OpenAIAdapter
+from ..adapters.openai_adapter import OpenAIAdapter
 from .._base_components._base_llm import LLM
 
 class OpenAILLM(OpenAIAdapter, LLM):

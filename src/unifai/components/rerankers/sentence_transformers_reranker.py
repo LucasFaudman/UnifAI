@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from sentence_transformers import CrossEncoder
 
 from ...types import QueryResult
-from ..base_adapters.sentence_transformers_base import SentenceTransformersAdapter
+from ..adapters.sentence_transformers_adapter import SentenceTransformersAdapter
 from .._base_components._base_reranker import Reranker
 from ...utils import lazy_import
 

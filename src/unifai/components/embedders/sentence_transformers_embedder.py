@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
 
 from ...types import Embeddings, ResponseInfo
-from ..base_adapters.sentence_transformers_base import SentenceTransformersAdapter
+from ..adapters.sentence_transformers_adapter import SentenceTransformersAdapter
 from .._base_components._base_embedder import Embedder
 from ...utils import lazy_import
 

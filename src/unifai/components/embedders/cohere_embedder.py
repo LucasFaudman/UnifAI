@@ -2,7 +2,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Class
 
 from ...types import Embeddings, EmbeddingTaskTypeInput, ResponseInfo, Usage
 from ...exceptions import ProviderUnsupportedFeatureError
-from ..base_adapters.cohere_base import CohereAdapter
+from ..adapters.cohere_adapter import CohereAdapter
 from .._base_components._base_embedder import Embedder
 
 T = TypeVar("T")

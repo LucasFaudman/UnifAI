@@ -12,7 +12,7 @@ from ...utils import check_filter, check_metadata_filters, limit_offset_slice
 from .._base_components._base_component import convert_exceptions
 from .._base_components._base_vector_db_collection import VectorDBCollection
 from .._base_components._base_vector_db import VectorDB
-from ..base_adapters.pinecone_base import PineconeExceptionConverter, PineconeAdapter
+from ..adapters.pinecone_adapter import PineconeExceptionConverter, PineconeAdapter
 
 
 from pinecone import ServerlessSpec, PodSpec

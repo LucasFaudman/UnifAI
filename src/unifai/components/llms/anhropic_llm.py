@@ -60,7 +60,7 @@ from unifai.exceptions import (
 from ...exceptions import ProviderUnsupportedFeatureError
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
 from ...utils import stringify_content
-from ..base_adapters.anthropic_base import AnthropicAdapter
+from ..adapters.anthropic_adapter import AnthropicAdapter
 from .._base_components._base_llm import LLM
     
 class AnthropicLLM(AnthropicAdapter, LLM):

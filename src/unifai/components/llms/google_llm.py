@@ -63,7 +63,7 @@ from unifai.types import (
     OptionalToolParameter,
     RefToolParameter,
 )
-from ..base_adapters.google_base import GoogleAdapter
+from ..adapters.google_adapter import GoogleAdapter
 from .._base_components._base_llm import LLM
 from ...utils import generate_random_id
 

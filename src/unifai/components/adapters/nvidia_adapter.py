@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from typing import Optional
     from openai import OpenAI
 
-from .openai_base import OpenAIAdapter
+from .openai_adapter import OpenAIAdapter
 
 class TempBaseURL:
     """

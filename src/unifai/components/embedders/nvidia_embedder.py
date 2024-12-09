@@ -4,7 +4,7 @@ from openai.types.create_embedding_response import CreateEmbeddingResponse
 
 from ...exceptions import ProviderUnsupportedFeatureError
 from ...types import EmbeddingTaskTypeInput
-from ..base_adapters.nvidia_base import NvidiaAdapter, TempBaseURL
+from ..adapters.nvidia_adapter import NvidiaAdapter, TempBaseURL
 from .openai_embedder import OpenAIEmbedder
 
 

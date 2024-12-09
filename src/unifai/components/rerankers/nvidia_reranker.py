@@ -3,7 +3,7 @@ from typing import Optional
 from openai._base_client import make_request_options
 
 from ...types import QueryResult
-from ..base_adapters.nvidia_base import NvidiaAdapter, TempBaseURL
+from ..adapters.nvidia_adapter import NvidiaAdapter, TempBaseURL
 from .._base_components._base_reranker import Reranker
 
 # Entire point of this is to have a castable type subclassing OpenAI's BaseModel so it does not

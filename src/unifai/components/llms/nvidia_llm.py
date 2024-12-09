@@ -7,7 +7,7 @@ from openai._base_client import make_request_options
 from openai.types.chat.completion_create_params import CompletionCreateParams
 
 from unifai.types import Message, Image, Tool
-from ..base_adapters.nvidia_base import NvidiaAdapter, TempBaseURL
+from ..adapters.nvidia_adapter import NvidiaAdapter, TempBaseURL
 from .openai_llm import OpenAILLM
 
 
