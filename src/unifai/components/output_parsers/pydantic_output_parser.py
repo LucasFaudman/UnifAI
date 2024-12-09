@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Type, TypeVar, Generic
 from json import loads, JSONDecodeError
 
+from .._base_components._base_output_parser import OutputParser, OutputParserConfig, OutputT, ReturnT
 from ...exceptions import OutputParserError
 from ...types import Message, ToolCall
 
@@ -44,12 +45,31 @@ def pydantic_parse(output: "Chat|dict|ToolCall|str|Message|None|list[dict|ToolCa
         return pydantic_parse_many(output, model)
     return pydantic_parse_one(output, model)
 
-ModelT = TypeVar('ModelT', bound=BaseModel)
-OutputT = TypeVar('OutputT', "Chat", Message, ToolCall) # Type of the output of the function to be parsed by the output_parser
-class PydanticParser(Generic[ModelT, OutputT]):
-    def __init__(self, model: Type[ModelT], output_type: Type[OutputT] = Message) -> None:
-        self.model = model
-        self.output_type = output_type
 
-    def __call__(self, output: OutputT) -> ModelT:
-        return pydantic_parse_one(output, self.model)
+ModelT = TypeVar('ModelT', bound=BaseModel)
+class PydanticParser(OutputParser[OutputT, ModelT], Generic[OutputT, ModelT]):
+    provider = "pydantic"
+    config_class: Type[OutputParserConfig[OutputT, ModelT]] = OutputParserConfig
+
+    # def __init__(self, config: OutputParserConfig[OutputT, ModelT], **client_kwargs) -> None:
+    #     super().__init__(config, **client_kwargs)
+
+    def __init__(self, model: Type[ModelT], output_type: Type[OutputT], **client_kwargs) -> None:
+        config: OutputParserConfig[OutputT, ModelT] = client_kwargs.pop('config', None) or self.config_class(provider=self.provider, output_type=output_type, return_type=model)
+        super().__init__(config, **client_kwargs)
+
+    def _parse_output(self, output: OutputT) -> ModelT:
+        return pydantic_parse_one(output, self.return_type)
+    
+    @classmethod
+    def from_model(cls, model: Type[ModelT], output_type: Type[OutputT] = Message) -> "PydanticParser[OutputT, ModelT]":
+        return cls(model=model, output_type=output_type)
+
+class PydanticMessageParser(PydanticParser[Message, ModelT]):
+    def __init__(self, model: Type[ModelT], **client_kwargs) -> None:
+        super().__init__(model=model, output_type=Message, **client_kwargs)
+
+class PydanticToolCallParser(PydanticParser[ToolCall, ModelT]):
+    def __init__(self, model: Type[ModelT], **client_kwargs) -> None:
+        super().__init__(model=model, output_type=ToolCall, **client_kwargs)
+

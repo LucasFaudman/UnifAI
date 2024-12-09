@@ -8,6 +8,7 @@ from ..types import (
 from ..components.prompt_template import PromptTemplate
 from ._base_configs import ComponentConfig
 from .llm_config import LLMConfig
+from .tokenizer_config import TokenizerConfig
 from .tool_caller_config import ToolCallerConfig
 
 class ChatConfig(ComponentConfig):
@@ -29,7 +30,7 @@ class ChatConfig(ComponentConfig):
     enforce_tool_choice: bool = True
     tool_choice_error_retries: int = 3
     tool_callables: Optional[dict[ToolName, Callable[..., Any]]] = None
-    tool_caller: Optional[ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]] = None
+    tool_caller: ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName] = "default"
 
     # response_format: Optional[Literal["text", "json"] | Type[BaseModel] | Tool | dict[Literal["json_schema"], dict[str, str] | Type[BaseModel] | Tool]] = None
     response_format: Optional[Literal["text", "json"] | dict[Literal["json_schema"], dict[str, str] | Type[BaseModel] | Tool]] = None
@@ -49,7 +50,8 @@ class ChatConfig(ComponentConfig):
     max_input_tokens_per_run: Optional[int] = None
     max_output_tokens_per_run: Optional[int] = None
     count_tokens_proactively: bool = False    
-
+    tokenizer: Optional[TokenizerConfig | ProviderName | tuple[ProviderName, ComponentName]] = None
+    tokenizer_model: Optional[ModelName] = None
 
     error_retries: dict[Literal[
         "api_error",

@@ -5,7 +5,7 @@ from ._base_model import BaseModel, Field
 
 from .image import Image
 from .tool_call import ToolCall
-from .response_info import ResponseInfo
+from .response_info import ResponseInfo, ListWithResponseInfo
 
 class Message(BaseModel):
     # id: str
@@ -24,3 +24,8 @@ class Message(BaseModel):
 class MessageChunk(Message):
     pass
 
+class Messages(ListWithResponseInfo[Message]):
+    pass
+
+class MessageChunks(ListWithResponseInfo[MessageChunk]):
+    pass

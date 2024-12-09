@@ -51,12 +51,12 @@ class Function(BaseChat[FunctionConfig[InputT, OutputT, ReturnT]], Generic[Input
     def output_parser(self, output_parser: Type[ReturnT] | Callable[[OutputT], ReturnT]):
         if isinstance(output_parser, (Tool, PydanticParser)) or isinstance(output_parser, type) and issubclass(output_parser, BaseModel):  
             if isinstance(output_parser, Tool):
-                output_parser = PydanticParser(model=output_parser.callable)
+                output_parser = PydanticParser.from_model(output_parser.callable)
                 output_tool = output_parser
             elif isinstance(output_parser, PydanticParser):
                 output_tool = tool_from_model(output_parser.model)
             else:
-                output_parser, output_tool = PydanticParser(model=output_parser), tool_from_model(output_parser)
+                output_parser, output_tool = PydanticParser.from_model(output_parser), tool_from_model(output_parser)
             
             if self.tools is None:
                 self.tools = [output_tool]
@@ -186,7 +186,7 @@ class Function(BaseChat[FunctionConfig[InputT, OutputT, ReturnT]], Generic[Input
             if self.config.stateless:
                 self.reset()
                     
-
+            
     # Aliases so func()==func.exec() and func.stream()==func.exec_stream()
     exec = __call__
     exec_stream = stream

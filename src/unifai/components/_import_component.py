@@ -144,11 +144,11 @@ def import_component(component_type: ComponentType, provider: ProviderName) -> T
 
             case "output_parser":
                 if provider == "json_parser":
-                    from .output_parsers.json_output_parser import json_parse
-                    return json_parse
+                    from .output_parsers.json_output_parser import JSONParser
+                    return JSONParser
                 if provider == "pydantic_parser":
-                    from .output_parsers.pydantic_output_parser import pydantic_parse
-                    return pydantic_parse
+                    from .output_parsers.pydantic_output_parser import PydanticParser
+                    return PydanticParser
             
             case "ragpipe":
                 if provider == "default":
