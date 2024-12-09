@@ -22,7 +22,7 @@ class SentenceTransformersEmbedder(SentenceTransformersAdapter, Embedder):
 
     def _get_model(self, model: str, dimensions: Optional[int] = None, **kwargs) -> SentenceTransformer:
         if not (st_model := self.st_model_cache.get(model)):
-            model_init_kwargs = {**self.client_kwargs, **kwargs.pop("model_init_kwargs", {})}
+            model_init_kwargs = {**self.init_kwargs, **kwargs.pop("model_init_kwargs", {})}
             truncate_dim = dimensions or model_init_kwargs.pop("truncate_dim", None)
 
             st_model = lazy_import("sentence_transformers.SentenceTransformer")(

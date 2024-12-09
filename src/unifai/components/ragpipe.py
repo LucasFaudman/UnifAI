@@ -37,12 +37,12 @@ class RAGPipe(UnifAIComponent[RAGConfig]):
 
     def _setup(self) -> None:
         super()._setup()
-        self._document_loader = self.client_kwargs.get("document_loader")
-        self._document_chunker = self.client_kwargs.get("document_chunker")
-        self._vector_db = self.client_kwargs.get("vector_db")
-        self._vector_db_collection = self.client_kwargs.get("vector_db_collection")
-        self._reranker = self.client_kwargs.get("reranker")
-        self._tokenizer = self.client_kwargs.get("tokenizer")
+        self._document_loader = self.init_kwargs.get("document_loader")
+        self._document_chunker = self.init_kwargs.get("document_chunker")
+        self._vector_db = self.init_kwargs.get("vector_db")
+        self._vector_db_collection = self.init_kwargs.get("vector_db_collection")
+        self._reranker = self.init_kwargs.get("reranker")
+        self._tokenizer = self.init_kwargs.get("tokenizer")
         self._extra_kwargs = self.config.extra_kwargs or {}
 
     @property

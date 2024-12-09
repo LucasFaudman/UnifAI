@@ -14,6 +14,6 @@ class UnifAIDocumentChunkerClient(UnifAITokenizerClient):
     def get_document_chunker(
             self, 
             provider_config_or_name: "ProviderName | DocumentChunkerConfig | tuple[ProviderName, ComponentName]" = "default",
-            **client_kwargs
+            **init_kwargs
             ) -> "DocumentChunker":
-        return self._get_component("document_chunker", provider_config_or_name, client_kwargs)
+        return self._get_component("document_chunker", provider_config_or_name, init_kwargs)

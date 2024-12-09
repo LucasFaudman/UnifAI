@@ -15,8 +15,8 @@ class UnifAIVectorDBClient(UnifAIEmbedClient, UnifAIDocumentDBClient):
     def get_vector_db(
             self, 
             provider_config_or_name: "ProviderName | VectorDBConfig | tuple[ProviderName, ComponentName]" = "default",          
-            **client_kwargs
+            **init_kwargs
             ) -> "VectorDB":
-        return self._get_component("vector_db", provider_config_or_name, client_kwargs)
+        return self._get_component("vector_db", provider_config_or_name, init_kwargs)
 
     

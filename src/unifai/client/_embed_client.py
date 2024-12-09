@@ -14,9 +14,9 @@ class UnifAIEmbedClient(BaseClient):
     def get_embedder(
             self, 
             provider_config_or_name: "ProviderName | EmbedderConfig | tuple[ProviderName, ComponentName]" = "default",      
-            **client_kwargs
+            **init_kwargs
             ) -> "Embedder":
-        return self._get_component("embedder", provider_config_or_name, client_kwargs)
+        return self._get_component("embedder", provider_config_or_name, init_kwargs)
 
     # Embeddings
     def embed(

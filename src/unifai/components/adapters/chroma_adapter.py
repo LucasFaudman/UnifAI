@@ -60,14 +60,14 @@ class ChromaAdapter(UnifAIAdapter, ChromaExceptionConverter):
         return Client
 
         
-    def init_client(self, **client_kwargs) -> ChromaClientAPI:
-        self.client_kwargs.update(client_kwargs)
-        # tentant = self.client_kwargs.get("tenant", DEFAULT_TENANT)
-        # database = self.client_kwargs.get("database", DEFAULT_DATABASE)
-        path = self.client_kwargs.pop("path", None)
-        settings = self.client_kwargs.get("settings", None)
+    def init_client(self, **init_kwargs) -> ChromaClientAPI:
+        self.init_kwargs.update(init_kwargs)
+        # tentant = self.init_kwargs.get("tenant", DEFAULT_TENANT)
+        # database = self.init_kwargs.get("database", DEFAULT_DATABASE)
+        path = self.init_kwargs.pop("path", None)
+        settings = self.init_kwargs.get("settings", None)
 
-        extra_kwargs = {k: v for k, v in self.client_kwargs.items() if k not in ["tenant", "database", "settings"]}
+        extra_kwargs = {k: v for k, v in self.init_kwargs.items() if k not in ["tenant", "database", "settings"]}
 
         if settings is None:
             settings = ChromaSettings(**extra_kwargs)
@@ -77,7 +77,7 @@ class ChromaAdapter(UnifAIAdapter, ChromaExceptionConverter):
             raise ValueError("Settings must be a dictionary or a chromadb.config.Settings object")
 
         for k in extra_kwargs:
-            setattr(settings, k, self.client_kwargs.pop(k))
+            setattr(settings, k, self.init_kwargs.pop(k))
 
         if path is not None:
             if settings.persist_directory:
@@ -87,7 +87,7 @@ class ChromaAdapter(UnifAIAdapter, ChromaExceptionConverter):
         elif settings.persist_directory and not settings.is_persistent:
             settings.is_persistent = True           
 
-        self.client_kwargs["settings"] = settings
-        self._client = self.import_client()(**self.client_kwargs)
+        self.init_kwargs["settings"] = settings
+        self._client = self.import_client()(**self.init_kwargs)
         return self._client
    

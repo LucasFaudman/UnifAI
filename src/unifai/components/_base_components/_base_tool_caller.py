@@ -12,10 +12,10 @@ class ToolCaller(UnifAIComponent[ToolCallerConfig]):
 
 
     def _setup(self) -> None:
-        tool_callables = self.client_kwargs.get("tool_callables", {})
-        tool_argument_validators = self.client_kwargs.get("tool_argument_validators", {})
-        tools = self.client_kwargs.get("tools", [])
-        tool_execution_error_retries = self.client_kwargs.get("tool_execution_error_retries", 0)
+        tool_callables = self.init_kwargs.get("tool_callables", {})
+        tool_argument_validators = self.init_kwargs.get("tool_argument_validators", {})
+        tools = self.init_kwargs.get("tools", [])
+        tool_execution_error_retries = self.init_kwargs.get("tool_execution_error_retries", 0)
         self.tool_callables = {tool.name: tool.callable for tool in tools if tool.callable} if tools else {}
         self.tool_callables.update(tool_callables) # tool_callables dict takes precedence over Optional tools list
         self.tool_argument_validators = tool_argument_validators if tool_argument_validators is not None else {}

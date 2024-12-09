@@ -10,8 +10,8 @@ class StrFuncTestingTokenizer(Tokenizer):
 
     def _setup(self) -> None:
         super()._setup()
-        self.sep = self.client_kwargs.get("sep") or self.default_sep
-        self.support_encode_decode = self.client_kwargs.get("support_encode_decode", True)
+        self.sep = self.init_kwargs.get("sep") or self.default_sep
+        self.support_encode_decode = self.init_kwargs.get("support_encode_decode", True)
         if self.support_encode_decode:
             self._ints_to_tokens: dict[int, str] = {}
             self._tokens_to_ints: dict[str, int] = {}

@@ -10,7 +10,7 @@ GITA_EMBEDDINGS_DB_PATH = Path("/Users/lucasfaudman/Documents/UnifAI/scratch/git
 
 
 ai = UnifAI(
-    provider_client_kwargs={
+    provider_init_kwargs={
         "openai": PROVIDER_DEFAULTS["openai"][1],
         "chroma": PROVIDER_DEFAULTS["chroma"][1],
         "nvidia": PROVIDER_DEFAULTS["nvidia"][1],

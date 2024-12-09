@@ -76,13 +76,13 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         self._return_on = "content"        
         self.usage = Usage(input_tokens=0, output_tokens=0)
 
-        # runtime variables optionally set by client_kwargs during initialization
-        if (messages := self.client_kwargs.get("messages", None)) is not None:
+        # runtime variables optionally set by init_kwargs during initialization
+        if (messages := self.init_kwargs.get("messages", None)) is not None:
             self.messages = messages
         else:
             self.messages = []
-        self.system_prompt_kwargs = self.client_kwargs.get("system_prompt_kwargs", {})
-        self.tool_registry = self.client_kwargs.get("tool_registry", {})
+        self.system_prompt_kwargs = self.init_kwargs.get("system_prompt_kwargs", {})
+        self.tool_registry = self.init_kwargs.get("tool_registry", {})
 
         # Wait until run to fully initialize components and runtime variables from config
         self._fully_initialized = False

@@ -31,8 +31,8 @@ class Function(BaseChat[FunctionConfig[InputT, OutputT, ReturnT]], Generic[Input
     provider = "base"
     config_class = FunctionConfig
 
-    def __init__(self, config: FunctionConfig[InputT, OutputT, ReturnT], **client_kwargs) -> None:
-        super().__init__(config, **client_kwargs)
+    def __init__(self, config: FunctionConfig[InputT, OutputT, ReturnT], **init_kwargs) -> None:
+        super().__init__(config, **init_kwargs)
 
     def reset(self) -> Self:
         self.clear_messages()
@@ -73,9 +73,9 @@ class Function(BaseChat[FunctionConfig[InputT, OutputT, ReturnT]], Generic[Input
     def _get_ragpipe(
             self, 
             provider_config_or_name: "ProviderName | RAGConfig | tuple[ProviderName, ComponentName]" = "default",
-            **client_kwargs
+            **init_kwargs
             ) -> "RAGPipe":
-        return self._get_component("ragpipe", provider_config_or_name, **client_kwargs)
+        return self._get_component("ragpipe", provider_config_or_name, **init_kwargs)
         
     @property
     def ragpipe(self) -> "Optional[RAGPipe]":

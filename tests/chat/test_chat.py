@@ -111,9 +111,9 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
 
 
 @base_test_llms_all
-def test_chat_simple(provider: ProviderName, client_kwargs: dict, func_kwargs: dict):
+def test_chat_simple(provider: ProviderName, init_kwargs: dict, func_kwargs: dict):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     chat = ai.chat(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,
@@ -162,14 +162,14 @@ def test_chat_simple(provider: ProviderName, client_kwargs: dict, func_kwargs: d
 def test_chat_tools_simple(
     # ai: UnifAIClient, 
     provider: ProviderName, 
-    client_kwargs: dict,
+    init_kwargs: dict,
     func_kwargs: dict,
     messages: list,
     tools: list,
     tool_callables: dict
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     chat = ai.chat(
         messages=messages,
@@ -208,14 +208,14 @@ def test_chat_tools_simple(
 def test_chat_return_on(
     # ai: UnifAIClient, 
     provider: ProviderName, 
-    client_kwargs: dict,
+    init_kwargs: dict,
     func_kwargs: dict,
     messages: list,
     tools: list,
     tool_callables: dict, 
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
 
     return_ons = ["content"]
@@ -287,7 +287,7 @@ def test_chat_return_on(
 def test_chat_enforce_tool_choice(
     # ai: UnifAIClient, 
     provider: ProviderName, 
-    client_kwargs: dict,
+    init_kwargs: dict,
     func_kwargs: dict,
     messages: list,
     tools: list,
@@ -295,7 +295,7 @@ def test_chat_enforce_tool_choice(
     tool_choice: str
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
 
     for _ in range(1):
@@ -354,7 +354,7 @@ def test_chat_enforce_tool_choice(
 def test_chat_enforce_tool_choice_sequence(
     # ai: UnifAIClient, 
     provider: ProviderName, 
-    client_kwargs: dict,
+    init_kwargs: dict,
     func_kwargs: dict,
     messages: list,
     tools: list,
@@ -362,7 +362,7 @@ def test_chat_enforce_tool_choice_sequence(
     tool_choice: list[str]
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     for _ in range(1):
         chat = ai.chat(
@@ -440,7 +440,7 @@ def test_chat_enforce_tool_choice_sequence(
 def test_chat_send_message(
     # ai: UnifAIClient, 
     provider: ProviderName, 
-    client_kwargs: dict,
+    init_kwargs: dict,
     func_kwargs: dict,
     system_prompt: str|None,
     message_lists: list[list],
@@ -449,7 +449,7 @@ def test_chat_send_message(
     tool_choice: list[str]
     ):    
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     chat = ai.chat(
         messages=message_lists[0],
         provider=provider,
@@ -515,12 +515,12 @@ def test_chat_send_message(
     ])
 def test_chat_options(
     provider: ProviderName, 
-    client_kwargs: dict, 
+    init_kwargs: dict, 
     func_kwargs: dict,
     extra_kwargs: dict
     ):
 
-    ai = UnifAI(provider_configs={provider: client_kwargs})
+    ai = UnifAI(provider_configs={provider: init_kwargs})
     chat = ai.chat(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,

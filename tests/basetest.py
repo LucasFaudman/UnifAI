@@ -11,7 +11,7 @@ COHERE_API_KEY = getenv("_COHERE_API_KEY")
 NVIDIA_API_KEY = getenv("_NVIDIA_API_KEY")
 
 PROVIDER_DEFAULTS = {
-    # "provider": (provider, client_kwargs, func_kwargs)
+    # "provider": (provider, init_kwargs, func_kwargs)
 
     # llms
     "anthropic": (
@@ -228,7 +228,7 @@ def decorator_with_params(param1, param2):
 def base_test(*providers, exclude=[]):
     def decorator(func):
         return pytest.mark.parametrize(
-            "provider, client_kwargs, func_kwargs", 
+            "provider, init_kwargs, func_kwargs", 
             [PROVIDER_DEFAULTS[provider] for provider in providers if provider not in exclude]
         )(func)
     return decorator
@@ -284,25 +284,25 @@ def base_test_tokenizers_all(func):
     return base_test(*TOKENIZER_PROVIDERS)(func)
 
 # def base_test_all_llms(func):
-#     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", LLM_PROVIDER_DEFAULTS[:])(func)
+#     return pytest.mark.parametrize("provider, init_kwargs, func_kwargs", LLM_PROVIDER_DEFAULTS[:])(func)
 
 # def base_test_no_anthropic(func):
-#     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
+#     return pytest.mark.parametrize("provider, init_kwargs, func_kwargs", [
 #         defaults for defaults in LLM_PROVIDER_DEFAULTS if defaults[0] != "anthropic"
 #     ])(func)
 
 # def base_test_no_google(func):
-#     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
+#     return pytest.mark.parametrize("provider, init_kwargs, func_kwargs", [
 #         defaults for defaults in LLM_PROVIDER_DEFAULTS if defaults[0] != "google"
 #     ])(func)
 
 # def base_test_no_openai(func):
-#     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
+#     return pytest.mark.parametrize("provider, init_kwargs, func_kwargs", [
 #         defaults for defaults in LLM_PROVIDER_DEFAULTS if defaults[0] != "openai"
 #     ])(func)
 
 # def base_test_no_ollama(func):
-#     return pytest.mark.parametrize("provider, client_kwargs, func_kwargs", [
+#     return pytest.mark.parametrize("provider, init_kwargs, func_kwargs", [
 #         defaults for defaults in LLM_PROVIDER_DEFAULTS if defaults[0] != "ollama"
 #     ])(func)
 

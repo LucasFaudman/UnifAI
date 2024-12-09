@@ -24,12 +24,12 @@ class TikTokenTokenizer(TokenizerAdapter):
     def import_client(self):
         return lazy_import("tiktoken")
 
-    def init_client(self, **client_kwargs):
-        if (allowed_special := client_kwargs.get("allowed_special") or client_kwargs.pop("default_allowed_special", None)) is not None:
+    def init_client(self, **init_kwargs):
+        if (allowed_special := init_kwargs.get("allowed_special") or init_kwargs.pop("default_allowed_special", None)) is not None:
             self.default_allowed_special = allowed_special
-        if (disallowed_special := client_kwargs.get("disallowed_special") or client_kwargs.pop("default_disallowed_special", None)) is not None:
+        if (disallowed_special := init_kwargs.get("disallowed_special") or init_kwargs.pop("default_disallowed_special", None)) is not None:
             self.default_disallowed_special = disallowed_special
-        self.client_kwargs.update(client_kwargs)
+        self.init_kwargs.update(init_kwargs)
         self._client = self.import_client()
         return self._client
     

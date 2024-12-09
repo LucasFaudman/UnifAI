@@ -14,8 +14,8 @@ class OutputParser(UnifAIComponent[OutputParserConfig[OutputT, ReturnT]], Generi
     config_class = OutputParserConfig
     can_get_components = False
 
-    def __init__(self, config: OutputParserConfig[OutputT, ReturnT], **client_kwargs) -> None:
-        super().__init__(config, **client_kwargs)
+    def __init__(self, config: OutputParserConfig[OutputT, ReturnT], **init_kwargs) -> None:
+        super().__init__(config, **init_kwargs)
         self.output_type = config.output_type
         self.return_type = config.return_type
 

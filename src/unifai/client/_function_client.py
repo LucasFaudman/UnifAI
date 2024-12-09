@@ -46,12 +46,12 @@ class UnifAIFunctionClient(UnifAIChatClient, UnifAIRAGClient):
         # self._init_function_configs(self.config.function_configs)
        
 
-    def get_function(self, config: FunctionConfig[InputT, OutputT, ReturnT], **client_kwargs) -> Function[InputT, OutputT, ReturnT]:
+    def get_function(self, config: FunctionConfig[InputT, OutputT, ReturnT], **init_kwargs) -> Function[InputT, OutputT, ReturnT]:
         return Function(
             config=config, 
             tool_registry=self._tools,
             _get_component=self._get_component, 
-            **client_kwargs
+            **init_kwargs
         )
 
     def _init_function_configs(self, function_configs: Optional[dict[str, FunctionConfig|dict[str, Any]]] = None) -> None:

@@ -194,7 +194,7 @@ class DictDocumentDB(DocumentDB[DictDocumentDBCollection, DataDict]):
 
     def _setup(self) -> None:
         super()._setup()
-        self._data = self.client_kwargs.get("data", {})    
+        self._data = self.init_kwargs.get("data", {})    
 
     def _create_wrapped_collection(self, config: DocumentDBCollectionConfig, **collection_kwargs) -> DataDict:
         collection_name = config.name

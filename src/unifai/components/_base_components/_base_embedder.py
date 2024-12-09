@@ -20,8 +20,8 @@ class Embedder(UnifAIAdapter[EmbedderConfig]):
     default_embedding_dimensions = 768
     default_model_max_tokens = 2048
 
-    # def __init__(self, config: Optional[EmbedderConfig] = None, **client_kwargs):
-    #     super().__init__(config, **client_kwargs)
+    # def __init__(self, config: Optional[EmbedderConfig] = None, **init_kwargs):
+    #     super().__init__(config, **init_kwargs)
 
     def _get_embed_response(
             self,            

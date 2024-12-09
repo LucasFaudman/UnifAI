@@ -10,7 +10,7 @@ class BaseConfig(BaseModel):
 class ProviderConfig(BaseModel):    
     provider: ProviderName
     api_key: Optional[str] = None
-    client_init_kwargs: dict[str, Any] = Field(default_factory=dict)
+    init_kwargs: dict[str, Any] = Field(default_factory=dict)
     share_client: bool = True
 
 class ComponentConfig(BaseConfig):

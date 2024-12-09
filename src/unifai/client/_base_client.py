@@ -178,7 +178,7 @@ class BaseClient:
                         component_name: ComponentName,
                         component_config: ComponentConfig, 
                         provider_config: ProviderConfig,  
-                        client_kwargs: dict
+                        init_kwargs: dict
                         ) -> Any:
         if (component_class := self._component_types[component_type].get(provider)) is None:
             component_class = import_component(component_type, provider)
@@ -187,14 +187,14 @@ class BaseClient:
         component_kwargs: dict[str, Any] = {"config": component_config}        
         if api_key := provider_config.api_key:
             component_kwargs["api_key"] = api_key
-        if provider_config.client_init_kwargs:
-            component_kwargs.update(provider_config.client_init_kwargs)
+        if provider_config.init_kwargs:
+            component_kwargs.update(provider_config.init_kwargs)
         if component_config.init_kwargs:
             component_kwargs.update(component_config.init_kwargs)
         if component_class.can_get_components:
             # Some components need to get other components. (can_get_components: ClassVar = True)
             component_kwargs["_get_component"] = self._get_component                
-        component_kwargs.update(client_kwargs)     
+        component_kwargs.update(init_kwargs)     
 
         # Initialize component instance with the combined kwargs
         component = component_class(**component_kwargs)
@@ -219,7 +219,7 @@ class BaseClient:
         self,
         component_type: ComponentType,
         provider_config_or_name: ProviderName | ComponentConfig | tuple[ProviderName, ComponentName],
-        client_kwargs: dict
+        init_kwargs: dict
     ) -> Any:        
         self._check_component_type_is_valid(component_type)
         provider, config_or_name = self._unpack_config_provider_component_args(provider_config_or_name)
@@ -234,7 +234,7 @@ class BaseClient:
         if existing_instance := self._get_existing_instance(component_type, provider, component_name):
             return existing_instance
         provider_config = self._get_provider_config(provider)
-        return self._init_component(component_type, provider, component_name, component_config, provider_config, client_kwargs)
+        return self._init_component(component_type, provider, component_name, component_config, provider_config, init_kwargs)
         
     def get_default_provider(self, component_type: ComponentType) -> str:
         if config_default_provider := self._default_providers.get(component_type):

@@ -14,9 +14,9 @@ class UnifAIRerankClient(BaseClient):
     def get_reranker(
             self, 
             provider_config_or_name: "ProviderName | RerankerConfig | tuple[ProviderName, ComponentName]" = "default",       
-            **client_kwargs
+            **init_kwargs
             ) -> "Reranker":
-        return self._get_component("reranker", provider_config_or_name, client_kwargs) 
+        return self._get_component("reranker", provider_config_or_name, init_kwargs) 
 
     def rerank(
         self, 

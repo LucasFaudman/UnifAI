@@ -13,6 +13,6 @@ class UnifAIDocumentLoaderClient(BaseClient):
     def get_document_loader(
             self, 
             provider_config_or_name: "ProviderName | DocumentLoaderConfig | tuple[ProviderName, ComponentName]" = "default",     
-            **client_kwargs
+            **init_kwargs
             ) -> "DocumentLoader":
-        return self._get_component("document_loader", provider_config_or_name, client_kwargs)
+        return self._get_component("document_loader", provider_config_or_name, init_kwargs)

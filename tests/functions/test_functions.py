@@ -22,14 +22,14 @@ import httpx
 @base_test_llms_all
 def test_evalutate_flagged_reason(
     provider: ProviderName, 
-    client_kwargs: dict, 
+    init_kwargs: dict, 
     func_kwargs: dict,
     url, 
     link_text,
     flagged: bool
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     class FlaggedReason(BaseModel):
         flagged: bool
@@ -164,12 +164,12 @@ contacts_input_2 = """
 @base_test_llms_all
 def test_evalutate_contacts(
     provider: ProviderName, 
-    client_kwargs: dict, 
+    init_kwargs: dict, 
     func_kwargs: dict,
     input: str,
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     class Contact(BaseModel):
         name: str

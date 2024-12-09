@@ -19,9 +19,9 @@ class UnifAIRAGClient(UnifAIVectorDBClient, UnifAIRerankClient, UnifAIDocumentCh
     def get_ragpipe(
             self, 
             provider_config_or_name: "ProviderName | RAGConfig | tuple[ProviderName, ComponentName]" = "default",
-            **client_kwargs
+            **init_kwargs
             ) -> "RAGPipe":
-        return self._get_component("ragpipe", provider_config_or_name, client_kwargs)
+        return self._get_component("ragpipe", provider_config_or_name, init_kwargs)
     
     # def __init__(
     #     self,

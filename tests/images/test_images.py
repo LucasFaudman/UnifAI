@@ -66,7 +66,7 @@ for image_name, image_formats in TEST_IMAGES.items():
 ])
 def test_image_input_animals(
     provider: ProviderName, 
-    client_kwargs: dict, 
+    init_kwargs: dict, 
     func_kwargs: dict,
     image_source: str,
     image_format: str,
@@ -106,7 +106,7 @@ def test_image_input_animals(
     ]
 
 
-    ai = UnifAI(provider_configs={provider: client_kwargs})
+    ai = UnifAI(provider_configs={provider: init_kwargs})
     chat = ai.chat(
         messages=messages,
         **func_kwargs
@@ -157,7 +157,7 @@ def test_image_input_animals(
 ])
 def test_image_and_tools_input_animals(
     provider: ProviderName, 
-    client_kwargs: dict, 
+    init_kwargs: dict, 
     func_kwargs: dict,
     image_source: str,
     image_format: str,
@@ -212,7 +212,7 @@ def test_image_and_tools_input_animals(
 )
 
 
-    ai = UnifAI(provider_configs={provider: client_kwargs})
+    ai = UnifAI(provider_configs={provider: init_kwargs})
     chat = ai.chat(
         messages=messages,
         tools=[return_animal_in_image],
@@ -342,14 +342,14 @@ def test_image_and_tools_input_animals(
 # ])
 # def test_image_input(
 #     provider: AIProvider, 
-#     client_kwargs: dict, 
+#     init_kwargs: dict, 
 #     func_kwargs: dict,
 #     messages: list,
 #     expected_words_in_content: list[str]
 #     ):
 
-#     ai = UnifAIClient({provider: client_kwargs})
-#     ai.init_client(provider, **client_kwargs)
+#     ai = UnifAIClient({provider: init_kwargs})
+#     ai.init_client(provider, **init_kwargs)
 #     chat = ai.chat(
 #         messages=[{"role": "user", "content": "Hello, how are you?"}],
 #         provider=provider,

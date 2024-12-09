@@ -98,7 +98,7 @@ def render_html_in_browser(html_content):
 
 if __name__ == "__main__":
     ai = UnifAI(
-    provider_client_kwargs={
+    provider_init_kwargs={
         "anthropic": PROVIDER_DEFAULTS["anthropic"][1],
         "google": PROVIDER_DEFAULTS["google"][1],
         "openai": PROVIDER_DEFAULTS["openai"][1],

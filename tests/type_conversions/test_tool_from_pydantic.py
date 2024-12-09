@@ -365,7 +365,7 @@ class ModelSequenceCollections(BaseModel):
 ])
 def test_tool_from_base_model(
     provider: ProviderName,
-    client_kwargs: dict,
+    init_kwargs: dict,
     func_kwargs: dict,    
     bmodel: type[BaseModel],
     ):
@@ -381,7 +381,7 @@ def test_tool_from_base_model(
     param_names = [param.name for param in return_tool.parameters.properties.values()]
     assert all(field_name in param_names for field_name in model_fields)
 
-    ai = UnifAI({provider: client_kwargs})    
+    ai = UnifAI({provider: init_kwargs})    
     get_model = ai.get_function(
         FunctionConfig(response_format=bmodel,
             # tools=[return_tool],

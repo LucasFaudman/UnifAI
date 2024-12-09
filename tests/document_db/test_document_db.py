@@ -10,16 +10,16 @@ from basetest import base_test, base_test_document_dbs_all, PROVIDER_DEFAULTS, V
 from chromadb.errors import InvalidCollectionException
 
 @base_test_document_dbs_all
-def test_init_document_db_clients(provider, client_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+def test_init_document_db_clients(provider, init_kwargs, func_kwargs):
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     db = ai.get_document_db(provider)
     assert isinstance(db, DocumentDB)
     
 
 @base_test_document_dbs_all
-def test_get_set_documents(provider, client_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+def test_get_set_documents(provider, init_kwargs, func_kwargs):
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     db = ai.get_document_db()
     db.upsert(
@@ -56,8 +56,8 @@ def test_get_set_documents(provider, client_kwargs, func_kwargs):
                              10000, 
                              100000
                         ])
-def test_many_documents(provider, client_kwargs, func_kwargs, num_documents):
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+def test_many_documents(provider, init_kwargs, func_kwargs, num_documents):
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     db = ai.get_document_db(provider)        
     assert isinstance(db, DictDocumentDB)

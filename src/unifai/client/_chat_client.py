@@ -39,9 +39,9 @@ class UnifAIChatClient(BaseClient):
     def get_llm_client(
             self, 
             provider_config_or_name: "ProviderName | LLMConfig | tuple[ProviderName, ComponentName]" = "default",
-            **client_kwargs
+            **init_kwargs
             ) -> "LLM":
-        return self._get_component("llm", provider_config_or_name, **client_kwargs)
+        return self._get_component("llm", provider_config_or_name, **init_kwargs)
     
     def configure(
         self,
@@ -96,14 +96,14 @@ class UnifAIChatClient(BaseClient):
             self, 
             config: ChatConfig,
             messages: Optional[Sequence[MessageInput]] = None,            
-            **client_kwargs
+            **init_kwargs
         ) -> Chat:
         return Chat(
             config=config, 
             messages=messages,
             tool_registry=self._tools,
             _get_component=self._get_component, 
-            **client_kwargs
+            **init_kwargs
         )
 
     def start_chat(
@@ -138,11 +138,11 @@ class UnifAIChatClient(BaseClient):
         max_output_tokens_per_run: Optional[int] = None,
         count_tokens_proactively: bool = False,
 
-        **client_kwargs
+        **init_kwargs
     ) -> Chat:        
         config_kwargs = update_kwargs_with_locals({}, locals(), exclude=("self", "messages", "tools"))
         config_kwargs["tools"] = [standardize_tool(tool, self._tools) for tool in tools] if tools else None
-        return self.start_chat_from_config(ChatConfig(**config_kwargs), messages, **client_kwargs)
+        return self.start_chat_from_config(ChatConfig(**config_kwargs), messages, **init_kwargs)
 
     def chat(
         self,
@@ -176,11 +176,11 @@ class UnifAIChatClient(BaseClient):
         max_output_tokens_per_run: Optional[int] = None,
         count_tokens_proactively: bool = False,
 
-        **client_kwargs
+        **init_kwargs
     ) -> Chat:
         config_kwargs = update_kwargs_with_locals({}, locals(), exclude=("self", "messages", "tools"))
         config_kwargs["tools"] = [standardize_tool(tool, self._tools) for tool in tools] if tools else None
-        chat = self.start_chat_from_config(ChatConfig(**config_kwargs), messages, **client_kwargs)
+        chat = self.start_chat_from_config(ChatConfig(**config_kwargs), messages, **init_kwargs)
         if messages:
             chat.run()
         return chat
@@ -216,11 +216,11 @@ class UnifAIChatClient(BaseClient):
         max_input_tokens_per_run: Optional[int] = None,
         max_output_tokens_per_run: Optional[int] = None,
         count_tokens_proactively: bool = False,
-        **client_kwargs
+        **init_kwargs
     ) -> Generator[MessageChunk, None, Chat]:
         config_kwargs = update_kwargs_with_locals({}, locals(), exclude=("self", "messages", "tools"))
         config_kwargs["tools"] = [standardize_tool(tool, self._tools) for tool in tools] if tools else None
-        chat = self.start_chat_from_config(ChatConfig(**config_kwargs), messages, **client_kwargs)
+        chat = self.start_chat_from_config(ChatConfig(**config_kwargs), messages, **init_kwargs)
         if messages:
             yield from chat.run_stream()
         return chat

@@ -13,6 +13,6 @@ class UnifAIDocumentDBClient(BaseClient):
     def get_document_db(
             self, 
             provider_config_or_name: "ProviderName | DocumentDBConfig | tuple[ProviderName, ComponentName]" = "default",        
-            **client_kwargs
+            **init_kwargs
             ) -> "DocumentDB":
-        return self._get_component("document_db", provider_config_or_name, client_kwargs)
+        return self._get_component("document_db", provider_config_or_name, init_kwargs)

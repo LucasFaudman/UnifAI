@@ -13,34 +13,34 @@ from basetest import base_test_rerankers_all, PROVIDER_DEFAULTS
 @base_test_rerankers_all
 def test_init_rerankers(
         provider: ProviderName,
-        client_kwargs: dict,
+        init_kwargs: dict,
         func_kwargs: dict
     ):
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     reranker = ai.get_reranker(provider)
     assert isinstance(reranker, Reranker)
     assert reranker.provider == provider
-    assert reranker.client_kwargs == client_kwargs
+    assert reranker.init_kwargs == init_kwargs
     # assert reranker.client
 
 
 @base_test_rerankers_all
 def test_rerank_simple(
         provider: ProviderName,
-        client_kwargs: dict,
+        init_kwargs: dict,
         func_kwargs: dict
     ):
 
     ai = UnifAI(provider_configs=[
-        {"provider": provider, "client_init_kwargs": client_kwargs},
-        {"provider": "openai", "client_init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
-        {"provider": "chroma", "client_init_kwargs": PROVIDER_DEFAULTS["chroma"][1]},
+        {"provider": provider, "init_kwargs": init_kwargs},
+        {"provider": "openai", "init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
+        {"provider": "chroma", "init_kwargs": PROVIDER_DEFAULTS["chroma"][1]},
     ])    
 
     reranker = ai.get_reranker(provider)
     assert isinstance(reranker, Reranker)
     assert reranker.provider == provider
-    assert reranker.client_kwargs == client_kwargs    
+    assert reranker.init_kwargs == init_kwargs    
 
 
     texts = [

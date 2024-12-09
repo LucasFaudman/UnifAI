@@ -13,6 +13,6 @@ class UnifAIOutputParserClient(BaseClient):
     def get_output_parser(
             self, 
             provider_config_or_name: "ProviderName | OutputParserConfig[OutputT,ReturnT] | tuple[ProviderName, ComponentName]" = "default",          
-            **client_kwargs
+            **init_kwargs
             ) -> "OutputParser[OutputT,ReturnT]":
-        return self._get_component("output_parser", provider_config_or_name, client_kwargs)
+        return self._get_component("output_parser", provider_config_or_name, init_kwargs)

@@ -8,8 +8,8 @@ class SentenceTransformersAdapter(UnifAIAdapter):
     def import_client(self):
         return lazy_import("sentence_transformers")
 
-    def init_client(self, **client_kwargs):
-        self.client_kwargs.update(client_kwargs)
+    def init_client(self, **init_kwargs):
+        self.init_kwargs.update(init_kwargs)
     
     # List Models
     def list_models(self) -> list[str]:

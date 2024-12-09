@@ -14,8 +14,8 @@ class RankBM25Reranker(Reranker):
         return rank_bm25
     
 
-    def init_client(self, **client_kwargs):
-        self.client_kwargs.update(client_kwargs)        
+    def init_client(self, **init_kwargs):
+        self.init_kwargs.update(init_kwargs)        
         # DO NOT set self._client to prevent issues pickling the module
         # return self.import_client()        
         self._client = self.import_client()

@@ -51,12 +51,12 @@ class PydanticParser(OutputParser[OutputT, ModelT], Generic[OutputT, ModelT]):
     provider = "pydantic"
     config_class: Type[OutputParserConfig[OutputT, ModelT]] = OutputParserConfig
 
-    # def __init__(self, config: OutputParserConfig[OutputT, ModelT], **client_kwargs) -> None:
-    #     super().__init__(config, **client_kwargs)
+    # def __init__(self, config: OutputParserConfig[OutputT, ModelT], **init_kwargs) -> None:
+    #     super().__init__(config, **init_kwargs)
 
-    def __init__(self, model: Type[ModelT], output_type: Type[OutputT], **client_kwargs) -> None:
-        config: OutputParserConfig[OutputT, ModelT] = client_kwargs.pop('config', None) or self.config_class(provider=self.provider, output_type=output_type, return_type=model)
-        super().__init__(config, **client_kwargs)
+    def __init__(self, model: Type[ModelT], output_type: Type[OutputT], **init_kwargs) -> None:
+        config: OutputParserConfig[OutputT, ModelT] = init_kwargs.pop('config', None) or self.config_class(provider=self.provider, output_type=output_type, return_type=model)
+        super().__init__(config, **init_kwargs)
 
     def _parse_output(self, output: OutputT) -> ModelT:
         return pydantic_parse_one(output, self.return_type)
@@ -66,10 +66,10 @@ class PydanticParser(OutputParser[OutputT, ModelT], Generic[OutputT, ModelT]):
         return cls(model=model, output_type=output_type)
 
 class PydanticMessageParser(PydanticParser[Message, ModelT]):
-    def __init__(self, model: Type[ModelT], **client_kwargs) -> None:
-        super().__init__(model=model, output_type=Message, **client_kwargs)
+    def __init__(self, model: Type[ModelT], **init_kwargs) -> None:
+        super().__init__(model=model, output_type=Message, **init_kwargs)
 
 class PydanticToolCallParser(PydanticParser[ToolCall, ModelT]):
-    def __init__(self, model: Type[ModelT], **client_kwargs) -> None:
-        super().__init__(model=model, output_type=ToolCall, **client_kwargs)
+    def __init__(self, model: Type[ModelT], **init_kwargs) -> None:
+        super().__init__(model=model, output_type=ToolCall, **init_kwargs)
 

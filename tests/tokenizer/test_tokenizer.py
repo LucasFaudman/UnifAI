@@ -7,16 +7,16 @@ from unifai.components._base_components._base_tokenizer import Tokenizer
 from basetest import base_test, base_test_tokenizers_all, PROVIDER_DEFAULTS, VECTOR_DB_PROVIDERS
 
 @base_test_tokenizers_all
-def test_init_tokenizers(provider, client_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+def test_init_tokenizers(provider, init_kwargs, func_kwargs):
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     tokenizer = ai.get_tokenizer(provider)
     assert isinstance(tokenizer, Tokenizer)
     assert tokenizer.provider == provider
     
 
 @base_test_tokenizers_all
-def test_tokenize_hello_world(provider, client_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+def test_tokenize_hello_world(provider, init_kwargs, func_kwargs):
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     tokenizer = ai.get_tokenizer(provider)
     hello_world = "Hello world"

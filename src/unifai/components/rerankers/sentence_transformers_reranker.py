@@ -32,7 +32,7 @@ class SentenceTransformersReranker(SentenceTransformersAdapter, Reranker):
             raise ValueError("Cannot rerank an empty query result")
 
         model = model or self.default_reranking_model        
-        model_init_kwargs = {**self.client_kwargs, **kwargs.pop("model_init_kwargs", {})}
+        model_init_kwargs = {**self.init_kwargs, **kwargs.pop("model_init_kwargs", {})}
         if not (ce_model := self.ce_model_cache.get(model)):
             # ce_model = sentence_transformers.CrossEncoder(
             ce_model = lazy_import("sentence_transformers.CrossEncoder")(

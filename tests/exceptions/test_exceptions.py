@@ -44,7 +44,7 @@ bad_messages = [
 ]
 
 @base_test_llms_all
-@pytest.mark.parametrize("expected_exception, bad_client_kwargs, bad_func_kwargs", [
+@pytest.mark.parametrize("expected_exception, bad_init_kwargs, bad_func_kwargs", [
     (APIConnectionError, {"base_url": "https://localhost:443/badapi"}, {}),
     (APITimeoutError, {"timeout": 0.0001}, {}),
     # (APIResponseValidationError, {}, {}),
@@ -64,39 +64,39 @@ bad_messages = [
 ])
 def test_api_exceptions(
     provider: ProviderName, 
-    client_kwargs: dict, 
+    init_kwargs: dict, 
     func_kwargs: dict,
     expected_exception: type[UnifAIError],
-    bad_client_kwargs: dict,
+    bad_init_kwargs: dict,
     bad_func_kwargs: dict,
     ):
     
 
     if provider == "ollama":
-        if "base_url" in bad_client_kwargs:
-            bad_client_kwargs["host"] = bad_client_kwargs.pop("base_url")
+        if "base_url" in bad_init_kwargs:
+            bad_init_kwargs["host"] = bad_init_kwargs.pop("base_url")
 
-        if "api_key" in bad_client_kwargs:
-            bad_client_kwargs["headers"] =  {"Authorization": f"Bearer {bad_client_kwargs.pop('api_key')}"} 
+        if "api_key" in bad_init_kwargs:
+            bad_init_kwargs["headers"] =  {"Authorization": f"Bearer {bad_init_kwargs.pop('api_key')}"} 
             return # Ollama doesn't have an API key to test
         
         if "tools" in bad_func_kwargs:
             bad_func_kwargs["model"] = "llama2-uncensored:latest" # Model exists but does not accept tools        
         
     if provider == "google":
-        if "base_url" in bad_client_kwargs:
+        if "base_url" in bad_init_kwargs:
             expected_exception = UnifAIError
-        if "timeout" in bad_client_kwargs:
+        if "timeout" in bad_init_kwargs:
             expected_exception = UnifAIError
 
-    # client_kwargs.update(bad_client_kwargs)
-    client_kwargs = {**client_kwargs, **bad_client_kwargs}
+    # init_kwargs.update(bad_init_kwargs)
+    init_kwargs = {**init_kwargs, **bad_init_kwargs}
 
     func_kwargs["provider"] = provider
     func_kwargs["messages"] = [Message(role="user", content="What are all the exceptions you can return?")] 
     func_kwargs = {**func_kwargs, **bad_func_kwargs}
 
-    print(f"provider:\n{provider}\n\nclient_kwargs:\n{client_kwargs}\n\nfunc_kwargs:\n{func_kwargs}")
+    print(f"provider:\n{provider}\n\ninit_kwargs:\n{init_kwargs}\n\nfunc_kwargs:\n{func_kwargs}")
     with pytest.raises(expected_exception):
-        ai = UnifAI(provider_configs={provider: client_kwargs})
+        ai = UnifAI(provider_configs={provider: init_kwargs})
         messages = ai.chat(**func_kwargs)

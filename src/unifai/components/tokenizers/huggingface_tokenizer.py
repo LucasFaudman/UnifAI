@@ -19,8 +19,8 @@ class HuggingFaceTokenizer(TokenizerAdapter):
     def import_client(self):
         return lazy_import("transformers.AutoTokenizer")
 
-    def init_client(self, **client_kwargs):
-        self.client_kwargs.update(client_kwargs)
+    def init_client(self, **init_kwargs):
+        self.init_kwargs.update(init_kwargs)
         self._client = self.import_client()
         return self._client
 
@@ -34,7 +34,7 @@ class HuggingFaceTokenizer(TokenizerAdapter):
     def get_autotokenizer(self, model: Optional[str] = None, **kwargs) -> PreTrainedTokenizerBase:
         model = model or self.default_model
         if not (hf_tokenizer := self._cache.get(model)):
-            hf_tokenizer = self.client.from_pretrained(model, **{**self.client_kwargs, **kwargs})                
+            hf_tokenizer = self.client.from_pretrained(model, **{**self.init_kwargs, **kwargs})                
             self._cache[model] = hf_tokenizer
         return hf_tokenizer
         

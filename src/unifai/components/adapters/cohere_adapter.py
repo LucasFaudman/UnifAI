@@ -17,9 +17,9 @@ class CohereAdapter(UnifAIAdapter):
         return ClientV2
     
     
-    def init_client(self, **client_kwargs) -> ClientV2:
-        self.client_kwargs.update(client_kwargs)
-        if not (api_key := self.client_kwargs.get("api_key")):
+    def init_client(self, **init_kwargs) -> ClientV2:
+        self.init_kwargs.update(init_kwargs)
+        if not (api_key := self.init_kwargs.get("api_key")):
             raise ValueError("Cohere API key is required")
         self._client = self.import_client()(api_key) # Cohere ClientV2 does require an API key as a positional argument
         return self._client

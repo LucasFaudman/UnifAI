@@ -13,6 +13,6 @@ class UnifAITokenizerClient(BaseClient):
     def get_tokenizer(
             self, 
             provider_config_or_name: "ProviderName | TokenizerConfig | tuple[ProviderName, ComponentName]" = "default",          
-            **client_kwargs
+            **init_kwargs
             ) -> "Tokenizer":
-        return self._get_component("tokenizer", provider_config_or_name, client_kwargs)
+        return self._get_component("tokenizer", provider_config_or_name, init_kwargs)

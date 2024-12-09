@@ -62,11 +62,11 @@ class NvidiaAdapter(OpenAIAdapter):
         # "meta/llama-3.2-90b-vision-instruct": "https://ai.api.nvidia.com/v1/gr/meta/llama-3.2-90b-vision-instruct",
     } 
 
-    def init_client(self, **client_kwargs):
-        if "base_url" not in client_kwargs:
+    def init_client(self, **init_kwargs):
+        if "base_url" not in init_kwargs:
             # Add the Nvidia base URL if not provided since the default is OpenAI
-            client_kwargs["base_url"] = self.default_base_url
-        return super().init_client(**client_kwargs)
+            init_kwargs["base_url"] = self.default_base_url
+        return super().init_client(**init_kwargs)
   
 
  

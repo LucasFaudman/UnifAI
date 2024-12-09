@@ -3,14 +3,14 @@ from unifai import UnifAI, ProviderName, tool, MessageChunk
 from unifai.types import Message, Tool
 from basetest import base_test_llms_all, PROVIDER_DEFAULTS
 
-@pytest.mark.parametrize("provider1, client_kwargs1, func_kwargs1", [
+@pytest.mark.parametrize("provider1, init_kwargs1, func_kwargs1", [
     PROVIDER_DEFAULTS["anthropic"],
     PROVIDER_DEFAULTS["google"],
     PROVIDER_DEFAULTS["openai"],
     PROVIDER_DEFAULTS["ollama"],
     PROVIDER_DEFAULTS["nvidia"],
 ])
-@pytest.mark.parametrize("provider2, client_kwargs2, func_kwargs2", [
+@pytest.mark.parametrize("provider2, init_kwargs2, func_kwargs2", [
     PROVIDER_DEFAULTS["anthropic"],
     PROVIDER_DEFAULTS["google"],
     PROVIDER_DEFAULTS["openai"],
@@ -19,15 +19,15 @@ from basetest import base_test_llms_all, PROVIDER_DEFAULTS
 ])
 def test_switch_providers_simple(
     provider1: ProviderName, 
-    client_kwargs1: dict, 
+    init_kwargs1: dict, 
     func_kwargs1: dict,
     provider2: ProviderName, 
-    client_kwargs2: dict, 
+    init_kwargs2: dict, 
     func_kwargs2: dict
 ):
     ai = UnifAI(provider_configs=[
-        {"provider": provider1, "client_init_kwargs": client_kwargs1},
-        {"provider": provider2, "client_init_kwargs": client_kwargs2},        
+        {"provider": provider1, "init_kwargs": init_kwargs1},
+        {"provider": provider2, "init_kwargs": init_kwargs2},        
         ])
     chat = ai.chat([Message(role="user", content="Hi my favorite color is blue, what's yours?")], provider=provider1, **func_kwargs1)
     assert isinstance(chat.messages, list)
@@ -81,14 +81,14 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
     return {'condition': condition, 'degrees': degrees, 'unit': unit}
 
 
-@pytest.mark.parametrize("provider2, client_kwargs2, func_kwargs2", [
+@pytest.mark.parametrize("provider2, init_kwargs2, func_kwargs2", [
     PROVIDER_DEFAULTS["anthropic"],
     PROVIDER_DEFAULTS["google"],
     PROVIDER_DEFAULTS["openai"],
     # PROVIDER_DEFAULTS["ollama"],
     PROVIDER_DEFAULTS["nvidia"],
 ])
-@pytest.mark.parametrize("provider1, client_kwargs1, func_kwargs1", [
+@pytest.mark.parametrize("provider1, init_kwargs1, func_kwargs1", [
     PROVIDER_DEFAULTS["anthropic"],
     PROVIDER_DEFAULTS["google"],
     PROVIDER_DEFAULTS["openai"],
@@ -97,15 +97,15 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
 ])
 def test_switch_providers_tool_calls(
     provider1: ProviderName, 
-    client_kwargs1: dict, 
+    init_kwargs1: dict, 
     func_kwargs1: dict,
     provider2: ProviderName, 
-    client_kwargs2: dict, 
+    init_kwargs2: dict, 
     func_kwargs2: dict
 ):
     ai = UnifAI(provider_configs=[
-        {"provider": provider1, "client_init_kwargs": client_kwargs1},
-        {"provider": provider2, "client_init_kwargs": client_kwargs2},        
+        {"provider": provider1, "init_kwargs": init_kwargs1},
+        {"provider": provider2, "init_kwargs": init_kwargs2},        
         ])
     chat = ai.chat(
         # [Message(role="user", content="What's the weather in San Francisco, Tokyo, and Paris?")], 

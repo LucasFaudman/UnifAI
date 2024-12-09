@@ -34,7 +34,7 @@ def chunk_gita(path: Path) -> list[dict]:
 def main():
     
     ai = UnifAI(
-            provider_client_kwargs={
+            provider_init_kwargs={
                 "google": PROVIDER_DEFAULTS["google"][1],
                 "openai": PROVIDER_DEFAULTS["openai"][1],
                 "ollama": PROVIDER_DEFAULTS["ollama"][1],

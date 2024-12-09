@@ -36,17 +36,17 @@ class UnifAIComponent(Generic[ConfigT]):
             self, 
             config: Optional[ConfigT] = None,
             # _get_component: Optional[Callable[..., Any]] = None,
-            **client_kwargs
+            **init_kwargs
             ):
         self.config: ConfigT = config or self.config_class(provider=self.provider)
         self.component_id = f"{self.component_type}:{self.provider}:{self.config.name}:{id(self)}"
-        self.__get_component: Optional[Callable[..., Any]] = client_kwargs.pop("_get_component", None)
-        self.client_kwargs = client_kwargs
+        self.__get_component: Optional[Callable[..., Any]] = init_kwargs.pop("_get_component", None)
+        self.init_kwargs = init_kwargs
         self._setup()
 
     def _setup(self) -> None:
         """
-        Runs after init to set up the component once self.config and self.client_kwargs are set. 
+        Runs after init to set up the component once self.config and self.init_kwargs are set. 
         Use to avoid avoid needed to override init and call super() to properly set up the component. (handle config & pop _get_component)
         """
         
@@ -58,11 +58,11 @@ class UnifAIComponent(Generic[ConfigT]):
         self,
         component_type: ComponentType,
         provider_config_or_name: ProviderName | ComponentConfig | tuple[ProviderName, ComponentName],
-        **client_kwargs: dict,
+        **init_kwargs: dict,
     ) -> Any:
         if not self.__get_component:
             raise NotImplementedError(f"{self.component_type} does not support getting components")
-        return self.__get_component(component_type, provider_config_or_name, client_kwargs)
+        return self.__get_component(component_type, provider_config_or_name, init_kwargs)
             
     # Convert Exceptions from Client Exception Types to UnifAI Exceptions for easier handling
     def convert_exception(self, exception: Exception) -> UnifAIError:

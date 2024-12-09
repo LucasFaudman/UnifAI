@@ -10,7 +10,7 @@ COHERE_API_KEY = getenv("_COHERE_API_KEY")
 NVIDIA_API_KEY = getenv("_NVIDIA_API_KEY")
 
 PROVIDER_DEFAULTS = {
-    # "provider": (provider, client_kwargs, func_kwargs)
+    # "provider": (provider, init_kwargs, func_kwargs)
     "anthropic": (
         "anthropic", 
         {"api_key": ANTHROPIC_API_KEY},

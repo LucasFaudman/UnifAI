@@ -43,11 +43,11 @@ class GoogleAdapter(UnifAIAdapter):
         return genai
 
 
-    def init_client(self, **client_kwargs):
-        if client_kwargs:
-            self.client_kwargs.update(client_kwargs)        
+    def init_client(self, **init_kwargs):
+        if init_kwargs:
+            self.init_kwargs.update(init_kwargs)        
         self._client = self.import_client()
-        self._client.configure(**self.client_kwargs)
+        self._client.configure(**self.init_kwargs)
         return self._client
 
 

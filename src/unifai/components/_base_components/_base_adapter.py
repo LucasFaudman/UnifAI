@@ -15,12 +15,12 @@ class UnifAIAdapter(UnifAIComponent[ConfigT]):
     def import_client(self) -> Callable:
         raise NotImplementedError("This method must be implemented by the subclass")
     
-    def init_client(self, **client_kwargs) -> Any:
-        if client_kwargs:
-            self.client_kwargs.update(client_kwargs)
+    def init_client(self, **init_kwargs) -> Any:
+        if init_kwargs:
+            self.init_kwargs.update(init_kwargs)
 
         # TODO: ClientInitError
-        self._client = self.import_client()(**self.client_kwargs)
+        self._client = self.import_client()(**self.init_kwargs)
         return self._client    
 
     @property

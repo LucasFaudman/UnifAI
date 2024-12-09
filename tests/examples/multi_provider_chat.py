@@ -6,7 +6,7 @@ class SimpleChat:
 
     def __init__(self):
         self.ai = UnifAI(
-            provider_client_kwargs={
+            provider_init_kwargs={
                 "anthropic": PROVIDER_DEFAULTS["anthropic"][1],
                 "google": PROVIDER_DEFAULTS["google"][1],
                 "openai": PROVIDER_DEFAULTS["openai"][1],

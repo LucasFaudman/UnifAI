@@ -19,12 +19,12 @@ from basetest import base_test_llms_all, base_test_embeddings_all, base_test
 )
 def test_embeddings_simple(
     provider: ProviderName, 
-    client_kwargs: dict, 
+    init_kwargs: dict, 
     func_kwargs: dict,
     input: str|list[str]
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     if provider == "anthropic":
         with pytest.raises((ProviderUnsupportedFeatureError, AttributeError)):
@@ -88,13 +88,13 @@ def test_embeddings_simple(
 @base_test_embeddings_all
 def test_embeddings_dimensions(
     provider: ProviderName, 
-    client_kwargs: dict, 
+    init_kwargs: dict, 
     func_kwargs: dict,
     input: str|list[str],
     dimensions: int
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     result = ai.embed(input, 
                       provider=provider, 
@@ -118,14 +118,14 @@ def test_embeddings_dimensions(
 @base_test_embeddings_all
 def test_embeddings_dimensions_errors(
     provider: ProviderName, 
-    client_kwargs: dict, 
+    init_kwargs: dict, 
     func_kwargs: dict,
     input: str|list[str],
     dimensions: int,
     reduce_dimensions: bool    
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     if dimensions >= 1 and reduce_dimensions:
         result = ai.embed(
             input, 

@@ -18,8 +18,8 @@ from pathlib import Path
 RESOURCES_PATH = Path(__file__).parent.parent / "document_loader" / "resources"
 
 @base_test_document_chunkers_all
-def test_init_document_chunker_clients(provider, client_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+def test_init_document_chunker_clients(provider, init_kwargs, func_kwargs):
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     chunker = ai.get_document_chunker(provider)
     
     assert isinstance(chunker, DocumentChunker)
@@ -27,8 +27,8 @@ def test_init_document_chunker_clients(provider, client_kwargs, func_kwargs):
     
 
 @base_test_document_chunkers_all
-def test_chunk_document_simple(provider, client_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+def test_chunk_document_simple(provider, init_kwargs, func_kwargs):
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     chunker = ai.get_document_chunker(DocumentChunkerConfig(provider=provider, separators=["\n\n"]))
     
     unchunked_text = '\n\n'.join(f"Chunk me up! - {chunk_num}" * 100 for chunk_num in range(1000))
@@ -70,8 +70,8 @@ imanpages = loader.iload_documents((RESOURCES_PATH / "manpages").glob("*"))
     .25,
 ])
 @base_test_document_chunkers_all
-def test_size_function_chunkers(provider, client_kwargs, func_kwargs, unchunked_documents, chunk_size, chunk_overlap):
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+def test_size_function_chunkers(provider, init_kwargs, func_kwargs, unchunked_documents, chunk_size, chunk_overlap):
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     chunker = ai.get_document_chunker(provider)
     size_function = chunker.size_function
     # for unchunked_document in unchunked_documents:
@@ -141,10 +141,10 @@ def test_ragpipe():
     #         "tiktoken": PROVIDER_DEFAULTS["tiktoken"][1],
     #     })
     ai = UnifAI(provider_configs=[
-        {"provider": "openai", "client_init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
-        {"provider": "google", "client_init_kwargs": PROVIDER_DEFAULTS["google"][1]},
-        {"provider": "chroma", "client_init_kwargs": PROVIDER_DEFAULTS["chroma"][1]},
-        {"provider": "cohere", "client_init_kwargs": PROVIDER_DEFAULTS["cohere"][1]},
+        {"provider": "openai", "init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
+        {"provider": "google", "init_kwargs": PROVIDER_DEFAULTS["google"][1]},
+        {"provider": "chroma", "init_kwargs": PROVIDER_DEFAULTS["chroma"][1]},
+        {"provider": "cohere", "init_kwargs": PROVIDER_DEFAULTS["cohere"][1]},
     ])
 
     ragpipe = ai.get_ragpipe()

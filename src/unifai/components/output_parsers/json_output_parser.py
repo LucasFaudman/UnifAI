@@ -32,8 +32,8 @@ class JSONParser(OutputParser[OutputT, JSONReturnT], Generic[OutputT, JSONReturn
     provider = "json"
     config_class: Type[OutputParserConfig[OutputT, JSONReturnT]] = OutputParserConfig
 
-    def __init__(self, config: OutputParserConfig[OutputT, JSONReturnT], **client_kwargs) -> None:                
-        super().__init__(config, **client_kwargs)
+    def __init__(self, config: OutputParserConfig[OutputT, JSONReturnT], **init_kwargs) -> None:                
+        super().__init__(config, **init_kwargs)
 
     def _parse_output(self, output: OutputT) -> JSONReturnT:
         if not isinstance((_parsed := json_parse(output)), self.return_type):
@@ -41,30 +41,30 @@ class JSONParser(OutputParser[OutputT, JSONReturnT], Generic[OutputT, JSONReturn
         return _parsed
 
 class JSONMessageParser(JSONParser[Message, JSONReturnT], Generic[JSONReturnT]):
-    def __init__(self, return_type: Type[JSONReturnT], **client_kwargs) -> None:
-        config = client_kwargs.pop('config', None) or OutputParserConfig[Message, JSONReturnT](provider=self.provider, output_type=Message, return_type=return_type)
-        super().__init__(config, **client_kwargs)
+    def __init__(self, return_type: Type[JSONReturnT], **init_kwargs) -> None:
+        config = init_kwargs.pop('config', None) or OutputParserConfig[Message, JSONReturnT](provider=self.provider, output_type=Message, return_type=return_type)
+        super().__init__(config, **init_kwargs)
 
 class JSONMessage2DictParser(JSONMessageParser[dict]):
-    def __init__(self, return_type: type[dict] = dict, **client_kwargs) -> None:
-        super().__init__(return_type, **client_kwargs)
+    def __init__(self, return_type: type[dict] = dict, **init_kwargs) -> None:
+        super().__init__(return_type, **init_kwargs)
 
 class JSONMessage2ListParser(JSONMessageParser[list]):
-    def __init__(self, return_type: type[list] = list, **client_kwargs) -> None:
-        super().__init__(return_type, **client_kwargs)
+    def __init__(self, return_type: type[list] = list, **init_kwargs) -> None:
+        super().__init__(return_type, **init_kwargs)
     
 class JSONToolCallParser(JSONParser[ToolCall, JSONReturnT], Generic[JSONReturnT]):
-    def __init__(self, return_type: Type[JSONReturnT], **client_kwargs) -> None:
-        config = client_kwargs.pop('config', None) or OutputParserConfig[ToolCall, JSONReturnT](provider=self.provider, output_type=ToolCall, return_type=return_type)
-        super().__init__(config, **client_kwargs)
+    def __init__(self, return_type: Type[JSONReturnT], **init_kwargs) -> None:
+        config = init_kwargs.pop('config', None) or OutputParserConfig[ToolCall, JSONReturnT](provider=self.provider, output_type=ToolCall, return_type=return_type)
+        super().__init__(config, **init_kwargs)
 
 class JSONToolCall2ListParser(JSONToolCallParser[list]):
-    def __init__(self, return_type: type[list] = list, **client_kwargs) -> None:
-        super().__init__(return_type, **client_kwargs)
+    def __init__(self, return_type: type[list] = list, **init_kwargs) -> None:
+        super().__init__(return_type, **init_kwargs)
 
 class JSONToolCall2DictParser(JSONToolCallParser[dict]):
-    def __init__(self, return_type: type[dict] = dict, **client_kwargs) -> None:
-        super().__init__(return_type, **client_kwargs)
+    def __init__(self, return_type: type[dict] = dict, **init_kwargs) -> None:
+        super().__init__(return_type, **init_kwargs)
 
 
 

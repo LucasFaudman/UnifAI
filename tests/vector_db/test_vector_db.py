@@ -11,8 +11,8 @@ from chromadb.errors import InvalidCollectionException
 
 from time import sleep
 @base_test_vector_dbs_all
-def test_init_vector_db_init_dbs(provider, client_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "client_init_kwargs": client_kwargs}])
+def test_init_vector_db_init_dbs(provider, init_kwargs, func_kwargs):
+    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     db = ai.get_vector_db(provider)
 
@@ -92,7 +92,7 @@ def parameterize_distance_metric(func):
 @parameterize_dimensions
 @parameterize_distance_metric
 def test_vector_db_create_collection(provider: ProviderName, 
-                                client_kwargs: dict, 
+                                init_kwargs: dict, 
                                 func_kwargs: dict,
                                 name: str, 
                                 metadata: dict,
@@ -104,14 +104,14 @@ def test_vector_db_create_collection(provider: ProviderName,
                                 serial
                                 ):
     # if provider == "chroma":
-    #     client_kwargs["persist_directory"] = str(tmp_path)
+    #     init_kwargs["persist_directory"] = str(tmp_path)
     # name = f"{name}_{provider}_{embedding_provider}_{embedding_model}_{dimensions}_{distance_metric}"
 
     ai = UnifAI(provider_configs=[
-        {"provider": provider, "client_init_kwargs": client_kwargs},
-        {"provider": "openai", "client_init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
-        {"provider": "google", "client_init_kwargs": PROVIDER_DEFAULTS["google"][1]},
-        {"provider": "ollama", "client_init_kwargs": PROVIDER_DEFAULTS["ollama"][1]},
+        {"provider": provider, "init_kwargs": init_kwargs},
+        {"provider": "openai", "init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
+        {"provider": "google", "init_kwargs": PROVIDER_DEFAULTS["google"][1]},
+        {"provider": "ollama", "init_kwargs": PROVIDER_DEFAULTS["ollama"][1]},
     ])
 
 
@@ -199,7 +199,7 @@ def approx_embeddings(embeddings, expected_embeddings):
 @parameterize_dimensions
 @parameterize_distance_metric
 def test_vector_db_add(provider: ProviderName, 
-                                client_kwargs: dict, 
+                                init_kwargs: dict, 
                                 func_kwargs: dict,
                                 name: str, 
                                 metadata: dict,
@@ -211,10 +211,10 @@ def test_vector_db_add(provider: ProviderName,
                                 ):
 
     ai = UnifAI(provider_configs=[
-        {"provider": provider, "client_init_kwargs": client_kwargs},
-        {"provider": "openai", "client_init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
-        {"provider": "google", "client_init_kwargs": PROVIDER_DEFAULTS["google"][1]},
-        {"provider": "ollama", "client_init_kwargs": PROVIDER_DEFAULTS["ollama"][1]},
+        {"provider": provider, "init_kwargs": init_kwargs},
+        {"provider": "openai", "init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
+        {"provider": "google", "init_kwargs": PROVIDER_DEFAULTS["google"][1]},
+        {"provider": "ollama", "init_kwargs": PROVIDER_DEFAULTS["ollama"][1]},
     ])
 
     db = ai.get_vector_db(provider)
@@ -405,7 +405,7 @@ def test_vector_db_add(provider: ProviderName,
 @parameterize_dimensions
 @parameterize_distance_metric
 def test_vector_db_query_simple(provider: ProviderName, 
-                                client_kwargs: dict, 
+                                init_kwargs: dict, 
                                 func_kwargs: dict,
                                 name: str, 
                                 metadata: dict,
@@ -417,10 +417,10 @@ def test_vector_db_query_simple(provider: ProviderName,
                                 ):
 
     ai = UnifAI(provider_configs=[
-        {"provider": provider, "client_init_kwargs": client_kwargs},
-        {"provider": "openai", "client_init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
-        {"provider": "google", "client_init_kwargs": PROVIDER_DEFAULTS["google"][1]},
-        {"provider": "ollama", "client_init_kwargs": PROVIDER_DEFAULTS["ollama"][1]},
+        {"provider": provider, "init_kwargs": init_kwargs},
+        {"provider": "openai", "init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
+        {"provider": "google", "init_kwargs": PROVIDER_DEFAULTS["google"][1]},
+        {"provider": "ollama", "init_kwargs": PROVIDER_DEFAULTS["ollama"][1]},
     ])
 
     db = ai.get_vector_db(provider)
