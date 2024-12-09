@@ -28,20 +28,6 @@ class PineconeVectorDBCollection(PineconeExceptionConverter, VectorDBCollection[
     @convert_exceptions
     def count(self, **kwargs) -> int:
         return self.wrapped.describe_index_stats(**kwargs).total_vector_count
-    
-
-    # @convert_exceptions
-    # def modify(self, 
-    #            new_name: Optional[str]=None, 
-    #            new_metadata: Optional[dict]=None,
-    #            embedding_provider: Optional[ProviderName] = None,
-    #            embedding_model: Optional[str] = None,
-    #            dimensions: Optional[int] = None,
-    #            distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None,               
-    #            metadata_update_mode: Optional[Literal["replace", "merge"]] = "replace",
-    #            **kwargs
-    #            ) -> Self:        
-    #     raise ProviderUnsupportedFeatureError("modify is not supported by Pinecone. See: https://docs.pinecone.io/guides/indexes/configure-an-index")
 
     @convert_exceptions
     def add(
@@ -261,29 +247,12 @@ class PineconeVectorDBCollection(PineconeExceptionConverter, VectorDBCollection[
             query=query_input
         )
             
-
-    # @convert_exceptions
-    # def query_many(
-    #         self,              
-    #         query_inputs: list[str] | list[Embedding] | Embeddings,
-    #         top_k: int = 10,
-    #         where: Optional[dict] = None,
-    #         where_document: Optional[dict] = None,
-    #         include: list[Literal["metadatas", "documents", "embeddings", "distances"]] = ["metadatas", "documents", "distances"],
-    #         **kwargs
-    #           ) -> list[QueryResult]: 
-        
-    #     query_embeddings = self._prepare_embeddings("queries", query_inputs)
-        # return [self.query(query_embedding, top_k, where, where_document, include, **kwargs) for query_embedding in query_embeddings]
-
-
+    @convert_exceptions
     def list_ids(self, **kwargs) -> list[str]:
         return list(chain(*self.wrapped.list(**self._add_default_namespace(kwargs))))
     
-
     def delete_all(self, **kwargs) -> None:
         self.wrapped.delete(delete_all=True, **self._add_default_namespace(kwargs))     
-
 
 
 class PineconeVectorDB(PineconeAdapter, VectorDB[PineconeVectorDBCollection, "GRPCIndex"]):
@@ -338,7 +307,6 @@ class PineconeVectorDB(PineconeAdapter, VectorDB[PineconeVectorDBCollection, "GR
             timeout=config.init_kwargs.get("timeout"),
             deletion_protection=config.init_kwargs.get("deletion_protection"),
         )        
-        # return self.client.Index(name=config.name, host=config.init_kwargs.get("host", ""))
         return self._get_wrapped_collection(config)
     
     @convert_exceptions

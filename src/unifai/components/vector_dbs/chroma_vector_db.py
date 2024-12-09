@@ -21,29 +21,7 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
     def count(self, **kwargs) -> int:
         return self.wrapped.count()
     
-    # @convert_exceptions
-    # def modify(self, 
-    #            new_name: Optional[str]=None, 
-    #            new_metadata: Optional[dict]=None,
-    #            embedding_provider: Optional[ProviderName] = None,
-    #            embedding_model: Optional[str] = None,
-    #            dimensions: Optional[int] = None,
-    #            distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]] = None,               
-    #            metadata_update_mode: Optional[Literal["replace", "merge"]] = "replace",
-    #            **kwargs
-    #            ) -> Self:
-        
-    #     if new_name is not None:
-    #         self.name = new_name
-    #     if new_metadata is not None:
-    #         if metadata_update_mode == "replace":
-    #             self.metadata = new_metadata
-    #         else:
-    #             self.metadata.update(new_metadata)
-                
-    #     self.wrapped.modify(name=self.name, metadata=self.metadata, **kwargs)
-    #     return self
-
+    @convert_exceptions
     def _update_dbs(
         self,
         wrapped_func_name: str,
@@ -166,29 +144,6 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
               ) -> QueryResult:
         
         return self.query_many([query_input], top_k, where, where_document, include, **kwargs)[0]        
-        # if isinstance(query_input, str):
-        #     query_embedding = self._prepare_embeddings("queries", [query_input])[0]
-        # else:
-        #     query_embedding = query_input
-
-        # result = self.wrapped.query(
-        #     query_embeddings=query_embedding, 
-        #     n_results=top_k, 
-        #     where=where, 
-        #     where_document=where_document, 
-        #     include=[key if key != "texts" else "documents" for key in include],
-        #     **kwargs
-        # )
-        # return QueryResult(
-        #     ids=result["ids"],
-        #     metadatas=result["metadatas"],
-        #     texts=result["documents"],
-        #     embeddings=result["embeddings"],
-        #     distances=result["distances"],
-        #     included=["ids", *include],
-        #     query=query_input,
-        # )
-
     
     @convert_exceptions
     def query_many(
@@ -199,10 +154,10 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
             where_document: Optional[dict] = None,
             include: list[Literal["metadatas", "texts", "embeddings", "distances"]] = ["metadatas", "texts", "embeddings", "distances"],
             **kwargs
-              ) -> list[QueryResult]:            
-        query_embeddings = self._prepare_embeddings("queries", query_inputs)
+              ) -> list[QueryResult]:     
+               
         query_result = self.wrapped.query(
-            query_embeddings=query_embeddings, 
+            query_embeddings=self._prepare_embeddings("queries", query_inputs), 
             n_results=top_k, 
             where=where, 
             where_document=where_document, 
@@ -228,13 +183,8 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
                 query_result["documents"] or _empty,
                 query_result["embeddings"] or _empty,
                 query_result["distances"] or _empty,
-                # fillvalue=None
             )
-        ]    
-
-        # query_embeddings = self._prepare_embeddings("queries", query_inputs)
-        # return [self.query(query_embedding, top_k, where, where_document, include, **kwargs) for query_embedding in query_embeddings]
-        
+        ]
 
     def list_ids(self, **kwargs) -> list[str]:
         return self.get(include=[], **kwargs).ids
