@@ -24,7 +24,6 @@ class OpenAILLM(OpenAIAdapter, LLM):
     def _create_completion(self, kwargs) -> ChatCompletion|Stream[ChatCompletionChunk]:
         # As as separate method to allow for easier overriding in subclasses (Nvidia, more in the future)
         return self.client.chat.completions.create(**kwargs)
-
                 
     # Chat 
     def _get_chat_response(
@@ -80,8 +79,7 @@ class OpenAILLM(OpenAIAdapter, LLM):
             
             return self._create_completion(kwargs)  
     
-       
-    
+           
     # Convert from UnifAI to AI Provider format        
         # Messages        
     def format_user_message(self, message: Message) -> dict:
@@ -97,7 +95,6 @@ class OpenAILLM(OpenAIAdapter, LLM):
         message_dict["content"] = content
         return message_dict
     
-
     def format_assistant_message(self, message: Message) -> dict:
         message_dict = {"role": "assistant", "content": message.content or ""}
         if message.tool_calls:
@@ -117,7 +114,6 @@ class OpenAILLM(OpenAIAdapter, LLM):
         
         return message_dict   
     
-
     def format_tool_message(self, message: Message) -> dict:
         if message.tool_calls:
             tool_call = message.tool_calls[0]
@@ -127,43 +123,16 @@ class OpenAILLM(OpenAIAdapter, LLM):
                 "content": stringify_content(tool_call.output),
             }
         raise ValueError("Tool message must have tool_calls")
-    
-    
+        
     def split_tool_message(self, message: Message) -> Iterator[Message]:        
         if tool_calls := message.tool_calls:
             for tool_call in tool_calls:
                 yield Message(role="tool", tool_calls=[tool_call])
         if message.content is not None:
             yield Message(role="user", content=message.content) 
-
     
     def format_system_message(self, message: Message) -> dict:
         return {"role": "system", "content": message.content}
-
-
-    # def format_messages_and_system_prompt(self, 
-    #                                           messages: list[Message], 
-    #                                           system_prompt_arg: Optional[str] = None
-    #                                           ) -> tuple[list, Optional[str]]:
-    #     if system_prompt_arg:
-    #         system_prompt = system_prompt_arg
-    #         if messages and messages[0].role == "system":
-    #             messages[0].content = system_prompt
-    #         else:
-    #             messages.insert(0, Message(role="system", content=system_prompt))
-    #     elif messages and messages[0].role == "system":
-    #         system_prompt = messages[0].content
-    #     else:
-    #         system_prompt = None
-
-    #     client_messages = []
-    #     for message in messages:
-    #         if message.role != "tool":
-    #             client_messages.append(self.format_message(message))
-    #         else:
-    #             client_messages.extend(map(self.format_message, self.split_tool_message(message)))
-
-    #     return client_messages, system_prompt
 
 
         # Images
@@ -176,8 +145,7 @@ class OpenAILLM(OpenAIAdapter, LLM):
         # Tools
     def format_tool(self, tool: Tool) -> dict:
         return tool.to_dict()
-    
-    
+        
     def format_tool_choice(self, tool_choice: str) -> Union[str, dict]:
         if tool_choice in ("auto", "required", "none"):
             return tool_choice
@@ -217,7 +185,7 @@ class OpenAILLM(OpenAIAdapter, LLM):
             arguments=json_loads(response_tool_call.function.arguments),
         )
     
-
+        # Response Info (Model, Usage, Done Reason, etc.)
     def parse_done_reason(self, response_obj: CompletionChoice|ChunkChoice, **kwargs) -> str|None:
         done_reason = response_obj.finish_reason
         if done_reason == "length":
@@ -227,14 +195,11 @@ class OpenAILLM(OpenAIAdapter, LLM):
         
         # "stop", "tool_calls", "content_filter" or None
         return done_reason
-    
-    
+        
     def parse_usage(self, response_obj: Any, **kwargs) -> Usage|None:
         if response_usage := response_obj.usage:
             return Usage(input_tokens=response_usage.prompt_tokens, output_tokens=response_usage.completion_tokens)
 
-
-        # Response Info (Model, Usage, Done Reason, etc.)
     def parse_response_info(self, response: Any, **kwargs) -> ResponseInfo:
         model = response.model or kwargs.get("model")
         done_reason = self.parse_done_reason(response.choices[0])

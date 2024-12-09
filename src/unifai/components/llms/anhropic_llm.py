@@ -57,7 +57,7 @@ from unifai.exceptions import (
     ProviderUnsupportedFeatureError  
 )
 
-
+from ...exceptions import ProviderUnsupportedFeatureError
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo, Embeddings
 from ...utils import stringify_content
 from ..base_adapters.anthropic_base import AnthropicAdapter
@@ -141,7 +141,6 @@ class AnthropicLLM(AnthropicAdapter, LLM):
 
         return AnthropicMessageParam(role="user", content=content)
 
-
     def format_assistant_message(self, message: Message) -> AnthropicMessageParam:
         content = []
         if message.content:
@@ -164,7 +163,6 @@ class AnthropicLLM(AnthropicAdapter, LLM):
         
         return AnthropicMessageParam(role="assistant", content=content)
 
-
     def format_tool_message(self, message: Message) -> AnthropicMessageParam:
         content = []
         # if message.content:
@@ -186,26 +184,9 @@ class AnthropicLLM(AnthropicAdapter, LLM):
             return AnthropicMessageParam(role="user", content=content)
         raise ValueError("Tool messages must have tool calls")
 
-
     def format_system_message(self, message: Message) -> AnthropicMessageParam:
         raise ProviderUnsupportedFeatureError("Anthropic does not support system messages")
     
-
-    # def format_messages_and_system_prompt(self, 
-    #                                           messages: list[Message], 
-    #                                           system_prompt_arg: Optional[str] = None
-    #                                           ) -> tuple[list, Optional[str]]:
-    #     system_prompt = system_prompt_arg
-    #     if messages and messages[0].role == "system":
-    #         # Remove the first system message from the list since Anthropic does not support system messages
-    #         system_message = messages.pop(0)
-    #         # Set the system prompt to the content of the first system message if not set by the argument
-    #         if not system_prompt:
-    #             system_prompt = system_message.content 
-
-    #     client_messages = [self.format_message(message) for message in messages]
-    #     return client_messages, system_prompt        
-
 
         # Images
     def format_image(self, image: Image) -> AnthropicImageBlockParam:
@@ -227,7 +208,6 @@ class AnthropicLLM(AnthropicAdapter, LLM):
             input_schema=tool.parameters.to_dict()
         )    
 
-
     def format_tool_choice(self, tool_choice: str) -> dict:
         if tool_choice == "required":
             tool_choice = "any"
@@ -246,7 +226,7 @@ class AnthropicLLM(AnthropicAdapter, LLM):
     # Convert Objects from AI Provider to UnifAI format    
         # Images
     def parse_image(self, response_image: Any, **kwargs) -> Image:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        raise ProviderUnsupportedFeatureError("Anthropic does not support image parsing")        
 
         # Tool Calls
     def parse_tool_call(self, response_tool_call: AnthropicToolUseBlock, **kwargs) -> ToolCall:
@@ -279,7 +259,6 @@ class AnthropicLLM(AnthropicAdapter, LLM):
         usage = self.parse_usage(response)
         return ResponseInfo(model=model, provider=self.provider, done_reason=done_reason, usage=usage) 
 
-
     # Assistant Messages (Content, Images, Tool Calls, Response Info)
     def parse_message(self, response: AnthropicMessage, **kwargs) -> tuple[Message, AnthropicMessageParam]:
         client_message = AnthropicMessageParam(role=response.role, content=response.content)
@@ -302,7 +281,6 @@ class AnthropicLLM(AnthropicAdapter, LLM):
             response_info=response_info,
         )
         return unifai_message, client_message 
-
     
     def parse_stream(self, response: Stream[AnthropicRawMessageStreamEvent], **kwargs) -> Generator[MessageChunk, None, tuple[Message, AnthropicMessageParam]]:
         message = None

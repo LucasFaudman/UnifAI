@@ -45,8 +45,7 @@ class LLM(UnifAIAdapter[LLMConfig]):
             top_p: Optional[float] = None, 
             **kwargs
             ) -> Any:
-        raise ProviderUnsupportedFeatureError(f"{self.provider} does not support chat")
-
+        raise NotImplementedError("This method must be implemented by the subclass")
 
     def chat(
             self,
@@ -154,15 +153,10 @@ class LLM(UnifAIAdapter[LLMConfig]):
         raise NotImplementedError("This method must be implemented by the subclass")    
     
 
-        # Tools
-    def format_tool_call(self, tool_call: ToolCall) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")
-        
-
+        # Tools        
     def format_tool(self, tool: Tool) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
         
-
     def format_tool_choice(self, tool_choice: str) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")    
 
@@ -170,7 +164,6 @@ class LLM(UnifAIAdapter[LLMConfig]):
         # Response Format
     def format_response_format(self, response_format: Union[str, dict]) -> Any:
         raise NotImplementedError("This method must be implemented by the subclass")
-
 
 
     # Convert Objects from AI Provider to UnifAI format    
@@ -188,11 +181,9 @@ class LLM(UnifAIAdapter[LLMConfig]):
     def parse_done_reason(self, response_obj: Any, **kwargs) -> str|None:
         raise NotImplementedError("This method must be implemented by the subclass")
     
-
     def parse_usage(self, response_obj: Any, **kwargs) -> Usage|None:
         raise NotImplementedError("This method must be implemented by the subclass")
     
-
     def parse_response_info(self, response: Any, **kwargs) -> ResponseInfo:
         raise NotImplementedError("This method must be implemented by the subclass")
     
@@ -201,7 +192,6 @@ class LLM(UnifAIAdapter[LLMConfig]):
     def parse_message(self, response: Any, **kwargs) -> tuple[Message, Any]:
         raise NotImplementedError("This method must be implemented by the subclass")     
     
-
     def parse_stream(self, response: Any, **kwargs) -> Generator[MessageChunk, None, tuple[Message, Any]]:
         raise NotImplementedError("This method must be implemented by the subclass")
 

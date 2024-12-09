@@ -10,14 +10,13 @@ from google.generativeai import (
     GenerationConfig,
     GenerativeModel,
 )
-from google.generativeai.types.content_types import (
-    to_tool_config,
-    to_content,
-    to_contents,
-    to_blob,
-    to_part,
-
-)
+# from google.generativeai.types.content_types import (
+#     to_tool_config,
+#     to_content,
+#     to_contents,
+#     to_blob,
+#     to_part,
+# )
 from google.generativeai.types import (
     GenerateContentResponse,
     ContentType,
@@ -27,11 +26,6 @@ from google.generativeai.types import (
     BrokenResponseError,
 )   
     
-
-# from google.generativeai.discuss import (
-#     chat as genai_chat,
-#     ChatResponse,
-# )
 from google.generativeai.protos import (
     Blob,
     CodeExecution,
@@ -47,8 +41,6 @@ from google.generativeai.protos import (
     Candidate,
     Content,
 )
-
-
 from google.protobuf.struct_pb2 import Struct as GoogleProtobufStruct
 
 from unifai.types import (
@@ -73,14 +65,13 @@ from unifai.types import (
 )
 from ..base_adapters.google_base import GoogleAdapter
 from .._base_components._base_llm import LLM
-
 from ...utils import generate_random_id
 
 class GoogleLLM(GoogleAdapter, LLM):
     provider = "google"
     default_model = "gemini-1.5-flash-latest"
 
-    _system_prompt_input_type = "kwarg"    
+    _system_prompt_input_type = "kwarg"
     
     # Chat
     def _get_chat_response(
@@ -140,7 +131,6 @@ class GoogleLLM(GoogleAdapter, LLM):
             parts.extend(map(self.format_image, message.images))
         return {"role": "user", "parts": parts}
 
-
     def format_assistant_message(self, message: Message) -> Any:
         parts = []
         if message.content is not None:
@@ -162,7 +152,6 @@ class GoogleLLM(GoogleAdapter, LLM):
             parts.append(Part(text="continue"))       
         return {"role": "model", "parts": parts}
         
-
     def format_tool_message(self, message: Message) -> Any:
         parts = []
         # if message.content:
@@ -180,37 +169,16 @@ class GoogleLLM(GoogleAdapter, LLM):
         if message.images:
             parts.extend(map(self.format_image, message.images))
         return {"role": "user", "parts": parts}
-    
-    
+        
     def format_system_message(self, message: Message) -> Any:
         raise ValueError("GoogleAI does not support system messages")
     
-
-    # def format_messages_and_system_prompt(self, 
-    #                                           messages: list[Message], 
-    #                                           system_prompt_arg: Optional[str] = None
-    #                                           ) -> tuple[list, Optional[str]]:
-        
-    #     system_prompt = system_prompt_arg
-    #     if messages and messages[0].role == "system":
-    #         # Remove the first system message from the list since Anthropic does not support system messages
-    #         system_message = messages.pop(0)
-    #         # Set the system prompt to the content of the first system message if not set by the argument
-    #         if not system_prompt:
-    #             system_prompt = system_message.content 
-
-    #     client_messages = [self.format_message(message) for message in messages]
-    #     return client_messages, system_prompt   
-
-
         # Images
     def format_image(self, image: Image) -> Any:
         return Blob(data=image.raw_bytes, mime_type=image.mime_type)
     
-
         # Tools
     def format_tool(self, tool: Tool) -> GoogleTool:
-
         def tool_parameter_to_schema(tool_parameter: ToolParameter) -> Schema:        
             if isinstance(tool_parameter, OptionalToolParameter):
                 tool_parameter = tool_parameter.anyOf[0]
@@ -250,8 +218,7 @@ class GoogleLLM(GoogleAdapter, LLM):
             parameters=tool_parameter_to_schema(tool.parameters) if tool.parameters else None,
         )
         return GoogleTool(function_declarations=[function_declaration])
-    
-        
+            
     def format_tool_choice(self, tool_choice: str) -> ToolConfig:
         if tool_choice in ("auto", "required", "none"):
             mode = tool_choice.upper() if tool_choice != "required" else "ANY"
@@ -267,7 +234,6 @@ class GoogleLLM(GoogleAdapter, LLM):
             }
         )
 
-
         # Response Format
     def format_response_format(self, response_format: str) -> str:
         if 'json' in response_format:
@@ -276,12 +242,10 @@ class GoogleLLM(GoogleAdapter, LLM):
             return "text/plain"
         return response_format
 
-
     # Convert Objects from AI Provider to UnifAI format    
         # Images
     def parse_image(self, response_image: Any) -> Image:
         raise NotImplementedError("This method must be implemented by the subclass")
-
 
         # Tool Calls
     def parse_tool_call(self, response_tool_call: FunctionCall, **kwargs) -> ToolCall:
@@ -306,14 +270,12 @@ class GoogleLLM(GoogleAdapter, LLM):
         else:
             return "content_filter"
     
-
     def parse_usage(self, response_obj: GenerateContentResponse, **kwargs) -> Usage|None:
         if response_obj.usage_metadata:
             return Usage(
                 input_tokens=response_obj.usage_metadata.prompt_token_count,
                 output_tokens=response_obj.usage_metadata.cached_content_token_count,
             )
-
 
     def parse_response_info(self, response: GenerateContentResponse, **kwargs) -> ResponseInfo:        
         return ResponseInfo(
@@ -323,16 +285,15 @@ class GoogleLLM(GoogleAdapter, LLM):
             usage=self.parse_usage(response)
         )
 
-
+        # Assistant Messages (Content, Images, Tool Calls, Response Info)
     def _extract_parts(self, parts: Sequence[Part]) -> tuple[str|None, list[ToolCall]|None, list[Image]|None]:   
-        # content = None
-        content = ""
+        content = None
         tool_calls = None
         images = None
         for part in parts:
             if part.text:
-                # if content is None:
-                #     content = ""
+                if content is None:
+                    content = ""
                 content += part.text
             elif part.function_call:
                 if tool_calls is None:
@@ -346,8 +307,6 @@ class GoogleLLM(GoogleAdapter, LLM):
                 raise NotImplementedError("file_data, executable_code, and code_execution_result are not yet supported by UnifAI")
         return content, tool_calls, images
 
-
-        # Assistant Messages (Content, Images, Tool Calls, Response Info)
     def parse_message(self, response: GenerateContentResponse, **kwargs) -> tuple[Message, Content]:
         client_message = response.candidates[0].content
         content, tool_calls, images = self._extract_parts(client_message.parts)
@@ -360,7 +319,6 @@ class GoogleLLM(GoogleAdapter, LLM):
             response_info=response_info
         )        
         return unifai_message, client_message
-
     
     def parse_stream(self, response: GenerateContentResponse, **kwargs) -> Generator[MessageChunk, None, tuple[Message, Content]]:
         parts = []
@@ -376,6 +334,5 @@ class GoogleLLM(GoogleAdapter, LLM):
                 images=images
             )
 
-        # response.parts.extend(parts)
         response.candidates[0].content.parts = parts
         return self.parse_message(response, **kwargs)

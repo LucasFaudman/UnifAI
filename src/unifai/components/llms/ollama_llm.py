@@ -105,7 +105,6 @@ class OllamaLLM(OllamaAdapter, LLM):
         images = list(map(self.format_image, message.images)) if message.images else None
         return OllamaMessage(role='user', content=content, images=images)
 
-
     def format_assistant_message(self, message: Message) -> OllamaMessage:
         content = message.content or ''
         images = list(map(self.format_image, message.images)) if message.images else None
@@ -122,14 +121,12 @@ class OllamaLLM(OllamaAdapter, LLM):
             ]
         return OllamaMessage(role='assistant', content=content, images=images, tool_calls=tool_calls)
         
-
     def format_tool_message(self, message: Message) -> OllamaMessage:
         if message.tool_calls:
             content = stringify_content(message.tool_calls[0].output)
             images = list(map(self.format_image, message.images)) if message.images else None
             return OllamaMessage(role='tool', content=content, images=images, tool_calls=None)         
         raise ValueError("Tool message must have tool_calls")
-
 
     def split_tool_message(self, message: Message) -> Iterator[Message]:        
         if tool_calls := message.tool_calls:
@@ -138,30 +135,10 @@ class OllamaLLM(OllamaAdapter, LLM):
         if message.content is not None:
             yield Message(role="user", content=message.content)     
 
-
     def format_system_message(self, message: Message) -> OllamaMessage:
         return OllamaMessage(role='system', content=message.content or '')
     
 
-    # def format_messages_and_system_prompt(self, 
-    #                                           messages: list[Message], 
-    #                                           system_prompt_arg: Optional[str] = None
-    #                                           ) -> tuple[list, Optional[str]]:
-    #     if system_prompt_arg:
-    #         system_prompt = system_prompt_arg
-    #         if messages and messages[0].role == "system":
-    #             messages[0].content = system_prompt
-    #         else:
-    #             messages.insert(0, Message(role="system", content=system_prompt))
-    #     elif messages and messages[0].role == "system":
-    #         system_prompt = messages[0].content
-    #     else:
-    #         system_prompt = None
-
-    #     client_messages = [self.format_message(message) for message in messages]
-    #     return client_messages, system_prompt
-    
-       
         # Images
     def format_image(self, image: Image) -> Any:
         return image.raw_bytes
@@ -190,7 +167,6 @@ class OllamaLLM(OllamaAdapter, LLM):
         tool_function = OllamaToolFunction(name=tool_name, description=tool_description, parameters=parameters)
         return OllamaTool(type=tool_type, function=tool_function)
 
-
     def format_tool_choice(self, tool_choice: str) -> str:
         return tool_choice
 
@@ -215,7 +191,7 @@ class OllamaLLM(OllamaAdapter, LLM):
             tool_name=response_tool_call['function']['name'],
             arguments=response_tool_call['function'].get('arguments')
         )
-    
+
 
         # Response Info (Model, Usage, Done Reason, etc.)
     def parse_done_reason(self, response_obj: OllamaChatResponse, **kwargs) -> str|None:        
@@ -228,13 +204,11 @@ class OllamaLLM(OllamaAdapter, LLM):
             return "max_tokens"
         return done_reason
     
-
     def parse_usage(self, response_obj: OllamaChatResponse, **kwargs) -> Usage|None:
         return Usage(
             input_tokens=response_obj.get("prompt_eval_count", 0), 
             output_tokens=response_obj.get("eval_count", 0)
         )
-
 
     def parse_response_info(self, response: Any, **kwargs) -> ResponseInfo:
         model = response["model"]
@@ -264,7 +238,6 @@ class OllamaLLM(OllamaAdapter, LLM):
         )
         return unifai_message, client_message
     
-
     def parse_stream(self, response: Iterator[OllamaChatResponse], **kwargs) -> Generator[MessageChunk, None, tuple[Message, OllamaMessage]]:
         content = ""
         tool_calls = []
