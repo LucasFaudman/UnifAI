@@ -257,8 +257,10 @@ class PineconeVectorDBCollection(PineconeExceptionConverter, VectorDBCollection[
 
 class PineconeVectorDB(PineconeAdapter, VectorDB[PineconeVectorDBCollection, "GRPCIndex"]):
     index_type = PineconeVectorDBCollection
-    default_spec = ServerlessSpec(cloud="aws", region="us-west-1")
     collection_class = PineconeVectorDBCollection
+
+    default_spec = ServerlessSpec(cloud="aws", region="us-east-1")
+    default_deletion_protection: Literal["enabled", "disabled"] = "disabled"
 
     def _validate_distance_metric(self, distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]]) -> str:
         if distance_metric in ("cosine", None):
@@ -286,7 +288,9 @@ class PineconeVectorDB(PineconeAdapter, VectorDB[PineconeVectorDBCollection, "GR
             spec_type = "pod"
         else:
             spec = self.default_spec
-            # raise ValueError("No spec provided for index creation. Must provide either 'spec', 'serverless_spec', or 'pod_spec' with either dict ServerlessSpec or PodSpec")
+
+        if not (deletion_protection := config.init_kwargs.get("deletion_protection")):
+            deletion_protection = self.default_deletion_protection
 
         if isinstance(spec, dict): # not a ServerlessSpec or PodSpec instance 
             if spec_type is None:              
@@ -305,7 +309,7 @@ class PineconeVectorDB(PineconeAdapter, VectorDB[PineconeVectorDBCollection, "GR
             spec=spec,
             metric=config.distance_metric, # same as above
             timeout=config.init_kwargs.get("timeout"),
-            deletion_protection=config.init_kwargs.get("deletion_protection"),
+            deletion_protection=deletion_protection,
         )        
         return self._get_wrapped_collection(config)
     
