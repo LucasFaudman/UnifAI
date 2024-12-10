@@ -118,7 +118,7 @@ class UnifAIChatClient(BaseClient):
         enforce_tool_choice: bool = True,
         tool_choice_error_retries: int = 3,
         tool_callables: Optional[dict[ToolName, Callable[..., Any]]] = None,
-        tool_caller: Optional[ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]] = None,
+        tool_caller: Optional[ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]] = "default",
 
         response_format: Optional[Literal["text", "json"] | Type[BaseModel] | Tool | dict[Literal["json_schema"], dict[str, str] | Type[BaseModel] | Tool]] = None,
         return_on: Union[Literal["content", "tool_call", "message"], ToolName, Tool, list[ToolName | Tool]] = "content",
@@ -156,7 +156,7 @@ class UnifAIChatClient(BaseClient):
         enforce_tool_choice: bool = True,
         tool_choice_error_retries: int = 3,
         tool_callables: Optional[dict[ToolName, Callable[..., Any]]] = None,
-        tool_caller: Optional[ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]] = None,
+        tool_caller: Optional[ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]] = "default",
 
         response_format: Optional[Literal["text", "json"] | Type[BaseModel] | Tool | dict[Literal["json_schema"], dict[str, str] | Type[BaseModel] | Tool]] = None,
         return_on: Union[Literal["content", "tool_call", "message"], ToolName, Tool, list[ToolName | Tool]] = "content",
@@ -197,7 +197,7 @@ class UnifAIChatClient(BaseClient):
         enforce_tool_choice: bool = True,
         tool_choice_error_retries: int = 3,
         tool_callables: Optional[dict[ToolName, Callable[..., Any]]] = None,
-        tool_caller: Optional[ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]] = None,
+        tool_caller: Optional[ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]] = "default",
 
         response_format: Optional[Literal["text", "json"] | Type[BaseModel] | Tool | dict[Literal["json_schema"], dict[str, str] | Type[BaseModel] | Tool]] = None,
         return_on: Union[Literal["content", "tool_call", "message"], ToolName, Tool, list[ToolName | Tool]] = "content",
