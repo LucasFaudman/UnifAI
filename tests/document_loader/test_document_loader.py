@@ -5,7 +5,8 @@ from unifai import UnifAI
 from unifai.components._base_components._base_document_loader import DocumentLoader, Document
 from unifai.components.document_loaders.text_file_loader import TextFileDocumentLoader
 from unifai.exceptions import BadRequestError, NotFoundError, DocumentNotFoundError
-from basetest import base_test, base_test_document_loaders_all, PROVIDER_DEFAULTS, VECTOR_DB_PROVIDERS
+
+from basetest import base_test, base_test_document_loaders, API_KEYS
 from unifai.utils import clean_text
 
 
@@ -13,9 +14,9 @@ from itertools import zip_longest
 from pathlib import Path
 RESOURCES_PATH = Path(__file__).parent / "resources"
 
-@base_test_document_loaders_all
-def test_init_document_loader_clients(provider, init_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+@base_test_document_loaders
+def test_init_document_loader_clients(provider, init_kwargs):
+    ai = UnifAI(api_keys=API_KEYS)
     loader = ai.document_loader(provider)
     assert isinstance(loader, DocumentLoader)
     assert loader.provider == provider
@@ -28,12 +29,10 @@ def test_init_document_loader_clients(provider, init_kwargs, func_kwargs):
         {}
     ),
 ])
-@base_test("text_file_loader")
-def test_text_file_loader(provider, init_kwargs, func_kwargs, paths, metadatas, kwargs):
-
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
-
-    loader = ai.document_loader(provider)
+def test_text_file_loader(paths, metadatas, kwargs):
+    ai = UnifAI(api_keys=API_KEYS)
+    
+    loader = ai.document_loader("text_file_loader")
     assert isinstance(loader, TextFileDocumentLoader)
     paths = list(paths)
 

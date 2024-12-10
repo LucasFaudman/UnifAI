@@ -2,7 +2,7 @@ import pytest
 from unifai import UnifAI, FunctionConfig, BaseModel
 from unifai.components.output_parsers.pydantic_output_parser import PydanticParser
 from unifai.types import Message, Tool, ArrayToolParameter, ObjectToolParameter, BooleanToolParameter, StringToolParameter, NumberToolParameter
-from basetest import base_test_llms_all, PROVIDER_DEFAULTS
+from basetest import base_test_llms, API_KEYS
 from unifai.types.annotations import ProviderName
 from typing import Literal
 import httpx
@@ -19,17 +19,16 @@ import httpx
     # ("https://app1e.com", "Apple", True),    
     # ("chromeupdater.com", "Chrome Updater", True),
 ])
-@base_test_llms_all
+@base_test_llms
 def test_evalutate_flagged_reason(
     provider: ProviderName, 
     init_kwargs: dict, 
-    func_kwargs: dict,
     url, 
     link_text,
     flagged: bool
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     class FlaggedReason(BaseModel):
         flagged: bool
@@ -161,15 +160,14 @@ contacts_input_2 = """
     contacts_input_1,
     contacts_input_2
 ])
-@base_test_llms_all
+@base_test_llms
 def test_evalutate_contacts(
     provider: ProviderName, 
     init_kwargs: dict, 
-    func_kwargs: dict,
     input: str,
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     class Contact(BaseModel):
         name: str

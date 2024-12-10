@@ -1,35 +1,28 @@
 import pytest
 from unifai import UnifAI, ProviderName, tool, MessageChunk
 from unifai.types import Message, Tool
-from basetest import base_test_llms_all, PROVIDER_DEFAULTS
+from basetest import base_test_llms, API_KEYS
 
-@pytest.mark.parametrize("provider1, init_kwargs1, func_kwargs1", [
-    PROVIDER_DEFAULTS["anthropic"],
-    PROVIDER_DEFAULTS["google"],
-    PROVIDER_DEFAULTS["openai"],
-    PROVIDER_DEFAULTS["ollama"],
-    PROVIDER_DEFAULTS["nvidia"],
+@pytest.mark.parametrize("provider1", [
+    "anthropic",
+    "google",
+    "openai",
+    "ollama",
+    "nvidia",
 ])
-@pytest.mark.parametrize("provider2, init_kwargs2, func_kwargs2", [
-    PROVIDER_DEFAULTS["anthropic"],
-    PROVIDER_DEFAULTS["google"],
-    PROVIDER_DEFAULTS["openai"],
-    PROVIDER_DEFAULTS["ollama"],
-    PROVIDER_DEFAULTS["nvidia"],
+@pytest.mark.parametrize("provider2", [
+    "anthropic",
+    "google",
+    "openai",
+    "ollama",
+    "nvidia",
 ])
 def test_switch_providers_simple(
     provider1: ProviderName, 
-    init_kwargs1: dict, 
-    func_kwargs1: dict,
     provider2: ProviderName, 
-    init_kwargs2: dict, 
-    func_kwargs2: dict
 ):
-    ai = UnifAI(provider_configs=[
-        {"provider": provider1, "init_kwargs": init_kwargs1},
-        {"provider": provider2, "init_kwargs": init_kwargs2},        
-        ])
-    chat = ai.chat([Message(role="user", content="Hi my favorite color is blue, what's yours?")], provider=provider1, **func_kwargs1)
+    ai = UnifAI(api_keys=API_KEYS)
+    chat = ai.chat([Message(role="user", content="Hi my favorite color is blue, what's yours?")], llm=provider1)
     assert isinstance(chat.messages, list)
     assert isinstance(chat.last_content, str)
     print(chat.last_content)
@@ -81,39 +74,31 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
     return {'condition': condition, 'degrees': degrees, 'unit': unit}
 
 
-@pytest.mark.parametrize("provider2, init_kwargs2, func_kwargs2", [
-    PROVIDER_DEFAULTS["anthropic"],
-    PROVIDER_DEFAULTS["google"],
-    PROVIDER_DEFAULTS["openai"],
-    # PROVIDER_DEFAULTS["ollama"],
-    PROVIDER_DEFAULTS["nvidia"],
+@pytest.mark.parametrize("provider1", [
+    "anthropic",
+    "google",
+    "openai",
+    "ollama",
+    "nvidia",
 ])
-@pytest.mark.parametrize("provider1, init_kwargs1, func_kwargs1", [
-    PROVIDER_DEFAULTS["anthropic"],
-    PROVIDER_DEFAULTS["google"],
-    PROVIDER_DEFAULTS["openai"],
-    # PROVIDER_DEFAULTS["ollama"],
-    PROVIDER_DEFAULTS["nvidia"],
+@pytest.mark.parametrize("provider2", [
+    "anthropic",
+    "google",
+    "openai",
+    "ollama",
+    "nvidia",
 ])
 def test_switch_providers_tool_calls(
     provider1: ProviderName, 
-    init_kwargs1: dict, 
-    func_kwargs1: dict,
     provider2: ProviderName, 
-    init_kwargs2: dict, 
-    func_kwargs2: dict
 ):
-    ai = UnifAI(provider_configs=[
-        {"provider": provider1, "init_kwargs": init_kwargs1},
-        {"provider": provider2, "init_kwargs": init_kwargs2},        
-        ])
-    chat = ai.chat(
-        # [Message(role="user", content="What's the weather in San Francisco, Tokyo, and Paris?")], 
-        provider=provider1, 
-        tools=["get_current_weather"],
-        tool_choice=["get_current_weather", "none", "none"],
+    ai = UnifAI(api_keys=API_KEYS)
+    chat = ai.start_chat(
+        llm=provider1, 
+        tools=[get_current_weather],
+        tool_choice=[get_current_weather, "none", "none"],
         enforce_tool_choice=True,        
-        **func_kwargs1)
+        )
     message = Message(role="user", content="What's the weather today in San Francisco, Tokyo, and Paris?")
     for message_chunk in chat.send_message_stream(message):
         assert isinstance(message_chunk, MessageChunk)
@@ -125,11 +110,10 @@ def test_switch_providers_tool_calls(
 
     assert isinstance(chat.messages, list)
     assert isinstance(chat.last_content, str)
-    # print(chat.last_content)
     print(f"Switch Providers: {provider1} -> {provider2}")
     chat.llm = provider2
     assert chat.llm_provider == provider2
-    # ass_message = chat.send_message(Message(role="user", content="Is it sunny in San Francisco today?. Use previous tool calls to answer this, DO NOT call any more tools."))
+    
     ass_message = chat.send_message(Message(role="user", content="Is it sunny in San Francisco today?. Use previous tool calls to answer this."))
     assert ass_message.role == "assistant"
     assert ass_message.content

@@ -3,20 +3,19 @@ from typing import Optional, Literal
 
 from unifai import UnifAI
 from unifai.components._base_components._base_tokenizer import Tokenizer
-# from unifai.exceptions import BadRequestError, NotFoundError, DocumentNotFoundError
-from basetest import base_test, base_test_tokenizers_all, PROVIDER_DEFAULTS, VECTOR_DB_PROVIDERS
+from basetest import base_test, base_test_tokenizers, API_KEYS
 
-@base_test_tokenizers_all
-def test_init_tokenizers(provider, init_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+@base_test_tokenizers
+def test_init_tokenizers(provider, init_kwargs):
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     tokenizer = ai.tokenizer(provider)
     assert isinstance(tokenizer, Tokenizer)
     assert tokenizer.provider == provider
     
 
-@base_test_tokenizers_all
-def test_tokenize_hello_world(provider, init_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+@base_test_tokenizers
+def test_tokenize_hello_world(provider, init_kwargs):
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     tokenizer = ai.tokenizer(provider)
     hello_world = "Hello world"

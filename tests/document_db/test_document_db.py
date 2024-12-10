@@ -6,20 +6,20 @@ from unifai.components.document_dbs import DocumentDB, DictDocumentDB, SQLiteDoc
 from unifai.types import Document
 
 from unifai.exceptions import BadRequestError, NotFoundError, DocumentNotFoundError, CollectionNotFoundError
-from basetest import base_test, base_test_document_dbs_all, PROVIDER_DEFAULTS, VECTOR_DB_PROVIDERS
+from basetest import base_test, base_test_document_dbs, API_KEYS
 from chromadb.errors import InvalidCollectionException
 
-@base_test_document_dbs_all
-def test_init_document_db_clients(provider, init_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+@base_test_document_dbs
+def test_init_document_db_clients(provider, init_kwargs):
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     db = ai.document_db(provider)
     assert isinstance(db, DocumentDB)
     
 
-@base_test_document_dbs_all
-def test_get_set_documents(provider, init_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+@base_test_document_dbs
+def test_get_set_documents(provider, init_kwargs):
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     db = ai.document_db()
     db.upsert(
@@ -46,7 +46,7 @@ def test_get_set_documents(provider, init_kwargs, func_kwargs):
   
 
 
-@base_test_document_dbs_all
+@base_test_document_dbs
 @pytest.mark.parametrize("num_documents", 
                          [
                              1, 
@@ -56,8 +56,8 @@ def test_get_set_documents(provider, init_kwargs, func_kwargs):
                              10000, 
                              100000
                         ])
-def test_many_documents(provider, init_kwargs, func_kwargs, num_documents):
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+def test_many_documents(provider, init_kwargs, num_documents):
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     db = ai.document_db(provider)        
     assert isinstance(db, DictDocumentDB)

@@ -19,7 +19,7 @@ API_KEYS = {
 }
 
 PROVIDER_DEFAULTS = {
-    # "provider": (provider, init_kwargs, func_kwargs)
+    # "provider": (provider, init_kwargs)
     "anthropic": (
         "anthropic", 
         {"api_key": ANTHROPIC_API_KEY},

@@ -2,7 +2,10 @@ import pytest
 from unifai import UnifAI, ProviderName
 from unifai.types import Message, Tool, Embeddings, Embedding, ResponseInfo, Usage
 from unifai.exceptions import ProviderUnsupportedFeatureError, BadRequestError, EmbeddingDimensionsError
-from basetest import base_test_llms_all, base_test_embeddings_all, base_test
+from basetest import base_test_embedders, base_test, API_KEYS
+
+
+
 
 @pytest.mark.parametrize("input", [
     "Embed this",
@@ -10,28 +13,28 @@ from basetest import base_test_llms_all, base_test_embeddings_all, base_test
     ["Embed this", "And this"],
     ("Embed this", "And this"),
 ])
-@base_test(
-    "google", 
-    "openai", 
-    "ollama", 
-    "cohere",
-    "nvidia",
-)
+# @base_test(
+#     "google", 
+#     "openai", 
+#     # "ollama", 
+#     "cohere",
+#     "nvidia",
+# )
+@base_test_embedders
 def test_embeddings_simple(
     provider: ProviderName, 
     init_kwargs: dict, 
-    func_kwargs: dict,
     input: str|list[str]
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     if provider == "anthropic":
         with pytest.raises((ProviderUnsupportedFeatureError, AttributeError)):
-            result = ai.embed(input, provider=provider, **func_kwargs)
+            result = ai.embed(input, provider)
         return
     
-    result = ai.embed(input, provider=provider, **func_kwargs)
+    result = ai.embed(input, provider)
 
     assert isinstance(result, Embeddings)
     assert isinstance(result.list(), list)
@@ -77,6 +80,8 @@ def test_embeddings_simple(
     for text, embedding in zip(texts, result):
         print(f"Text: {text}\nEmbedding: {embedding[0]} and {len(embedding) -1 } more\n")
 
+
+
 @pytest.mark.parametrize("input, dimensions", [
     ("Embed this", 100),
     (["Embed this longer text"], 100),
@@ -85,22 +90,21 @@ def test_embeddings_simple(
     ("Embed this", 1),
     (["Embed this longer text"], 1),
 ])
-@base_test_embeddings_all
+@base_test_embedders
 def test_embeddings_dimensions(
     provider: ProviderName, 
     init_kwargs: dict, 
-    func_kwargs: dict,
     input: str|list[str],
     dimensions: int
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     result = ai.embed(input, 
-                      provider=provider, 
+                     provider, 
                       dimensions=dimensions,
                       reduce_dimensions=True,
-                      **func_kwargs)     
+                            )     
     
     assert isinstance(result, Embeddings)
     for embedding in result:
@@ -115,25 +119,22 @@ def test_embeddings_dimensions(
     ("Embed this huge", 1000000),
 ])
 @pytest.mark.parametrize("reduce_dimensions", [True, False])
-@base_test_embeddings_all
+@base_test_embedders
 def test_embeddings_dimensions_errors(
     provider: ProviderName, 
     init_kwargs: dict, 
-    func_kwargs: dict,
     input: str|list[str],
     dimensions: int,
     reduce_dimensions: bool    
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     if dimensions >= 1 and reduce_dimensions:
         result = ai.embed(
             input, 
-            provider=provider, 
+           provider, 
             dimensions=dimensions,
-            reduce_dimensions=reduce_dimensions,
-            **func_kwargs
-        )            
+            reduce_dimensions=reduce_dimensions,        )            
         assert isinstance(result, Embeddings)
         for embedding in result:
             assert len(embedding) <= dimensions
@@ -144,9 +145,8 @@ def test_embeddings_dimensions_errors(
         with pytest.raises((EmbeddingDimensionsError, BadRequestError,)):
             result = ai.embed(
                 input, 
-                provider=provider, 
+               provider, 
                 dimensions=dimensions,
                 reduce_dimensions=reduce_dimensions,
-                **func_kwargs
             )
     

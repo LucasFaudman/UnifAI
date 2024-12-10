@@ -6,7 +6,7 @@ from unifai import UnifAI
 from unifai.components.document_loaders.text_file_loader import TextFileDocumentLoader
 from unifai.components._base_components._base_document_chunker import DocumentChunker, Document
 from unifai.exceptions import BadRequestError, NotFoundError, DocumentNotFoundError
-from basetest import base_test, base_test_document_chunkers_all, PROVIDER_DEFAULTS, VECTOR_DB_PROVIDERS
+from basetest import base_test, base_test_document_chunkers, API_KEYS
 from unifai.configs import DocumentChunkerConfig
 # from unifai.client.rag_ingestor import RAGIngestor, RAGIngestionConfig
 from unifai.configs import RAGConfig
@@ -17,19 +17,24 @@ from unifai.types.annotations import ProviderName
 from pathlib import Path
 RESOURCES_PATH = Path(__file__).parent.parent / "document_loader" / "resources"
 
-@base_test_document_chunkers_all
-def test_init_document_chunker_clients(provider, init_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+@base_test_document_chunkers
+def test_init_document_chunker_clients(provider, init_kwargs):
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     chunker = ai.document_chunker(provider)
     
     assert isinstance(chunker, DocumentChunker)
     assert chunker.provider == provider
     
 
-@base_test_document_chunkers_all
-def test_chunk_document_simple(provider, init_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
-    chunker = ai.document_chunker(DocumentChunkerConfig(provider=provider, separators=["\n\n"]))
+@base_test_document_chunkers
+def test_chunk_document_simple(provider, init_kwargs):
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    chunker = ai.document_chunker(DocumentChunkerConfig(
+        provider=provider, 
+        separators=["\n\n"], 
+        chunk_size=1000,
+        chunk_overlap=0
+    ))
     
     unchunked_text = '\n\n'.join(f"Chunk me up! - {chunk_num}" * 100 for chunk_num in range(1000))
     unchunked_document = Document(id="doc1", text=unchunked_text)
@@ -69,9 +74,9 @@ imanpages = loader.iload_documents((RESOURCES_PATH / "manpages").glob("*"))
     .1,
     .25,
 ])
-@base_test_document_chunkers_all
-def test_size_function_chunkers(provider, init_kwargs, func_kwargs, unchunked_documents, chunk_size, chunk_overlap):
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+@base_test_document_chunkers
+def test_size_function_chunkers(provider, init_kwargs, unchunked_documents, chunk_size, chunk_overlap):
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     chunker = ai.document_chunker(provider)
     size_function = chunker.size_function
     # for unchunked_document in unchunked_documents:
@@ -126,27 +131,8 @@ def test_size_function_chunkers(provider, init_kwargs, func_kwargs, unchunked_do
     assert max_chunk_size <= chunk_size
 
 
-
-
 def test_ragpipe():
-    # ai = UnifAI(
-    #     provider_configs={
-    #         "openai": PROVIDER_DEFAULTS["openai"][1],
-    #         "google": PROVIDER_DEFAULTS["google"][1],
-    #         "text_file_loader": PROVIDER_DEFAULTS["text_file_loader"][1],
-    #         "count_tokens_chunker": PROVIDER_DEFAULTS["count_tokens_chunker"][1],
-    #         "chroma": PROVIDER_DEFAULTS["chroma"][1],
-    #         "dict": PROVIDER_DEFAULTS["dict"][1],
-    #         "cohere": PROVIDER_DEFAULTS["cohere"][1],
-    #         "tiktoken": PROVIDER_DEFAULTS["tiktoken"][1],
-    #     })
-    ai = UnifAI(provider_configs=[
-        {"provider": "openai", "init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
-        {"provider": "google", "init_kwargs": PROVIDER_DEFAULTS["google"][1]},
-        {"provider": "chroma", "init_kwargs": PROVIDER_DEFAULTS["chroma"][1]},
-        {"provider": "cohere", "init_kwargs": PROVIDER_DEFAULTS["cohere"][1]},
-    ])
-
+    ai = UnifAI(api_keys=API_KEYS, default_providers={"vector_db": "chroma", "embedder": "openai"})
     ragpipe = ai.rag()
     assert isinstance(ragpipe, RAGPipe)
 

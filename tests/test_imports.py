@@ -10,7 +10,7 @@ def test_import_simplifai_client():
     ("ollama", {}),
 ])
 def test_init_ai_components(provider, init_kwargs):
-    ai = UnifAI(provider_configs={
+    ai = UnifAI(api_keys=API_KEYS, provider_configs={
         provider: init_kwargs
     })
 
@@ -39,7 +39,7 @@ def test_init_ai_components(provider, init_kwargs):
     ("pinecone", {"api_key": "test"}),
 ])
 def test_init_vector_db_components(provider, init_kwargs):
-    ai = UnifAI(provider_configs={
+    ai = UnifAI(api_keys=API_KEYS, provider_configs={
         provider: init_kwargs
     })
 

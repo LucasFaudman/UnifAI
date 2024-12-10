@@ -1,7 +1,7 @@
 import pytest
 from unifai import UnifAI, ProviderName
 from unifai.types import Message, Tool
-from basetest import base_test_llms_all
+from basetest import base_test_llms, API_KEYS
 
 # TOOLS AND TOOL CALLABLES
 TOOLS = {
@@ -110,14 +110,13 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
 
 
 
-@base_test_llms_all
-def test_chat_simple(provider: ProviderName, init_kwargs: dict, func_kwargs: dict):
+@base_test_llms
+def test_chat_simple(provider: ProviderName, init_kwargs: dict):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     chat = ai.chat(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,
-        **func_kwargs
     )
     messages = chat.messages
     assert messages
@@ -143,7 +142,7 @@ def test_chat_simple(provider: ProviderName, init_kwargs: dict, func_kwargs: dic
 
 
 
-@base_test_llms_all
+@base_test_llms
 @pytest.mark.parametrize("messages, tools, tool_callables", [
     (
         [
@@ -160,23 +159,20 @@ def test_chat_simple(provider: ProviderName, init_kwargs: dict, func_kwargs: dic
 
 ])
 def test_chat_tools_simple(
-    # ai: UnifAIClient, 
     provider: ProviderName, 
     init_kwargs: dict,
-    func_kwargs: dict,
     messages: list,
     tools: list,
     tool_callables: dict
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     chat = ai.chat(
         messages=messages,
         provider=provider,
         tools=tools,
         tool_callables=tool_callables,
-        **func_kwargs
     )
     messages = chat.messages
     assert messages
@@ -190,7 +186,7 @@ def test_chat_tools_simple(
     
 
 
-@base_test_llms_all
+@base_test_llms
 @pytest.mark.parametrize("messages, tools, tool_callables", [
     (
         [
@@ -206,16 +202,14 @@ def test_chat_tools_simple(
     ),
 ])
 def test_chat_return_on(
-    # ai: UnifAIClient, 
     provider: ProviderName, 
     init_kwargs: dict,
-    func_kwargs: dict,
     messages: list,
     tools: list,
     tool_callables: dict, 
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
 
     return_ons = ["content"]
@@ -233,7 +227,6 @@ def test_chat_return_on(
             tools=tools,
             return_on=return_on,
             tool_callables=tool_callables,
-            **func_kwargs
         )
         new_messages = chat.messages
         assert new_messages
@@ -268,7 +261,7 @@ def test_chat_return_on(
 
 
 
-@base_test_llms_all
+@base_test_llms
 @pytest.mark.parametrize("messages, tools, tool_callables, tool_choice", [
     (
         [
@@ -285,17 +278,15 @@ def test_chat_return_on(
     ),
 ])
 def test_chat_enforce_tool_choice(
-    # ai: UnifAIClient, 
     provider: ProviderName, 
     init_kwargs: dict,
-    func_kwargs: dict,
     messages: list,
     tools: list,
     tool_callables: dict, 
     tool_choice: str
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
 
     for _ in range(1):
@@ -307,7 +298,6 @@ def test_chat_enforce_tool_choice(
             tool_callables=tool_callables,
             return_on="message",
             enforce_tool_choice=True,
-            **func_kwargs
         )
         new_messages = chat.messages
         assert new_messages
@@ -335,7 +325,7 @@ def test_chat_enforce_tool_choice(
     print()
 
 
-@base_test_llms_all
+@base_test_llms
 @pytest.mark.parametrize("messages, tools, tool_callables, tool_choice", [
     (
         [
@@ -355,25 +345,23 @@ def test_chat_enforce_tool_choice_sequence(
     # ai: UnifAIClient, 
     provider: ProviderName, 
     init_kwargs: dict,
-    func_kwargs: dict,
     messages: list,
     tools: list,
     tool_callables: dict, 
     tool_choice: list[str]
     ):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     for _ in range(1):
         chat = ai.chat(
             messages=messages,
             provider=provider,
             tools=tools,
-            tool_chice=tool_choice,
-                    tool_callables=tool_callables,
+            tool_choice=tool_choice,
+            tool_callables=tool_callables,
             return_on=tool_choice[-1],
             enforce_tool_choice=True,
-            **func_kwargs
         )
         new_messages = chat.messages
         assert new_messages
@@ -412,7 +400,7 @@ def test_chat_enforce_tool_choice_sequence(
     print()
 
 
-@base_test_llms_all
+@base_test_llms
 @pytest.mark.parametrize("system_prompt, message_lists, tools, tool_callables, tool_choice", [
     (
         "Your role is use the available tools to answer questions like a cartoon Pirate",
@@ -441,7 +429,6 @@ def test_chat_send_message(
     # ai: UnifAIClient, 
     provider: ProviderName, 
     init_kwargs: dict,
-    func_kwargs: dict,
     system_prompt: str|None,
     message_lists: list[list],
     tools: list,
@@ -449,7 +436,7 @@ def test_chat_send_message(
     tool_choice: list[str]
     ):    
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     chat = ai.chat(
         messages=message_lists[0],
         provider=provider,
@@ -459,7 +446,6 @@ def test_chat_send_message(
         tool_callables=tool_callables,
         return_on=tool_choice[-1],
         enforce_tool_choice=True,
-        **func_kwargs
     )
 
     for messages in message_lists[1:]:
@@ -499,7 +485,7 @@ def test_chat_send_message(
     print()
 
 
-@base_test_llms_all
+@base_test_llms
 @pytest.mark.parametrize("extra_kwargs", [
     {
         "max_tokens": 100,
@@ -516,15 +502,13 @@ def test_chat_send_message(
 def test_chat_options(
     provider: ProviderName, 
     init_kwargs: dict, 
-    func_kwargs: dict,
     extra_kwargs: dict
     ):
 
-    ai = UnifAI(provider_configs={provider: init_kwargs})
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     chat = ai.chat(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,
-        **func_kwargs, 
         **extra_kwargs
     )
     messages = chat.messages

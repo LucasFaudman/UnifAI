@@ -16,7 +16,7 @@ from unifai.types import (
     Tool,
 )
 
-from basetest import base_test_llms_all
+from basetest import base_test_llms
 
 from unifai.type_conversions.tool_from_func import parse_docstring_and_annotations
 from unifai.type_conversions import tool

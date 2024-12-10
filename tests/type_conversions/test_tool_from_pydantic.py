@@ -19,7 +19,7 @@ from unifai.types import (
     Tool,
     PROVIDER_TOOLS
 )
-from basetest import base_test_llms_all
+from basetest import base_test_llms
 
 from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
@@ -354,7 +354,7 @@ class ModelSequenceCollections(BaseModel):
     # list_list_list_bool_alias: list[list[ListBoolAlias]]
     # list_list_list_submodel_alias: list[list[ListSubModelAlias]]
 
-@base_test_llms_all
+@base_test_llms
 @pytest.mark.parametrize("bmodel", [
     User, 
     Address, 
@@ -366,7 +366,6 @@ class ModelSequenceCollections(BaseModel):
 def test_tool_from_base_model(
     provider: ProviderName,
     init_kwargs: dict,
-    func_kwargs: dict,    
     bmodel: type[BaseModel],
     ):
     param = construct_tool_parameter({'type': bmodel})

@@ -7,41 +7,38 @@ from unifai.components._base_components._base_reranker import Reranker
 
 from unifai.types import ProviderName, GetResult, QueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError
-from basetest import base_test_rerankers_all, PROVIDER_DEFAULTS
+from basetest import base_test_rerankers, API_KEYS
 
 
-@base_test_rerankers_all
+@base_test_rerankers
 def test_init_rerankers(
         provider: ProviderName,
         init_kwargs: dict,
-        func_kwargs: dict
     ):
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     reranker = ai.reranker(provider)
     assert isinstance(reranker, Reranker)
     assert reranker.provider == provider
-    assert reranker.init_kwargs == init_kwargs
-    # assert reranker.client
 
 
-@base_test_rerankers_all
+@base_test_rerankers
 def test_rerank_simple(
         provider: ProviderName,
         init_kwargs: dict,
-        func_kwargs: dict
     ):
 
-    ai = UnifAI(provider_configs=[
-        {"provider": provider, "init_kwargs": init_kwargs},
-        {"provider": "openai", "init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
-        {"provider": "chroma", "init_kwargs": PROVIDER_DEFAULTS["chroma"][1]},
-    ])    
+    ai = UnifAI(
+        api_keys=API_KEYS,
+        default_providers={
+            "embedder": "openai",
+            "vector_db": "chroma",
+            "reranker": provider,
+        }
+    )
 
     reranker = ai.reranker(provider)
     assert isinstance(reranker, Reranker)
     assert reranker.provider == provider
-    assert reranker.init_kwargs == init_kwargs    
-
 
     texts = [
         'This is a list which containing sample texts.',

@@ -1,7 +1,7 @@
 import pytest
 from unifai import UnifAI, ProviderName
 from unifai.types import Message, Tool, Image, StringToolParameter
-from basetest import base_test_llms_all, LLM_PROVIDERS, base_test
+from basetest import base_test_llms, LLM_PROVIDERS, base_test
 
 from pathlib import Path
 resouces_path = Path(__file__).parent / "resources"
@@ -106,10 +106,9 @@ def test_image_input_animals(
     ]
 
 
-    ai = UnifAI(provider_configs={provider: init_kwargs})
+    ai = UnifAI(api_keys=API_KEYS, provider_configs={provider: init_kwargs})
     chat = ai.chat(
         messages=messages,
-        **func_kwargs
     )    
     assert chat.last_content
     assert image_name in chat.last_content.lower()
@@ -212,13 +211,12 @@ def test_image_and_tools_input_animals(
 )
 
 
-    ai = UnifAI(provider_configs={provider: init_kwargs})
+    ai = UnifAI(api_keys=API_KEYS, provider_configs={provider: init_kwargs})
     chat = ai.chat(
         messages=messages,
         tools=[return_animal_in_image],
         tool_choice="return_animal_in_image",
         return_on="tool_call",
-        **func_kwargs
     )    
     # assert chat.last_content
     # assert image_name in chat.last_content.lower()
@@ -353,7 +351,6 @@ def test_image_and_tools_input_animals(
 #     chat = ai.chat(
 #         messages=[{"role": "user", "content": "Hello, how are you?"}],
 #         provider=provider,
-#         **func_kwargs
 #     )
 #     messages = chat.messages
 #     assert messages

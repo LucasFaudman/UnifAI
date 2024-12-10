@@ -1,18 +1,17 @@
 import pytest
 from unifai import UnifAI, ProviderName, tool
 from unifai.types import Message, Tool, MessageChunk
-from basetest import base_test_llms_all, PROVIDER_DEFAULTS
+from basetest import base_test_llms, API_KEYS
 
 
 
-@base_test_llms_all
-def test_chat_stream_simple(provider: ProviderName, init_kwargs: dict, func_kwargs: dict):
+@base_test_llms
+def test_chat_stream_simple(provider: ProviderName, init_kwargs: dict):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     stream = ai.chat_stream(
         messages=[{"role": "user", "content": "Hello, how are you?"}],
         provider=provider,
-        **func_kwargs
     )
     for message_chunk in stream:
         assert isinstance(message_chunk, MessageChunk)
@@ -59,17 +58,16 @@ def get_current_weather(location: str, unit: str = "fahrenheit") -> dict:
     return {'condition': condition, 'degrees': degrees, 'unit': unit}    
 
 
-@base_test_llms_all
-def test_chat_stream_tools(provider: ProviderName, init_kwargs: dict, func_kwargs: dict):
+@base_test_llms
+def test_chat_stream_tools(provider: ProviderName, init_kwargs: dict):
 
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
     stream = ai.chat_stream(
         messages=[{"role": "user", "content": "What's the weather in San Francisco, Tokyo, and Paris?"}],
         tools=[get_current_weather],
         tool_choice=["get_current_weather", "auto"],
         # enforce_tool_choice=True,
         provider=provider,
-        **func_kwargs
     )
     for message_chunk in stream:
         assert isinstance(message_chunk, MessageChunk)

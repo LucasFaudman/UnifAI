@@ -8,7 +8,7 @@ from unifai.components._base_components._base_reranker import Reranker
 
 from unifai.types import ProviderName, GetResult, QueryResult, Embedding, Embeddings, ResponseInfo
 from unifai.exceptions import BadRequestError
-from basetest import base_test_rerankers_all, PROVIDER_DEFAULTS, EMBEDDING_PROVIDERS
+from basetest import base_test_rerankers, EMBEDDING_PROVIDERS
 from unifai.client.rag_prompter import RAGPromptConfig, RAGPrompter
 
 from time import sleep
@@ -40,7 +40,6 @@ def test_rag_engine_simple(
         rerank_model: str
     ):
 
-    func_kwargs = PROVIDER_DEFAULTS[vector_db_provider][2]
     ai = UnifAI({
         vector_db_provider: PROVIDER_DEFAULTS[vector_db_provider][1],
         embedding_provider: PROVIDER_DEFAULTS[embedding_provider][1],
@@ -73,7 +72,6 @@ def test_rag_engine_simple(
         embedding_provider=embedding_provider,
         embedding_model=embedding_model,
         document_db=document_db,
-        **func_kwargs
     )
 
     assert isinstance(index, VectorDBCollection)

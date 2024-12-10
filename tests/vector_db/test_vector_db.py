@@ -6,13 +6,14 @@ from unifai.components._base_components._base_vector_db import VectorDB, VectorD
 from unifai.components import DictDocumentDB
 
 from unifai.exceptions import CollectionNotFoundError, DocumentNotFoundError
-from basetest import base_test, base_test_vector_dbs_all, PROVIDER_DEFAULTS, VECTOR_DB_PROVIDERS
+from basetest import base_test, base_test_vector_dbs, API_KEYS
 from chromadb.errors import InvalidCollectionException
 
 from time import sleep
-@base_test_vector_dbs_all
-def test_init_vector_db_init_dbs(provider, init_kwargs, func_kwargs):
-    ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
+
+@base_test_vector_dbs
+def test_init_vector_db_init_dbs(provider, init_kwargs):
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
     db = ai.vector_db(provider)
 
@@ -84,16 +85,13 @@ def parameterize_distance_metric(func):
 
 
 
-# @base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
-# @base_test_vector_dbs_all
-@base_test(*VECTOR_DB_PROVIDERS, exclude=[])
+@base_test_vector_dbs
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
 @parameterize_distance_metric
 def test_vector_db_create_collection(provider: ProviderName, 
                                 init_kwargs: dict, 
-                                func_kwargs: dict,
                                 name: str, 
                                 metadata: dict,
                                 embedding_provider: Optional[ProviderName],
@@ -107,14 +105,7 @@ def test_vector_db_create_collection(provider: ProviderName,
     #     init_kwargs["persist_directory"] = str(tmp_path)
     # name = f"{name}_{provider}_{embedding_provider}_{embedding_model}_{dimensions}_{distance_metric}"
 
-    ai = UnifAI(provider_configs=[
-        {"provider": provider, "init_kwargs": init_kwargs},
-        {"provider": "openai", "init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
-        {"provider": "google", "init_kwargs": PROVIDER_DEFAULTS["google"][1]},
-        {"provider": "ollama", "init_kwargs": PROVIDER_DEFAULTS["ollama"][1]},
-    ])
-
-
+    ai = UnifAI(api_keys=API_KEYS)
     db = ai.vector_db(provider)
     assert db
     assert isinstance(db, VectorDB)
@@ -127,7 +118,6 @@ def test_vector_db_create_collection(provider: ProviderName,
         embedding_model=embedding_model,
         dimensions=dimensions,
         distance_metric=distance_metric,
-        **func_kwargs
     )
     assert collection
     assert isinstance(collection, VectorDBCollection)
@@ -157,7 +147,6 @@ def test_vector_db_create_collection(provider: ProviderName,
         embedding_model=embedding_model,
         dimensions=dimensions,
         distance_metric=distance_metric,
-        **func_kwargs
     )
 
     assert collection2
@@ -191,16 +180,14 @@ def approx_embeddings(embeddings, expected_embeddings):
         for j, value in enumerate(embedding):
             assert pytest.approx(value) == pytest.approx(expected_embeddings[i][j])
 
-# @base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])
-# @base_test_vector_dbs_all
-@base_test(*VECTOR_DB_PROVIDERS, exclude=[])
+
+@base_test_vector_dbs
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
 @parameterize_distance_metric
 def test_vector_db_add(provider: ProviderName, 
                                 init_kwargs: dict, 
-                                func_kwargs: dict,
                                 name: str, 
                                 metadata: dict,
                                 embedding_provider: Optional[ProviderName],
@@ -210,13 +197,7 @@ def test_vector_db_add(provider: ProviderName,
                                 # serial
                                 ):
 
-    ai = UnifAI(provider_configs=[
-        {"provider": provider, "init_kwargs": init_kwargs},
-        {"provider": "openai", "init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
-        {"provider": "google", "init_kwargs": PROVIDER_DEFAULTS["google"][1]},
-        {"provider": "ollama", "init_kwargs": PROVIDER_DEFAULTS["ollama"][1]},
-    ])
-
+    ai = UnifAI(api_keys=API_KEYS)
     db = ai.vector_db(provider)
     assert db
     assert isinstance(db, VectorDB)
@@ -230,7 +211,6 @@ def test_vector_db_add(provider: ProviderName,
         dimensions=dimensions,
         distance_metric=distance_metric,
         document_db_collection="dict",
-        **func_kwargs
     )
     assert collection
     assert isinstance(collection, VectorDBCollection)
@@ -397,16 +377,13 @@ def test_vector_db_add(provider: ProviderName,
 
     del ai
 
-# @base_test_vector_dbs_all
-# @base_test(*VECTOR_DB_PROVIDERS, exclude=["pinecone"])])
-@base_test(*VECTOR_DB_PROVIDERS, exclude=[])
+@base_test_vector_dbs
 @parameterize_name_and_metadata
 @parameterize_embedding_provider_embedding_model
 @parameterize_dimensions
 @parameterize_distance_metric
 def test_vector_db_query_simple(provider: ProviderName, 
                                 init_kwargs: dict, 
-                                func_kwargs: dict,
                                 name: str, 
                                 metadata: dict,
                                 embedding_provider: Optional[ProviderName],
@@ -416,13 +393,7 @@ def test_vector_db_query_simple(provider: ProviderName,
                                 # serial
                                 ):
 
-    ai = UnifAI(provider_configs=[
-        {"provider": provider, "init_kwargs": init_kwargs},
-        {"provider": "openai", "init_kwargs": PROVIDER_DEFAULTS["openai"][1]},
-        {"provider": "google", "init_kwargs": PROVIDER_DEFAULTS["google"][1]},
-        {"provider": "ollama", "init_kwargs": PROVIDER_DEFAULTS["ollama"][1]},
-    ])
-
+    ai = UnifAI(api_keys=API_KEYS)
     db = ai.vector_db(provider)
     assert db
     assert isinstance(db, VectorDB)
@@ -436,7 +407,6 @@ def test_vector_db_query_simple(provider: ProviderName,
         dimensions=dimensions,
         distance_metric=distance_metric,
         document_db_collection="dict",
-        **func_kwargs
     )
     assert collection
     assert isinstance(collection, VectorDBCollection)
