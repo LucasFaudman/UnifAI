@@ -31,9 +31,7 @@ LLM_CONFIGS = [
 ]
 
 DOCUMENT_CHUNKER_CONFIGS = [
-    DocumentChunkerConfig(provider='count_chars_chunker'),
-    DocumentChunkerConfig(provider='count_tokens_chunker'),
-    DocumentChunkerConfig(provider='count_words_chunker'),
+    DocumentChunkerConfig(provider='text_chunker'),
 ]
 
 DOCUMENT_DB_CONFIGS = [
@@ -107,7 +105,7 @@ def base_test(*configs, exclude=[]):
                 init_kwargs = config.init_kwargs or {}
                 if provider not in exclude:
                     provider_init_kwargs.append((provider, init_kwargs))
-        
+
         return pytest.mark.parametrize("provider, init_kwargs", provider_init_kwargs)(func)
     return decorator
 

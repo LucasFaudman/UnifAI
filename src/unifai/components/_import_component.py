@@ -91,18 +91,9 @@ def import_component(component_type: ComponentType, provider: ProviderName) -> T
                     raise NotImplementedError("Firebase DocumentDB not yet implemented")
                 
             case "document_chunker":
-                if provider == "count_chars_chunker":
-                    from .document_chunkers.count_chars_chunker import CountCharsDocumentChunker
-                    return CountCharsDocumentChunker
-                if provider == "count_tokens_chunker":
-                    from .document_chunkers.count_tokens_chunker import CountTokensDocumentChunker
-                    return CountTokensDocumentChunker
-                if provider == "count_words_chunker":
-                    from .document_chunkers.count_words_chunker import CountWordsDocumentChunker
-                    return CountWordsDocumentChunker
-                if provider == "code_chunker":
-                    from .document_chunkers.code_chunker import CodeDocumentChunker
-                    return CodeDocumentChunker
+                if provider == "text_chunker":
+                    from .document_chunkers.text_chunker import TextDocumentChunker
+                    return TextDocumentChunker
                 if provider == "html_chunker":
                     from .document_chunkers.html_chunker import HTMLDocumentChunker
                     return HTMLDocumentChunker

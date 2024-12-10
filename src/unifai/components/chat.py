@@ -257,8 +257,8 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
 
     @property
     def last_message(self) -> Optional[Message]:
-        if self.messages:
-            return self.messages[-1]
+        if self._unifai_messages:
+            return self._unifai_messages[-1]
     
     @property
     def tools(self) -> dict[ToolName, Tool]|None:
@@ -492,6 +492,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
                 raise ValueError("Tool choice error retries exceeded")
             
         # Update messages with assistant message
+        self.history.append(message)
         self._unifai_messages.append(message)
         self._client_messages.append(client_message)
 
@@ -646,6 +647,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
 
     def __str__(self) -> str:
         return f"Chat(provider={self.llm_provider}, model={self.llm_model},  messages={len(self.messages)}, tools={len(self._unifai_tools) if self._unifai_tools else None}, tool_choice={self._unifai_tool_choice}, response_format={self._unifai_response_format})"
+
 
 class Chat(BaseChat[ChatConfig]):
     config_class = ChatConfig

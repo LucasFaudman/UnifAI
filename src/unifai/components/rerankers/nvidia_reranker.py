@@ -6,9 +6,8 @@ from ...types import QueryResult
 from ..adapters.nvidia_adapter import NvidiaAdapter, TempBaseURL
 from .._base_components._base_reranker import Reranker
 
-# Entire point of this is to have a castable type subclassing OpenAI's BaseModel so it does not
+# Point of this is to have a castable type subclassing OpenAI's BaseModel so it does not
 # raise TypeError("Pydantic models must subclass our base model type, e.g. `from openai import BaseModel`")
-# and ensure it is only created once and at runtime (not recreated every call and only created if needed)
 from openai import BaseModel 
 class NvidiaRerankItem(BaseModel):
     index: int

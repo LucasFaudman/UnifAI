@@ -54,17 +54,19 @@ def parse_docstring_and_annotations(
             continue
     
         if param_match := TOOL_PARAMETER_REGEX.match(line):
-            group_dict = param_match.groupdict()
-            group_dict["indent"] = len(group_dict["indent"])
+            param = param_match.groupdict()
+            # Convert the indent to an integer
+            param["indent"] = len(param["indent"])
 
-            if type_str := group_dict.get("type"):
-                group_dict["type"] = PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP.get(type_str, type_str)
-            elif annotations and (anno := annotations.get(group_dict["name"])):
-                group_dict["type"] = PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP.get(anno, anno)
+            if type_str := param.get("type"):
+                param["type"] = PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP.get(type_str, type_str)
+            elif annotations and (anno := annotations.get(param["name"])):
+                param["type"] = PY_TYPE_TO_TOOL_PARAMETER_TYPE_MAP.get(anno, anno)
             # else:
-            #     group_dict["type"] = "string"
-            param_lines.append(group_dict)
+            #     param["type"] = "string"
+            param_lines.append(param)
         else:
+            # If its not a parameter line, its part of the description of the last parameter
             param_lines[-1]["description"] += lstripped_line
 
 

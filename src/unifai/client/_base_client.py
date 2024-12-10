@@ -15,7 +15,7 @@ from ..utils import _next, combine_dicts
 COMPONENT_TYPES = ["chat", "document_chunker", "document_db", "document_loader", "embedder", "function", "llm", "output_parser", "ragpipe", "reranker", "tokenizer", "tool_caller", "vector_db"]
 PROVIDERS = {
     "chat": ["default"],
-    "document_chunker": ["count_chars_chunker", "count_tokens_chunker", "count_words_chunker",  "code_chunker", "html_chunker", "json_chunker", "semantic_chunker", "unstructured"],
+    "document_chunker": ["text_chunker", "html_chunker", "json_chunker", "semantic_chunker", "unstructured"],
     "document_db": ["dict", "sqlite", "mongo", "firebase"],
     "document_loader": ["csv_loader", "document_db_loader", "text_file_loader", "json_loader", "markdown_loader", "ms_office_loader", "pdf_loader", "url_loader"],
     "embedder": ["cohere", "google", "nvidia", "ollama", "openai", "sentence_transformers"],
@@ -29,7 +29,7 @@ PROVIDERS = {
     "vector_db": ["chroma", "pinecone"],
 }
 DEFAULT_PROVIDERS = {
-    "document_chunker": "count_tokens_chunker",
+    "document_chunker": "text_chunker",
     "document_db": "dict",
     "document_loader": "text_file_loader",
     "embedder": "openai",

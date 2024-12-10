@@ -21,7 +21,7 @@ T = TypeVar("T")
 
 class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
     component_type = "document_chunker"
-    provider = "base"    
+    provider = "base"
     config_class = DocumentChunkerConfig
     can_get_components = True
 
