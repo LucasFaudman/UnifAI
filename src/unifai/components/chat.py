@@ -226,8 +226,8 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
 
         # set system prompt if first message is a system message and pop it before formatting client messages
         # (Note: system prompt and examples are not included in client messages since they are not always part of the conversation)
-        if self._unifai_messages and self._unifai_messages[0].role == "system":
-            self.system_prompt = self._unifai_messages.pop(0).content
+        if unifai_messages and unifai_messages[0].role == "system":
+            self.system_prompt = unifai_messages.pop(0).content
 
         # standardize inputs and prep copies for client in its format
         # (Note to self: 2 copies are stored to prevent converting back and forth between formats on each iteration.
