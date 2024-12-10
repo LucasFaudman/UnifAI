@@ -125,7 +125,7 @@ class GoogleLLM(GoogleAdapter, LLM):
         # Messages    
     def format_user_message(self, message: Message) -> Any:
         parts = []
-        if message.content is not None:
+        if message.content:
             parts.append(Part(text=message.content))
         if message.images:
             parts.extend(map(self.format_image, message.images))
@@ -133,7 +133,7 @@ class GoogleLLM(GoogleAdapter, LLM):
 
     def format_assistant_message(self, message: Message) -> Any:
         parts = []
-        if message.content is not None:
+        if message.content:
             parts.append(Part(text=message.content))
         if message.tool_calls:
             for tool_call in message.tool_calls:
@@ -295,21 +295,35 @@ class GoogleLLM(GoogleAdapter, LLM):
                 if content is None:
                     content = ""
                 content += part.text
-            elif part.function_call:
+            if part.function_call:
                 if tool_calls is None:
                     tool_calls = []
                 tool_calls.append(self.parse_tool_call(part.function_call))
-            elif part.inline_data:
+            if part.inline_data:
                 if images is None:
                     images = []
                 images.append(self.parse_image(part.inline_data))
-            elif part.file_data or part.executable_code or part.code_execution_result:
+            if part.file_data or part.executable_code or part.code_execution_result:
                 raise NotImplementedError("file_data, executable_code, and code_execution_result are not yet supported by UnifAI")
+
+        # Empty values (which can happen during streaming) should be returned as None
         return content, tool_calls, images
+
+    def _is_non_empty_part(self, part: Part) -> bool:
+        return bool(part.text 
+                    or part.inline_data or part.file_data 
+                    or part.function_call or part.function_response 
+                    or part.executable_code or part.code_execution_result
+                    )
 
     def parse_message(self, response: GenerateContentResponse, **kwargs) -> tuple[Message, Content]:
         client_message = response.candidates[0].content
         content, tool_calls, images = self._extract_parts(client_message.parts)
+
+        # Skip empty text contents at the end of ToolCall messages (role='model' with function_call parts)
+        # to avoid 400 Unable to submit request because it has an empty text parameter. Add a value to the parameter and try again. Learn more: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/gemini
+        client_message.parts = [part for part in client_message.parts if self._is_non_empty_part(part)]
+
         response_info = self.parse_response_info(response, tools_called=bool(tool_calls), **kwargs)
         unifai_message = Message(
             role="assistant",
@@ -321,12 +335,10 @@ class GoogleLLM(GoogleAdapter, LLM):
         return unifai_message, client_message
     
     def parse_stream(self, response: GenerateContentResponse, **kwargs) -> Generator[MessageChunk, None, tuple[Message, Content]]:
-        parts = []
+        parts = [] # To reassemble the final message after streaming
         for chunk in response:
-            chunk_parts = list(chunk.parts)
-            parts.extend(chunk_parts)
-            content, tool_calls, images = self._extract_parts(chunk_parts)
-        
+            parts.extend(chunk.parts)
+            content, tool_calls, images = self._extract_parts(chunk.parts)
             yield MessageChunk(
                 role="assistant",
                 content=content,
@@ -334,5 +346,7 @@ class GoogleLLM(GoogleAdapter, LLM):
                 images=images
             )
 
+        # Reset the original response parts back to collected parts (since they were consumed by the generator)
+        # so it can be parsed as if it was a non-streaming response
         response.candidates[0].content.parts = parts
         return self.parse_message(response, **kwargs)
