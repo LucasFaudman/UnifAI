@@ -29,8 +29,8 @@ def test_init_ai_components(provider, init_kwargs):
     # assert isinstance(client, wrapper)    
     assert ai._components["llm"][provider] is client
     assert ai._get_component(provider) is client
-    assert ai.get_llm() is client
-    assert ai.get_llm(provider) is client
+    assert ai._get_llm() is client
+    assert ai._get_llm(provider) is client
 
     
 
@@ -53,5 +53,5 @@ def test_init_vector_db_components(provider, init_kwargs):
     assert client
     assert ai._components["vector_db"][provider] is client
     assert ai._get_component(provider, "vector_db") is client
-    assert ai.get_vector_db() is client 
-    assert ai.get_vector_db(provider) is client   
+    assert ai.vector_db() is client 
+    assert ai.vector_db(provider) is client   

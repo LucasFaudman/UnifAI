@@ -10,7 +10,7 @@ from ._base_client import BaseClient
 
 class UnifAITokenizerClient(BaseClient):
     
-    def get_tokenizer(
+    def tokenizer(
             self, 
             provider_config_or_name: "ProviderName | TokenizerConfig | tuple[ProviderName, ComponentName]" = "default",          
             **init_kwargs

@@ -9,7 +9,7 @@ from basetest import base_test, base_test_tokenizers_all, PROVIDER_DEFAULTS, VEC
 @base_test_tokenizers_all
 def test_init_tokenizers(provider, init_kwargs, func_kwargs):
     ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
-    tokenizer = ai.get_tokenizer(provider)
+    tokenizer = ai.tokenizer(provider)
     assert isinstance(tokenizer, Tokenizer)
     assert tokenizer.provider == provider
     
@@ -18,7 +18,7 @@ def test_init_tokenizers(provider, init_kwargs, func_kwargs):
 def test_tokenize_hello_world(provider, init_kwargs, func_kwargs):
     ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
-    tokenizer = ai.get_tokenizer(provider)
+    tokenizer = ai.tokenizer(provider)
     hello_world = "Hello world"
     token_ids = tokenizer.encode(hello_world)
     print("tokenizer.encode Token Ids:", token_ids)

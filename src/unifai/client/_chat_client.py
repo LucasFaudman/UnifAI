@@ -36,7 +36,7 @@ from ..utils import update_kwargs_with_locals
 
 class UnifAIChatClient(BaseClient):
 
-    def get_llm(
+    def _get_llm(
             self, 
             provider_config_or_name: "ProviderName | LLMConfig | tuple[ProviderName, ComponentName]" = "default",
             **init_kwargs

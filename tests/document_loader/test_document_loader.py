@@ -16,7 +16,7 @@ RESOURCES_PATH = Path(__file__).parent / "resources"
 @base_test_document_loaders_all
 def test_init_document_loader_clients(provider, init_kwargs, func_kwargs):
     ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
-    loader = ai.get_document_loader(provider)
+    loader = ai.document_loader(provider)
     assert isinstance(loader, DocumentLoader)
     assert loader.provider == provider
     
@@ -33,7 +33,7 @@ def test_text_file_loader(provider, init_kwargs, func_kwargs, paths, metadatas, 
 
     ai = UnifAI(provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
-    loader = ai.get_document_loader(provider)
+    loader = ai.document_loader(provider)
     assert isinstance(loader, TextFileDocumentLoader)
     paths = list(paths)
 

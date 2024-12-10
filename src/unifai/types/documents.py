@@ -65,12 +65,12 @@ class DocumentChunk(Document):
         metadata (Optional[dict[str, Any]]): The document chunk metadata. Defaults to None.
         text (Optional[str]): The document chunk text. Defaults to None.
         embedding (Optional[Embedding]): The document chunk embedding. Defaults to None.
-        parent_document_id (str): The parent document ID.        
+        source_id (str): The parent document ID.        
         chunk_size (Optional[int]): The document chunk size. Defaults to None.
         start_index (Optional[int]): The start index of the document chunk. Defaults to None.
         end_index (Optional[int]): The end index of the document chunk. Defaults to None.
     """
-    parent_document_id: str
+    source_id: str
     chunk_size: Optional[int] = None
     start_index: Optional[int] = None
     end_index: Optional[int] = None
@@ -88,7 +88,7 @@ class RankedDocumentChunk(DocumentChunk, RankedDocument):
         rank (int): The document rank.
         distance (Optional[float]): The document distance. Defaults to None.
         query (Optional[str|Embedding]): The query. Defaults to None.        
-        parent_document_id (str): The parent document ID.        
+        source_id (str): The parent document ID.        
         chunk_size (Optional[int]): The document chunk size. Defaults to None.
         start_index (Optional[int]): The start index of the document chunk. Defaults to None.
         end_index (Optional[int]): The end index of the document chunk. Defaults to None.
@@ -109,7 +109,7 @@ class RerankedDocumentChunk(RankedDocumentChunk, RerankedDocument):
         query (Optional[str|Embedding]): The query. Defaults to None.
         # original_rank (int): The original document rank.
         similarity_score (float): The document similarity_score.
-        parent_document_id (str): The parent document ID.        
+        source_id (str): The parent document ID.        
         chunk_size (Optional[int]): The document chunk size. Defaults to None.
         start_index (Optional[int]): The start index of the document chunk. Defaults to None.
         end_index (Optional[int]): The end index of the document chunk. Defaults to None.

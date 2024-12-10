@@ -74,7 +74,7 @@ class LeetScraper:
         )
 
         self.ai = ai
-        self.extract_problem = ai.get_function(extract_problem)
+        self.extract_problem = ai.function(extract_problem)
         self.problem: LeetCodeProblem = None
         self.test_cases = {}
         self.current_solution = ""
@@ -253,7 +253,7 @@ class LeetScraper:
         runtime_percentile, memory_percentile = 0, 0
         while runtime_percentile < min_runtime_percentile or memory_percentile < min_memory_percentile:
             prompt = self.make_prompt(self.problem, self.test_cases.values(), self.solution)
-            solution = self.ai.get_function(solve_leetcode_problem)(prompt)
+            solution = self.ai.function(solve_leetcode_problem)(prompt)
             if not solution:
                 input("Failed to solve problem. Press enter to continue.")
                 continue

@@ -11,7 +11,7 @@ from ._base_client import BaseClient
     
 class UnifAIEmbedClient(BaseClient):
 
-    def get_embedder(
+    def embedder(
             self, 
             provider_config_or_name: "ProviderName | EmbedderConfig | tuple[ProviderName, ComponentName]" = "default",      
             **init_kwargs
@@ -42,7 +42,7 @@ class UnifAIEmbedClient(BaseClient):
         **kwargs
         ) -> "Embeddings":
         
-        return self.get_embedder(provider, config_or_name).embed(
+        return self.embedder(provider, config_or_name).embed(
             input,
             model=model,
             dimensions=dimensions,

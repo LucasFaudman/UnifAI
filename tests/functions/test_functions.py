@@ -47,7 +47,7 @@ def test_evalutate_flagged_reason(
         output_parser=FlaggedReason,
     )
 
-    url_eval = ai.get_function(url_eval_config)
+    url_eval = ai.function(url_eval_config)
     flagged_reason = url_eval(url=url, link_text=link_text)
     assert flagged_reason.flagged == flagged
     assert isinstance(flagged_reason.reason, str)
@@ -201,7 +201,7 @@ def test_evalutate_contacts(
                 print(f"Name: {contact.name}\nEmail: {contact.email}\nPhone: {contact.phone}\nAddress: {contact.address}\nJob Title: {contact.job_title}\nCompany: {contact.company}\nDomestic: {contact.is_domestic}\nGender: {contact.gender}\nConfidence: {contact.confidence}\n")
 
 
-    extract_contacts = ai.get_function(FunctionConfig(
+    extract_contacts = ai.function(FunctionConfig(
             name="extractContacts",
             system_prompt="You extract contact information from unstructued content.",
             output_parser=ContactsList,

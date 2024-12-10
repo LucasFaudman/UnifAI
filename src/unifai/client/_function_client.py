@@ -34,7 +34,10 @@ from ..components.function import Function
 
 
 class UnifAIFunctionClient(UnifAIChatClient, UnifAIRAGClient):
-     
+
+    def function(self, config: FunctionConfig[InputT, OutputT, ReturnT], **init_kwargs) -> Function[InputT, OutputT, ReturnT]:
+        return Function(config=config, tool_registry=self._tools, _get_component=self._get_component, **init_kwargs)
+
     def configure(
         self,
         config: Optional[UnifAIConfig|dict[str, Any]|str|Path] = None,
@@ -45,15 +48,6 @@ class UnifAIFunctionClient(UnifAIChatClient, UnifAIRAGClient):
         self._init_tools(self.config.tools, self.config.tool_callables)
         # self._init_function_configs(self.config.function_configs)
        
-
-    def get_function(self, config: FunctionConfig[InputT, OutputT, ReturnT], **init_kwargs) -> Function[InputT, OutputT, ReturnT]:
-        return Function(
-            config=config, 
-            tool_registry=self._tools,
-            _get_component=self._get_component, 
-            **init_kwargs
-        )
-
     def _init_function_configs(self, function_configs: Optional[dict[str, FunctionConfig|dict[str, Any]]] = None) -> None:
         self._function_configs: dict[str, FunctionConfig] = {}
         if function_configs:

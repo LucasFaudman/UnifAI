@@ -11,7 +11,7 @@ from ._base_client import BaseClient
 
 class UnifAIRerankClient(BaseClient):
 
-    def get_reranker(
+    def reranker(
             self, 
             provider_config_or_name: "ProviderName | RerankerConfig | tuple[ProviderName, ComponentName]" = "default",       
             **init_kwargs
@@ -28,7 +28,7 @@ class UnifAIRerankClient(BaseClient):
         **reranker_kwargs
         ) -> "QueryResult":
 
-        return self.get_reranker(provider).rerank(
+        return self.reranker(provider).rerank(
             query, 
             query_result, 
             model, 

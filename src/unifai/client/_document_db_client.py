@@ -10,7 +10,7 @@ from ._base_client import BaseClient
 
 class UnifAIDocumentDBClient(BaseClient):
     
-    def get_document_db(
+    def document_db(
             self, 
             provider_config_or_name: "ProviderName | DocumentDBConfig | tuple[ProviderName, ComponentName]" = "default",        
             **init_kwargs

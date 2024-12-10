@@ -10,7 +10,7 @@ from ._base_client import BaseClient
 
 class UnifAIOutputParserClient(BaseClient):
     
-    def get_output_parser(
+    def output_parser(
             self, 
             provider_config_or_name: "ProviderName | OutputParserConfig[OutputT,ReturnT] | tuple[ProviderName, ComponentName]" = "default",          
             **init_kwargs

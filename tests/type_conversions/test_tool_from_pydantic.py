@@ -382,7 +382,7 @@ def test_tool_from_base_model(
     assert all(field_name in param_names for field_name in model_fields)
 
     ai = UnifAI({provider: init_kwargs})    
-    get_model = ai.get_function(
+    get_model = ai.function(
         FunctionConfig(response_format=bmodel,
             # tools=[return_tool],
             # tool_choice=return_tool,

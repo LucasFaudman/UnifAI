@@ -124,7 +124,7 @@ if __name__ == "__main__":
 
     content = input("Describe a UI element: ") or default_content
     print("Creating...\n", content)
-    func = ai.get_function("return_ui_component")
+    func = ai.function("return_ui_component")
     result = func.with_spec(provider="nvidia", model="nvidia/nemotron-4-340b-instruct")(content=content)
     print("Result: ", result)
     html = get_html_from_result(result)

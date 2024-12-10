@@ -12,7 +12,6 @@ from .tokenizer_config import TokenizerConfig
 from .tool_caller_config import ToolCallerConfig
 from .vector_db_config import VectorDBConfig, VectorDBCollectionConfig
 from .rag_config import RAGConfig
-from .chat_config import ChatConfig
 from .function_config import FunctionConfig
 from .unifai_config import UnifAIConfig
 

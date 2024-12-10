@@ -51,9 +51,6 @@ class PydanticParser(OutputParser[OutputT, ModelT], Generic[OutputT, ModelT]):
     provider = "pydantic"
     config_class: Type[OutputParserConfig[OutputT, ModelT]] = OutputParserConfig
 
-    # def __init__(self, config: OutputParserConfig[OutputT, ModelT], **init_kwargs) -> None:
-    #     super().__init__(config, **init_kwargs)
-
     def __init__(self, model: Type[ModelT], output_type: Type[OutputT], **init_kwargs) -> None:
         config: OutputParserConfig[OutputT, ModelT] = init_kwargs.pop('config', None) or self.config_class(provider=self.provider, output_type=output_type, return_type=model)
         super().__init__(config, **init_kwargs)

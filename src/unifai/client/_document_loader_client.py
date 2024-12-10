@@ -10,7 +10,7 @@ from ._base_client import BaseClient
 
 class UnifAIDocumentLoaderClient(BaseClient):
     
-    def get_document_loader(
+    def document_loader(
             self, 
             provider_config_or_name: "ProviderName | DocumentLoaderConfig | tuple[ProviderName, ComponentName]" = "default",     
             **init_kwargs

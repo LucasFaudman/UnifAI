@@ -16,7 +16,7 @@ from ._document_loader_client import UnifAIDocumentLoaderClient
 from ..configs.rag_config import RAGConfig
 
 class UnifAIRAGClient(UnifAIVectorDBClient, UnifAIRerankClient, UnifAIDocumentChunkerClient, UnifAIDocumentLoaderClient):
-    def get_ragpipe(
+    def rag(
             self, 
             provider_config_or_name: "ProviderName | RAGConfig | tuple[ProviderName, ComponentName]" = "default",
             **init_kwargs

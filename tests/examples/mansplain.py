@@ -55,7 +55,7 @@ rag_config = RAGConfig(
 )
 
 # Create a RAGPipe with the RAGConfig
-ragpipe = ai.get_ragpipe(rag_config)
+ragpipe = ai.rag(rag_config)
 
 # Ingest the manpages for tor, curl, and nc. (Since the loader is the ManpageDocumentLoader, the source is the binary name)
 for i, ingested_chunk in enumerate(ragpipe.ingest("tor", "curl", "nc")):
@@ -89,7 +89,7 @@ class CommandSuggestions(BaseModel):
         return "\n".join([f"Suggestion {i}: {suggestion.description}\n{str(suggestion)}" for i, suggestion in enumerate(self.suggestions, start=1)])
 
 # Define a function to get command suggestions using the RAGPipe
-get_command_suggestions = ai.get_function(FunctionConfig(
+get_command_suggestions = ai.function(FunctionConfig(
     name="get_command_suggestions",
     system_prompt="You are a command line expert. Your role is to provide command suggestions and explaination base on the user's query and relevant context from manpages.",
     output_parser=CommandSuggestions,
