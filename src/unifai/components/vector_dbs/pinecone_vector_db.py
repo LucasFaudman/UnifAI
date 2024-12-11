@@ -20,17 +20,25 @@ from pinecone import ServerlessSpec, PodSpec
 class PineconeVectorDBCollection(PineconeExceptionConverter, VectorDBCollection["GRPCIndex"]):
     default_namespace = ""
     
+    def _setup(self) -> None:
+        super()._setup()
+        self.default_namespace = self.init_kwargs.get("default_namespace", self.default_namespace)
+
     def _add_default_namespace(self, kwargs: dict) -> dict:
         if "namespace" not in kwargs:
             kwargs["namespace"] = self.default_namespace
         return kwargs
 
-    @convert_exceptions
-    def count(self, **kwargs) -> int:
+    def _count(self, **kwargs) -> int:
         return self.wrapped.describe_index_stats(**kwargs).total_vector_count
+    
+    def _list_ids(self, **kwargs) -> list[str]:
+        return list(chain(*self.wrapped.list(**self._add_default_namespace(kwargs))))
+    
+    def _delete_all(self, **kwargs) -> None:
+        self.wrapped.delete(delete_all=True, **self._add_default_namespace(kwargs))        
 
-    @convert_exceptions
-    def add(
+    def _add(
             self,
             ids: list[str],
             metadatas: Optional[list[dict]] = None,
@@ -43,9 +51,8 @@ class PineconeVectorDBCollection(PineconeExceptionConverter, VectorDBCollection[
             raise ValueError("Either texts or embeddings must be provided")
         self.upsert(ids, metadatas, texts, embeddings, update_document_db, **kwargs)
         return self
-
-    @convert_exceptions    
-    def update(
+    
+    def _update(
             self,
             ids: list[str],
             metadatas: Optional[list[dict]] = None,
@@ -68,8 +75,7 @@ class PineconeVectorDBCollection(PineconeExceptionConverter, VectorDBCollection[
             self.document_db_collection.update(ids, metadatas, texts)
         return self
     
-    @convert_exceptions
-    def upsert(
+    def _upsert(
             self,
             ids: list[str],
             metadatas: Optional[list[dict]] = None,
@@ -100,8 +106,7 @@ class PineconeVectorDBCollection(PineconeExceptionConverter, VectorDBCollection[
             self.document_db_collection.upsert(ids, metadatas, texts)
         return self
     
-    @convert_exceptions
-    def delete(self, 
+    def _delete(self, 
                ids: Optional[list[str]] = None,
                where: Optional[dict] = None,
                where_document: Optional[dict] = None,
@@ -115,8 +120,7 @@ class PineconeVectorDBCollection(PineconeExceptionConverter, VectorDBCollection[
             self.document_db_collection.delete(ids=ids, where=where, where_document=where_document)
         return self
 
-    @convert_exceptions
-    def get(
+    def _get(
             self,
             ids: Optional[list[str]] = None,
             where: Optional[dict] = None,
@@ -160,10 +164,13 @@ class PineconeVectorDBCollection(PineconeExceptionConverter, VectorDBCollection[
                 embeddings.append(vector.values)
             if metadatas is not None:
                 metadatas.append(vector.metadata)
+            
             added += 1
+            if limit is not None and added >= limit:
+                break
 
+        # Get texts for all results if not already done when checking where_document
         if result_ids and texts is not None and not where_document and self.document_db_collection:
-            # Get texts for all results if not already done when checking where_document
             texts.extend(self.document_db_collection.get(result_ids, include=["texts"]).texts or ())
 
         return GetResult(
@@ -174,8 +181,7 @@ class PineconeVectorDBCollection(PineconeExceptionConverter, VectorDBCollection[
             included=["ids", *include]
         )
     
-    @convert_exceptions
-    def query(
+    def _query(
             self,              
             query_input: str|Embedding,
             top_k: int = 10,
@@ -233,8 +239,8 @@ class PineconeVectorDBCollection(PineconeExceptionConverter, VectorDBCollection[
             if distances is not None:
                 distances.append(match["score"])
 
+        # Get texts for all results if not already done when checking where_document
         if texts is not None and not where_document and self.document_db_collection:
-            # Get texts for all results if not already done when checking where_document
             texts.extend(self.document_db_collection.get(result_ids, include=["texts"]).texts or ())
 
         return QueryResult(
@@ -247,13 +253,7 @@ class PineconeVectorDBCollection(PineconeExceptionConverter, VectorDBCollection[
             query=query_input
         )
             
-    @convert_exceptions
-    def list_ids(self, **kwargs) -> list[str]:
-        return list(chain(*self.wrapped.list(**self._add_default_namespace(kwargs))))
-    
-    def delete_all(self, **kwargs) -> None:
-        self.wrapped.delete(delete_all=True, **self._add_default_namespace(kwargs))     
-
+ 
 
 class PineconeVectorDB(PineconeAdapter, VectorDB[PineconeVectorDBCollection, "GRPCIndex"]):
     index_type = PineconeVectorDBCollection
@@ -277,7 +277,20 @@ class PineconeVectorDB(PineconeAdapter, VectorDB[PineconeVectorDBCollection, "GR
                 )
         raise ValueError(f"Invalid distance_metric: {distance_metric}")
 
-    @convert_exceptions
+    def _list_collections(
+            self,
+            limit: Optional[int] = None,
+            offset: Optional[int] = None, # woop woop,
+    ) -> list[str]:
+        return [index.name for index in self.client.list_indexes()[limit_offset_slice(limit, offset)]]
+    
+    def _count_collections(self) -> int:
+        return len(self.client.list_indexes())
+    
+    def _delete_collection(self, name: CollectionName) -> None:
+        self.collections.pop(name, None)
+        return self.client.delete_index(name)
+
     def _create_wrapped_collection(self, config: VectorDBCollectionConfig) -> "GRPCIndex":
         
         if spec := config.init_kwargs.get("spec"): 
@@ -313,24 +326,8 @@ class PineconeVectorDB(PineconeAdapter, VectorDB[PineconeVectorDBCollection, "GR
         )        
         return self._get_wrapped_collection(config)
     
-    @convert_exceptions
     def _get_wrapped_collection(self, config: VectorDBCollectionConfig) -> "GRPCIndex":
         return self.client.Index(name=config.name, host=config.init_kwargs.get("host", ""))
 
-    @convert_exceptions
-    def list_collections(
-            self,
-            limit: Optional[int] = None,
-            offset: Optional[int] = None, # woop woop,
-    ) -> list[str]:
-        return [index.name for index in self.client.list_indexes()[limit_offset_slice(limit, offset)]]
-    
-    @convert_exceptions
-    def count_collections(self) -> int:
-        return len(self.client.list_indexes())
-    
-    @convert_exceptions
-    def delete_collection(self, name: CollectionName) -> None:
-        self.collections.pop(name, None)
-        return self.client.delete_index(name)
+
 

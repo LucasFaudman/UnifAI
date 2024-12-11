@@ -16,12 +16,14 @@ from ..adapters.chroma_adapter import ChromaExceptionConverter, ChromaAdapter
 from itertools import zip_longest
 
 class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["ChromaCollection"]):
+    provider = "chroma"
 
-    @convert_exceptions
-    def count(self, **kwargs) -> int:
+    def _count(self, **kwargs) -> int:
         return self.wrapped.count()
     
-    @convert_exceptions
+    def _list_ids(self, **kwargs) -> list[str]:
+        return self.get(include=[], **kwargs).ids
+    
     def _update_dbs(
         self,
         wrapped_func_name: str,
@@ -46,9 +48,8 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
         if update_document_db and self.document_db_collection:        
             self.document_db_collection.upsert(ids, metadatas, texts)            
         return self
-    
-    @convert_exceptions            
-    def add(
+                
+    def _add(
             self,
             ids: list[str],
             metadatas: Optional[list[dict]] = None,
@@ -60,9 +61,8 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
         if not texts and not embeddings:
             raise ValueError("Either texts or embeddings must be provided")
         return self._update_dbs("add", ids, metadatas, texts, embeddings, update_document_db, **kwargs)
-    
-    @convert_exceptions    
-    def update(
+        
+    def _update(
             self,
             ids: list[str],
             metadatas: Optional[list[dict]] = None,
@@ -73,8 +73,7 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
                 ) -> Self:
         return self._update_dbs("update", ids, metadatas, texts, embeddings, update_document_db, **kwargs)
 
-    @convert_exceptions
-    def upsert(
+    def _upsert(
             self,
             ids: list[str],
             metadatas: Optional[list[dict]] = None,
@@ -86,8 +85,7 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
         return self._update_dbs("upsert", ids, metadatas, texts, embeddings, update_document_db, **kwargs)
     
 
-    @convert_exceptions
-    def delete(self, 
+    def _delete(self, 
                ids: Optional[list[str]] = None,
                where: Optional[dict] = None,
                where_document: Optional[dict] = None,
@@ -100,11 +98,10 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
         return self
 
 
-    def _fix_include(self, include: list[Literal["metadatas", "texts", "embeddings", "distances"]]) -> ChromaInclude:
-        return [key if key != "texts" else "documents" for key in include]
+    def _to_chroma_include(self, include: list) -> ChromaInclude:
+        return [key if key != "texts" else "documents" for key in include] # type: ignore
 
-    @convert_exceptions
-    def get(
+    def _get(
             self,
             ids: Optional[list[str]] = None,
             where: Optional[dict] = None,
@@ -114,14 +111,13 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
             offset: Optional[int] = None,            
             **kwargs
             ) -> GetResult:
-
         result = self.wrapped.get(
             ids=ids, 
             where=where, 
             limit=limit, 
             offset=offset, 
             where_document=where_document, 
-            include=self._fix_include(include),
+            include=self._to_chroma_include(include),
             **kwargs
         )
         return GetResult(
@@ -131,22 +127,8 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
             embeddings=result["embeddings"],
             included=["ids", *include]
         )
-    
-    @convert_exceptions
-    def query(
-            self,              
-            query_input: str|Embedding,
-            top_k: int = 10,
-            where: Optional[dict] = None,
-            where_document: Optional[dict] = None,
-            include: list[Literal["metadatas", "texts", "embeddings", "distances"]] = ["metadatas", "texts", "embeddings", "distances"],
-            **kwargs
-              ) -> QueryResult:
         
-        return self.query_many([query_input], top_k, where, where_document, include, **kwargs)[0]        
-    
-    @convert_exceptions
-    def query_many(
+    def _query_many(
             self,              
             query_inputs: list[str] | list[Embedding] | Embeddings,
             top_k: int = 10,
@@ -158,10 +140,10 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
                
         query_result = self.wrapped.query(
             query_embeddings=self._prepare_embeddings("queries", query_inputs), 
-            n_results=top_k, 
+            n_results=top_k,
             where=where, 
             where_document=where_document, 
-            include=self._fix_include(include),
+            include=self._to_chroma_include(include),
             **kwargs
         )
 
@@ -186,11 +168,6 @@ class ChromaVectorDBCollection(ChromaExceptionConverter, VectorDBCollection["Chr
             )
         ]
 
-    def list_ids(self, **kwargs) -> list[str]:
-        return self.get(include=[], **kwargs).ids
-
-    def delete_all(self, **kwargs) -> None:
-        self.delete(ids=self.list_ids(), **kwargs)    
 
 
 class ChromaVectorDB(ChromaAdapter, VectorDB[ChromaVectorDBCollection, "ChromaCollection"]):
@@ -211,12 +188,26 @@ class ChromaVectorDB(ChromaAdapter, VectorDB[ChromaVectorDBCollection, "ChromaCo
                 "'l2': Squared L2 distance: ∑(Ai−Bi)² vs 'euclidean': Euclidean distance: sqrt(∑(Ai−Bi)²)"
                 )
         raise ValueError(f"Invalid distance_metric: {distance_metric}")
+    
+    def _list_collections(
+            self,
+            limit: Optional[int] = None,
+            offset: Optional[int] = None, # woop woop,
+    ) -> list[str]:
+        return [collection.name for collection in self.client.list_collections(limit=limit, offset=offset)]
+    
+    def _count_collections(self) -> int:
+        return self.client.count_collections()
+    
+    def _delete_collection(self, name: CollectionName) -> None:
+        self.collections.pop(name, None)
+        return self.client.delete_collection(name=name)    
 
-    @convert_exceptions
     def _create_wrapped_collection(self, config: VectorDBCollectionConfig) -> "ChromaCollection":
         # Note2self: distance_metric not need to be re-validated since done when initializing the embedder
+        # Distance metric is a metadata key for Chroma
         if metadata := config.init_kwargs.get("metadata"):
-            metadata = {**metadata, "hnsw:space": config.distance_metric}
+            metadata["hnsw:space"] = config.distance_metric 
         else:
             metadata = {"hnsw:space": config.distance_metric}
         return self.client.create_collection(
@@ -228,7 +219,6 @@ class ChromaVectorDB(ChromaAdapter, VectorDB[ChromaVectorDBCollection, "ChromaCo
             get_or_create=bool(config.init_kwargs.get("get_or_create")),
         )
 
-    @convert_exceptions
     def _get_wrapped_collection(self, config: VectorDBCollectionConfig) -> "ChromaCollection":
         return self.client.get_collection(
             name=config.name, 
@@ -237,19 +227,3 @@ class ChromaVectorDB(ChromaAdapter, VectorDB[ChromaVectorDBCollection, "ChromaCo
             data_loader=config.init_kwargs.get("data_loader"),
         )
     
-    @convert_exceptions
-    def list_collections(
-            self,
-            limit: Optional[int] = None,
-            offset: Optional[int] = None, # woop woop,
-    ) -> list[str]:
-        return [collection.name for collection in self.client.list_collections(limit=limit, offset=offset)]
-    
-    @convert_exceptions
-    def count_collections(self) -> int:
-        return self.client.count_collections()
-    
-    @convert_exceptions
-    def delete_collection(self, name: CollectionName) -> None:
-        self.collections.pop(name, None)
-        return self.client.delete_collection(name=name)         
