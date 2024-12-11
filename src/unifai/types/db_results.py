@@ -1,8 +1,11 @@
 from typing import Optional, Sequence, Literal, Self, Callable, Iterator, Iterable, Any, ClassVar, Type, TypeVar, Generic
 from ._base_model import BaseModel
 
+from ..type_conversions.documents import documents_to_lists
 from .documents import Document, Documents, DocumentChunk, DocumentChunks, RankedDocument, RankedDocuments, RerankedDocument, RerankedDocuments
 from .embeddings import Embeddings, Embedding
+
+
 from itertools import zip_longest
 
 class GetResult(BaseModel):
@@ -81,6 +84,16 @@ class GetResult(BaseModel):
 
     def to_documents(self) -> list[Document]:
         return list(self)
+
+    @classmethod
+    def from_documents(cls, 
+                       documents: Iterable[Document]|Documents, 
+                       included: list[Literal["ids", "metadatas", "texts", "embeddings"]] = ["ids", "metadatas", "texts", "embeddings"]                       
+                       ) -> Self:
+                        
+        _lists = documents_to_lists(documents, included)
+        _doc_keys = [attr[:-1] for attr in included]
+        return cls(**dict(zip(_doc_keys, _lists)), included=included)
     
     
 class QueryResult(GetResult):
@@ -116,6 +129,13 @@ class QueryResult(GetResult):
 
     def to_documents(self) -> list[RankedDocument]:
         return list(self)
+    
+    @classmethod
+    def from_documents(cls, 
+                       documents: Iterable[RankedDocument]|RankedDocuments, 
+                       included: list[Literal["ids", "metadatas", "texts", "embeddings", "distances"]] = ["ids", "metadatas", "texts", "embeddings", "distances"]                       
+                       ) -> Self:
+        return super().from_documents(documents, included)
     
     def trim_by_distance(self, max_distance: float) -> Self:
         """Remove all documents with distance > max_distance"""
@@ -168,6 +188,13 @@ class RerankedQueryResult(QueryResult):
 
     def to_documents(self) -> list[RerankedDocument]:
         return list(self)
+    
+    @classmethod
+    def from_documents(cls, 
+                          documents: Iterable[RerankedDocument]|RerankedDocuments, 
+                          included: list[Literal["ids", "metadatas", "texts", "embeddings", "distances", "similarity_scores"]] = ["ids", "metadatas", "texts", "embeddings", "distances", "similarity_scores"]                       
+                          ) -> Self:
+          return super().from_documents(documents, included)
     
     def trim_by_similarity_score(self, min_similarity_score: float) -> Self:
         """Remove all documents with similarity_score < min_similarity_score"""
