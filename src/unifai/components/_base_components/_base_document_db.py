@@ -8,13 +8,13 @@ class DocumentDBCollection(BaseDBCollection[DocumentDBCollectionConfig, WrappedT
     component_type = "document_db_collection"
     provider = "base"    
     config_class = DocumentDBCollectionConfig
-
+    _is_abstract = True
+    
 CollectionT = TypeVar("CollectionT", bound=DocumentDBCollection)
 
 class DocumentDB(BaseDB[DocumentDBConfig, DocumentDBCollectionConfig, CollectionT, WrappedT], Generic[CollectionT, WrappedT]):
     component_type = "document_db"
     provider = "base"    
     config_class = DocumentDBConfig
-
     collection_class: Type[CollectionT]
-    
+    _is_abstract = True

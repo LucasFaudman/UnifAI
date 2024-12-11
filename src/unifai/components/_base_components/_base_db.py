@@ -1,4 +1,5 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Collection,  Callable, Iterator, Iterable, Generator, Self, Generic, TypeAlias
+from abc import ABC, abstractmethod
 
 from ._base_component import UnifAIComponent
 from ._base_adapter import UnifAIAdapter
@@ -8,7 +9,7 @@ from ...types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo,
 from ...exceptions import UnifAIError, ProviderUnsupportedFeatureError, BadRequestError, NotFoundError, CollectionNotFoundError
 
 from ...type_conversions import documents_to_lists, iterables_to_documents
-from ...utils import _next, combine_dicts, as_lists
+from ...utils import _next, combine_dicts, as_lists, check_filter, check_metadata_filters, limit_offset_slice
 from ...configs._base_configs import BaseDBConfig, BaseDBCollectionConfig
 
 T = TypeVar("T")
@@ -16,7 +17,7 @@ DBConfigT = TypeVar("DBConfigT", bound=BaseDBConfig)
 CollectionConfigT = TypeVar("CollectionConfigT", bound=BaseDBCollectionConfig)
 WrappedT = TypeVar("WrappedT")
 
-class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionConfigT, WrappedT]):
+class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionConfigT, WrappedT], ABC):
     component_type = "base_db_collection"
     provider = "base"
     config_class: Type[CollectionConfigT]
@@ -24,71 +25,196 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
     wrapped_type: Type[WrappedT]
     
     _document_attrs = ("id", "metadata", "text")
+    _is_abstract = True
+    _abstract_methods = ("_add", "_update", "_upsert", "_delete", "_get")
 
-    def __init__(self, config: CollectionConfigT, wrapped: WrappedT):        
-        super().__init__(config)
-        self.wrapped: WrappedT = wrapped
+    def _setup(self) -> None:
+        self.wrapped: WrappedT = self.init_kwargs.pop("wrapped", None)
+        if self.wrapped is None:
+            raise ValueError(f"No wrapped {self.wrapped_type.__name__} provided")
         self.response_infos = []
+    
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if getattr(cls, "_is_abstract", False):
+            return
+        for method in (cls._abstract_methods):
+            if (
+                getattr(cls, method) is getattr(BaseDBCollection, method) # lists form not implemented
+                and getattr(cls, f"{method}_documents") is getattr(BaseDBCollection, f"{method}_documents") # documents form not implemented
+            ):
+                raise NotImplementedError(f"Can't instantiate abstract class {cls.__name__} with neither '{method}' nor '{method}_documents' implemented")
 
+    @staticmethod
+    def check_filters(
+            where: Optional[dict] = None,
+            metadata: Optional[dict] = None,
+            where_document: Optional[dict] = None,            
+            text: Optional[str] = None,
+            ) -> bool:
+        if where and metadata and not check_metadata_filters(where, metadata):
+            return False
+        if where_document and text and not check_filter(where_document, text):
+            return False
+        return True
+
+    ## Abstract methods
+    @abstractmethod
+    def _count(self, **kwargs) -> int:
+        pass
+    
+    @abstractmethod
+    def _list_ids(self, **kwargs) -> list[str]:
+        pass
+    
+    def _add(
+            self,
+            ids: list[str],
+            metadatas: Optional[list[dict]] = None,
+            texts: Optional[list[str]] = None,
+            **kwargs
+            ) -> Self:
+        return self._add_documents(iterables_to_documents(ids, metadatas, texts), **kwargs)
+        
+    def _add_documents(
+            self,
+            documents: Iterable[Document] | Documents,
+            **kwargs
+            ) -> Self:            
+        return self._add(*documents_to_lists(documents, self._document_attrs), **kwargs)
+
+    def _update(
+            self,
+            ids: list[str],
+            metadatas: Optional[list[dict]] = None,
+            texts: Optional[list[str]] = None,
+            **kwargs
+                ) -> Self:
+        return self._update_documents(iterables_to_documents(ids, metadatas, texts), **kwargs)
+    
+    def _update_documents(
+            self,
+            documents: Iterable[Document] | Documents,
+            **kwargs
+                ) -> Self:
+        return self._update(*documents_to_lists(documents, self._document_attrs), **kwargs)  
+                 
+    def _upsert(
+            self,
+            ids: list[str],
+            metadatas: Optional[list[dict]] = None,
+            texts: Optional[list[str]] = None,
+            **kwargs
+                ) -> Self:
+        
+        return self._upsert_documents(iterables_to_documents(ids, metadatas, texts), **kwargs)
+    
+    def _upsert_documents(
+            self,
+            documents: Iterable[Document] | Documents,
+            **kwargs
+                ) -> Self:                
+        return self._upsert(*documents_to_lists(documents, self._document_attrs), **kwargs)
+  
+    def _delete(
+            self, 
+            ids: Optional[list[str]] = None,
+            where: Optional[dict] = None,
+            where_document: Optional[dict] = None,
+            **kwargs
+               ) -> Self:
+        return self._delete_documents(iterables_to_documents(ids, attrs=("id",)), where, where_document, **kwargs)
+    
+    def _delete_documents(
+            self,
+            documents: Optional[Iterable[Document] | Documents],
+            where: Optional[dict] = None,
+            where_document: Optional[dict] = None,
+            **kwargs
+                ) -> Self:    
+        ids = [doc.id for doc in documents] if documents else None
+        return self._delete(ids, where, where_document, **kwargs)
+    
+    def _get(
+            self,
+            ids: Optional[list[str]] = None,
+            where: Optional[dict] = None,
+            where_document: Optional[dict] = None,
+            include: list[Literal["metadatas", "texts"]] = ["metadatas", "texts"],
+            limit: Optional[int] = None,
+            offset: Optional[int] = None,            
+            **kwargs
+            ) -> GetResult:
+        return GetResult.from_documents(self._get_documents(ids, where, where_document, include, limit, offset, **kwargs))
+        
+    def _get_documents(
+            self,
+            ids: Optional[list[str]] = None,
+            where: Optional[dict] = None,
+            where_document: Optional[dict] = None,
+            include: list[Literal["metadatas", "texts"]] = ["metadatas", "texts"],
+            limit: Optional[int] = None,
+            offset: Optional[int] = None,            
+            **kwargs
+    ) -> list[Document]:
+        return self.get(ids, where, where_document, include, limit, offset, **kwargs).to_documents()
+
+
+    ## Concrete methods
     def count(self, **kwargs) -> int:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return self.run_func_convert_exceptions(self._count, **kwargs)
     
     def list_ids(self, **kwargs) -> list[str]:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-    # def delete_all(self, **kwargs) -> None:
-    #     raise NotImplementedError("This method must be implemented by the subclass")    
+        return self.run_func_convert_exceptions(self._list_ids, **kwargs)
     
     def add(
             self,
-            ids: list[str]|str,
-            metadatas: Optional[list[dict]|dict] = None,
-            texts: Optional[list[str]|str] = None,
+            ids: list[str],
+            metadatas: Optional[list[dict]] = None,
+            texts: Optional[list[str]] = None,
             **kwargs
             ) -> Self:
-        return self.add_documents(iterables_to_documents(*as_lists(ids, metadatas, texts)), **kwargs)
+        return self.run_func_convert_exceptions(self._add, ids, metadatas, texts, **kwargs)
         
     def add_documents(
             self,
             documents: Iterable[Document] | Documents,
             **kwargs
             ) -> Self:            
-        return self.add(*documents_to_lists(documents, self._document_attrs), **kwargs)
+        return self.run_func_convert_exceptions(self._add_documents, documents, **kwargs)
 
     def update(
             self,
-            ids: list[str]|str,
-            metadatas: Optional[list[dict]|dict] = None,
-            texts: Optional[list[str]|str] = None,
+            ids: list[str],
+            metadatas: Optional[list[dict]] = None,
+            texts: Optional[list[str]] = None,
             **kwargs
                 ) -> Self:
-        if self.update_documents is BaseDBCollection.update_documents:
-            raise NotImplementedError("This method must be implemented by the subclass")
-        return self.update_documents(iterables_to_documents(*as_lists(ids, metadatas, texts)), **kwargs)
+        return self.run_func_convert_exceptions(self._update, ids, metadatas, texts, **kwargs)
     
     def update_documents(
             self,
             documents: Iterable[Document] | Documents,
             **kwargs
                 ) -> Self:
-        return self.update(*documents_to_lists(documents, self._document_attrs), **kwargs)  
+        return self.run_func_convert_exceptions(self._update_documents, documents, **kwargs)
                  
     def upsert(
             self,
-            ids: list[str]|str,
-            metadatas: Optional[list[dict]|dict] = None,
-            texts: Optional[list[str]|str] = None,
+            ids: list[str],
+            metadatas: Optional[list[dict]] = None,
+            texts: Optional[list[str]] = None,
             **kwargs
                 ) -> Self:
         
-        return self.upsert_documents(iterables_to_documents(*as_lists(ids, metadatas, texts)), **kwargs)
+        return self.run_func_convert_exceptions(self._upsert, ids, metadatas, texts, **kwargs)
     
     def upsert_documents(
             self,
             documents: Iterable[Document] | Documents,
             **kwargs
                 ) -> Self:                
-        return self.upsert(*documents_to_lists(documents, self._document_attrs), **kwargs)
+        return self.run_func_convert_exceptions(self._upsert_documents, documents, **kwargs)
   
     def delete(
             self, 
@@ -97,7 +223,7 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             where_document: Optional[dict] = None,
             **kwargs
                ) -> Self:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return self.run_func_convert_exceptions(self._delete, ids, where, where_document, **kwargs)
     
     def delete_all(self, **kwargs) -> Self:
         kwargs["ids"] = kwargs.pop("ids", None) or self.list_ids()
@@ -110,8 +236,7 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             where_document: Optional[dict] = None,
             **kwargs
                 ) -> Self:    
-        ids = [doc.id for doc in documents] if documents else None
-        return self.delete(ids, where, where_document, **kwargs)
+        return self.run_func_convert_exceptions(self._delete_documents, documents, where, where_document, **kwargs)
     
     def get(
             self,
@@ -123,7 +248,7 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             offset: Optional[int] = None,            
             **kwargs
             ) -> GetResult:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return self.run_func_convert_exceptions(self._get, ids, where, where_document, include, limit, offset, **kwargs)
     
     def get_all(
             self,
@@ -142,7 +267,7 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             offset: Optional[int] = None,            
             **kwargs
     ) -> list[Document]:
-        return self.get(ids, where, where_document, include, limit, offset, **kwargs).to_documents()
+        return self.run_func_convert_exceptions(self._get_documents, ids, where, where_document, include, limit, offset, **kwargs)
 
     def get_document(
             self,
@@ -157,9 +282,11 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
     ) -> list[Document]:
         return self.get_all(**kwargs).to_documents()
 
+
+
 CollectionT = TypeVar("CollectionT", bound=BaseDBCollection)
 
-class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, CollectionT, WrappedT]):
+class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, CollectionT, WrappedT], ABC):
     component_type = "base_db"
     provider = "base"    
     config_class: Type[DBConfigT]    
@@ -170,50 +297,65 @@ class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, Col
     def _setup(self) -> None:
         super()._setup()
         self.collections = {}
+
+    @abstractmethod
+    def _create_collection_from_config(
+            self,
+            config: CollectionConfigT,
+            **kwargs
+    ) -> CollectionT:  
+        pass
     
-    def _create_wrapped_collection(self, config: CollectionConfigT, **collection_kwargs) -> WrappedT:
-        raise NotImplementedError("This method must be implemented by the subclass")
+    @abstractmethod
+    def _get_collection_from_config(
+            self,
+            config: CollectionConfigT,
+            **kwargs
+    ) -> CollectionT:
+        pass    
 
-    def _get_wrapped_collection(self, config: CollectionConfigT, **collection_kwargs) -> WrappedT:
-        raise NotImplementedError("This method must be implemented by the subclass")
+    @abstractmethod
+    def _list_collections(
+            self,
+            limit: Optional[int] = None,
+            offset: Optional[int] = None, # woop woop,
+            **kwargs
+    ) -> list[str]:
+        pass
+    
+    @abstractmethod
+    def _count_collections(self, **kwargs) -> int:
+        pass
 
-    def _kwargs_to_collection_config(self, **collection_kwargs)-> CollectionConfigT:
-        config = self.config.default_collection.model_copy(deep=True)
-        config.provider = self.provider
-        
-        config_fields = config.model_fields
-        for key in list(collection_kwargs.keys()):
-            if key in config_fields:
-                value = collection_kwargs.pop(key)
-                # if (value is not None) ^ (getattr(config, key) is not None):
-                if value is not None or (value is None and key in config.model_fields_set):
-                    setattr(config, key, value)
-        config.init_kwargs.update(collection_kwargs)
-        return config
-            
-    def _init_collection(
+    @abstractmethod
+    def _delete_collection(self, name: CollectionName, **kwargs) -> None:
+        pass        
+
+    
+    # Concrete Methods            
+    def init_collection_from_wrapped(
             self, 
             config: CollectionConfigT, 
             wrapped: WrappedT,
             **kwargs
     ) -> CollectionT:
-        collection = self.collection_class(config, wrapped, **kwargs)
+        collection = self.collection_class(config, wrapped=wrapped, **kwargs)
         self.collections[config.name] = collection
         return collection
-    
+
     def create_collection_from_config(
             self,
             config: CollectionConfigT,
             **kwargs
     ) -> CollectionT:  
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return self.run_func_convert_exceptions(self._create_collection_from_config, config, **kwargs)
     
     def get_collection_from_config(
             self,
             config: CollectionConfigT,
             **kwargs
     ) -> CollectionT:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return self.run_func_convert_exceptions(self._get_collection_from_config, config, **kwargs)
     
     def get_or_create_collection_from_config(
             self,
@@ -224,7 +366,20 @@ class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, Col
             return self.get_collection_from_config(config)
         except (CollectionNotFoundError, NotFoundError, BadRequestError):
             return self.create_collection_from_config(config)
+
+    def _kwargs_to_collection_config(self, **collection_kwargs)-> CollectionConfigT:
+        config = self.config.default_collection.model_copy(deep=True)
+        config.provider = self.provider
         
+        config_fields = config.model_fields
+        for key in list(collection_kwargs.keys()):
+            if key in config_fields:
+                value = collection_kwargs.pop(key)
+                if value is not None or (value is None and key in config.model_fields_set):
+                    setattr(config, key, value)
+        config.init_kwargs.update(collection_kwargs)
+        return config
+
     def create_collection(
             self,
             name: CollectionName = "default_collection",
@@ -252,13 +407,13 @@ class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, Col
             offset: Optional[int] = None, # woop woop,
             **kwargs
     ) -> list[str]:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return self.run_func_convert_exceptions(self._list_collections, limit, offset, **kwargs)
     
     def count_collections(self, **kwargs) -> int:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return self.run_func_convert_exceptions(self._count_collections, **kwargs)
 
     def delete_collection(self, name: CollectionName, **kwargs) -> None:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return self.run_func_convert_exceptions(self._delete_collection, name, **kwargs)
     
     def delete_collections(self, names: Iterable[CollectionName], **kwargs) -> None:
         for name in names:
@@ -275,6 +430,7 @@ class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, Col
             return self.get_or_create_collection(collection)
         return collection
 
+    # Collection methods
     def count(
             self, 
             collection: CollectionName | CollectionT, 
@@ -285,12 +441,12 @@ class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, Col
     def add(
             self,
             collection: CollectionName | CollectionT,
-            ids: list[str]|str,
-            metadatas: Optional[list[dict]|dict] = None,
-            texts: Optional[list[str]|str] = None,
+            ids: list[str],
+            metadatas: Optional[list[dict]] = None,
+            texts: Optional[list[str]] = None,
             **kwargs
     ) -> CollectionT:
-        return self._resolve_collection(collection).add(*as_lists(ids, metadatas, texts), **kwargs)
+        return self._resolve_collection(collection).add(ids, metadatas, texts, **kwargs)
     
     def delete(
             self, 
@@ -305,22 +461,22 @@ class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, Col
     def update(
             self,
             collection: CollectionName | CollectionT,
-            ids: list[str]|str,
-            metadatas: Optional[list[dict]|dict] = None,
-            texts: Optional[list[str]|str] = None,
+            ids: list[str],
+            metadatas: Optional[list[dict]] = None,
+            texts: Optional[list[str]] = None,
             **kwargs
     ) -> CollectionT:
-        return self._resolve_collection(collection).update(*as_lists(ids, metadatas, texts), **kwargs)
+        return self._resolve_collection(collection).update(ids, metadatas, texts, **kwargs)
     
     def upsert(
             self,
             collection: CollectionName | CollectionT,
-            ids: list[str]|str,
-            metadatas: Optional[list[dict]|dict] = None,
-            texts: Optional[list[str]|str] = None,
+            ids: list[str],
+            metadatas: Optional[list[dict]] = None,
+            texts: Optional[list[str]] = None,
             **kwargs
     ) -> CollectionT:
-        return self._resolve_collection(collection).upsert(*as_lists(ids, metadatas, texts), **kwargs)
+        return self._resolve_collection(collection).upsert(ids, metadatas, texts, **kwargs)
     
     def get(
             self,

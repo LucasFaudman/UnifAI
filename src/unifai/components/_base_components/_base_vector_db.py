@@ -1,4 +1,5 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Collection,  Callable, Iterator, Iterable, Generator, Self, Generic, TypeAlias
+from abc import ABC, abstractmethod
 
 from ._base_adapter import UnifAIAdapter
 from ._base_db import BaseDB, WrappedT
@@ -19,32 +20,36 @@ T = TypeVar("T")
 # DBConfigT = TypeVar("DBConfigT", bound=VectorDBConfig)
 CollectionT = TypeVar("CollectionT", bound=VectorDBCollection)
 
-class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, WrappedT], Generic[CollectionT, WrappedT]):
+class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, WrappedT], Generic[CollectionT, WrappedT], ABC):
     component_type = "vector_db"
     provider = "base"
     config_class = VectorDBConfig
     collection_class: Type[CollectionT]
     
-    can_get_components = True   
+    can_get_components = True
 
     def _setup(self):
         super()._setup()
         self._document_db = self._get_document_db(self.config.document_db) if self.config.document_db else None
+        
+    @abstractmethod
+    def _validate_distance_metric(self, distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]]) -> Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]:
+        pass
     
+    @abstractmethod
+    def _create_wrapped_collection(self, config: VectorDBCollectionConfig) -> WrappedT:
+        pass
+
+    @abstractmethod
+    def _get_wrapped_collection(self, config: VectorDBCollectionConfig) -> WrappedT:
+        pass   
+
+    # Concrete methods
     def _get_embedder(self, embedder: EmbedderConfig | ProviderName | tuple[ProviderName, ComponentName]) -> Embedder:
         return self._get_component("embedder", embedder)
     
     def _get_document_db(self, document_db: DocumentDBConfig | ProviderName | tuple[ProviderName, ComponentName]) -> DocumentDB:
         return self._get_component("document_db", document_db)
-    
-    def _validate_distance_metric(self, distance_metric: Optional[Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]]) -> Literal["cosine", "dotproduct",  "euclidean", "ip", "l2"]:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-    def _create_wrapped_collection(self, config: VectorDBCollectionConfig) -> WrappedT:
-        raise NotImplementedError("This method must be implemented by the subclass")
-
-    def _get_wrapped_collection(self, config: VectorDBCollectionConfig) -> WrappedT:
-        raise NotImplementedError("This method must be implemented by the subclass")   
 
     def _init_embedder(
             self, 
@@ -102,7 +107,7 @@ class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, Wra
         
         return config, document_db.get_or_create_collection(config.name)
 
-    def create_collection_from_config(
+    def _create_collection_from_config(
             self, 
             config: VectorDBCollectionConfig,
             embedder: Optional[Embedder | EmbedderConfig | ProviderName | tuple[ProviderName, ComponentName]] = None,            
@@ -112,9 +117,9 @@ class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, Wra
         config, embedder = self._init_embedder(config, embedder)
         config, document_db_collection = self._init_document_db_collection(config, document_db_collection)
         wrapped = self._create_wrapped_collection(config)
-        return self._init_collection(config, wrapped, embedder=embedder, document_db_collection=document_db_collection)
+        return self.init_collection_from_wrapped(config, wrapped, embedder=embedder, document_db_collection=document_db_collection)
     
-    def get_collection_from_config(
+    def _get_collection_from_config(
             self, 
             config: VectorDBCollectionConfig,
             embedder: Optional[Embedder | EmbedderConfig | ProviderName | tuple[ProviderName, ComponentName]] = None,            
@@ -125,7 +130,26 @@ class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, Wra
         config, embedder = self._init_embedder(config, embedder)
         config, document_db_collection = self._init_document_db_collection(config, document_db_collection)
         wrapped = self._get_wrapped_collection(config)
-        return self._init_collection(config, wrapped, embedder=embedder, document_db_collection=document_db_collection)   
+        return self.init_collection_from_wrapped(config, wrapped, embedder=embedder, document_db_collection=document_db_collection)   
+
+    # Public methods
+    # Collection Creation/Getting methods
+    def create_collection_from_config(
+            self, 
+            config: VectorDBCollectionConfig,
+            embedder: Optional[Embedder | EmbedderConfig | ProviderName | tuple[ProviderName, ComponentName]] = None,            
+            document_db_collection: Optional[DocumentDBCollection | DocumentDBCollectionConfig | DocumentDB | DocumentDBConfig | ProviderName | tuple[ProviderName, ComponentName]] = None,            
+            ) -> CollectionT:
+        
+        return self.run_func_convert_exceptions(self._create_collection_from_config, config, embedder, document_db_collection)
+
+    def get_collection_from_config(
+            self, 
+            config: VectorDBCollectionConfig,
+            embedder: Optional[Embedder | EmbedderConfig | ProviderName | tuple[ProviderName, ComponentName]] = None,            
+            document_db_collection: Optional[DocumentDBCollection | DocumentDBCollectionConfig | DocumentDB | DocumentDBConfig | ProviderName | tuple[ProviderName, ComponentName]] = None,            
+            ) -> CollectionT:
+        return self.run_func_convert_exceptions(self._get_collection_from_config, config, embedder, document_db_collection)
 
     def get_or_create_collection_from_config(
             self, 
@@ -212,42 +236,7 @@ class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, Wra
         )
         return self.get_or_create_collection_from_config(config, embedder, document_db_collection)
     
-             
-    def list_collections(
-            self,
-            limit: Optional[int] = None,
-            offset: Optional[int] = None, # woop woop,
-            **kwargs
-    ) -> list[str]:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-    def count_collections(self, **kwargs) -> int:
-        raise NotImplementedError("This method must be implemented by the subclass")
-
-    def delete_collection(self, name: CollectionName, **kwargs) -> None:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-    def delete_collections(self, names: Iterable[CollectionName], **kwargs) -> None:
-        for name in names:
-            self.delete_collection(name, **kwargs)
-
-    def delete_all_collections(self, **kwargs) -> None:
-        self.delete_collections(self.list_collections(), **kwargs)
-
-
-    # DB level collection methods
-    def _resolve_collection(self, collection: CollectionName | CollectionT) -> CollectionT:
-        if isinstance(collection, str):
-            return self.get_collection(collection)
-        return collection
-
-    def count(
-            self, 
-            collection: CollectionName | CollectionT, 
-            **kwargs
-    ) -> int:
-        return self._resolve_collection(collection).count(**kwargs)
-    
+    # Collection Modifier Methods
     def add(
             self,
             collection: CollectionName | CollectionT,
@@ -326,34 +315,7 @@ class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, Wra
               ) -> list[QueryResult]:
         return self._resolve_collection(collection).query_many(query_inputs, top_k, where, where_document, include, **kwargs)        
     
-    def add_documents(
-            self, 
-            collection: CollectionName | CollectionT,
-            documents: Iterable[Document] | Documents,
-    ) -> CollectionT:
-        return self._resolve_collection(collection).add_documents(documents)
-    
-    def delete_documents(
-            self, 
-            collection: CollectionName | CollectionT,
-            documents: Iterable[Document] | Documents,
-    ) -> CollectionT:
-        return self._resolve_collection(collection).delete_documents(documents)
-    
-    def update_documents(
-            self, 
-            collection: CollectionName | CollectionT,
-            documents: Iterable[Document] | Documents,
-    ) -> CollectionT:
-        return self._resolve_collection(collection).update_documents(documents)
-    
-    def upsert_documents(
-            self, 
-            collection: CollectionName | CollectionT,
-            documents: Iterable[Document] | Documents,
-    ) -> CollectionT:
-        return self._resolve_collection(collection).upsert_documents(documents)
-    
+    # Document Methods    
     def get_documents(
             self, 
             collection: CollectionName | CollectionT,
