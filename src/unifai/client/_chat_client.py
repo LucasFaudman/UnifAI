@@ -225,3 +225,5 @@ class UnifAIChatClient(BaseClient):
             yield from chat.run_stream()
         return chat
 
+    def list_llm_models(self, llm: ProviderName | LLMConfig | tuple[ProviderName, ComponentName] = "default") -> list[str]:
+        return self._get_llm(llm).list_models()
