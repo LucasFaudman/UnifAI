@@ -2,7 +2,8 @@ import pytest
 from typing import Optional, Literal
 
 from unifai import UnifAI
-from unifai.components.document_dbs import DocumentDB, DictDocumentDB, SQLiteDocumentDB
+from unifai.components.document_dbs.dict_doc_db import DocumentDB, DictDocumentDB
+from unifai.components.document_dbs.sqlite_doc_db import SQLiteDocumentDB
 from unifai.types import Document
 
 from unifai.exceptions import BadRequestError, NotFoundError, DocumentNotFoundError, CollectionNotFoundError

@@ -1,5 +1,5 @@
 import pytest
-from basetest import base_test_llms
+from basetest import base_test_llms, API_KEYS
 
 from unifai import UnifAI, ProviderName
 from unifai.types import Message, Tool, StringToolParameter, ToolCall
@@ -96,5 +96,5 @@ def test_api_exceptions(
     bad_chat_kwargs["messages"] = [Message(role="user", content="What are all the exceptions you can return?")] 
 
     with pytest.raises(expected_exception):
-        ai = UnifAI(api_keys=API_KEYS, provider_configs={provider: init_kwargs})
+        ai = UnifAI(api_keys=API_KEYS)
         messages = ai.chat(**bad_chat_kwargs)
