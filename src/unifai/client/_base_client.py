@@ -2,45 +2,15 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Type
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator, overload, NoReturn
 
 from pathlib import Path
-from pydantic import BaseModel, Field
 from os import getenv
 
 from ..types.annotations import ComponentType, ComponentName, ProviderName
 from ..components._import_component import import_component
+from ..components._defaults import COMPONENT_TYPES, PROVIDERS, DEFAULT_PROVIDERS
 from ..components._base_components._base_component import UnifAIComponent
 from ..configs._base_configs import ProviderConfig, ComponentConfig
 from ..configs import UnifAIConfig, COMPONENT_CONFIGS
 from ..utils import _next, combine_dicts
-
-COMPONENT_TYPES = ["chat", "document_chunker", "document_db", "document_loader", "embedder", "function", "llm", "output_parser", "ragpipe", "reranker", "tokenizer", "tool_caller", "vector_db"]
-PROVIDERS = {
-    "chat": ["default"],
-    "document_chunker": ["text_chunker", "html_chunker", "json_chunker", "semantic_chunker", "unstructured"],
-    "document_db": ["dict", "sqlite", "mongo", "firebase"],
-    "document_loader": ["csv_loader", "document_db_loader", "text_file_loader", "json_loader", "markdown_loader", "ms_office_loader", "pdf_loader", "url_loader"],
-    "embedder": ["cohere", "google", "nvidia", "ollama", "openai", "sentence_transformers"],
-    "function": ["default"],
-    "llm": ["anthropic", "cohere", "google", "ollama", "openai", "nvidia"],
-    "output_parser": ["json_parser", "pydantic_parser"],
-    "ragpipe": ["default"],
-    "reranker": ["cohere", "nvidia", "rank_bm25", "sentence_transformers"],
-    "tokenizer": ["huggingface", "str_len", "str_split", "tiktoken", "voyage"],
-    "tool_caller": ["default", "concurrent"],
-    "vector_db": ["chroma", "pinecone"],
-}
-DEFAULT_PROVIDERS = {
-    "document_chunker": "text_chunker",
-    "document_db": "dict",
-    "document_loader": "text_file_loader",
-    "embedder": "openai",
-    "llm": "openai",
-    "output_parser": "pydantic_parser",
-    "ragpipe": "default",
-    "reranker": "rank_bm25",
-    "tokenizer": "tiktoken",
-    "tool_caller": "default",
-    "vector_db": "chroma",
-}
 
 class BaseClient:
     def __init__(
