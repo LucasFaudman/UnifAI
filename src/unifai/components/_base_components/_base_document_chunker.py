@@ -49,13 +49,13 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
         super()._setup()
         self.tokenizer = None
         self.size_function_kwargs = self.config.extra_kwargs.get("size_function", {}) if self.config.extra_kwargs else {}
-        if (config_size_function := self.config.size_function) is "tokens":
+        if (config_size_function := self.config.size_function) == "tokens":
             self.tokenizer = self._get_tokenizer(self.config.tokenizer)
             self.size_function_kwargs["model"] = self.config.tokenizer_model
             self.size_function: Callable[..., int] = self.tokenizer.count_tokens
-        elif config_size_function is "characters":
+        elif config_size_function == "characters":
             self.size_function = len
-        elif config_size_function is "words":
+        elif config_size_function == "words":
             self.size_function = lambda text, **kwargs: len(text.split())
         else:
             self.size_function = config_size_function
@@ -179,7 +179,6 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
                 if i + 1 < len(_chunks) and _chunks[i] + _chunks[i + 1]:
                     yield _chunks[i] + _chunks[i + 1]
 
-
     def _recursive_split(
         self,
         text: str,
@@ -237,7 +236,6 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
         if stack:
             yield from self._merge_chunks(stack, merge_separator, chunk_size, chunk_overlap, strip_chars, **kwargs)
 
-
     def _chunk_text(
         self,
         text: str,
@@ -273,7 +271,6 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
             if separators[-1] != "":
                 separators.append("") # add empty separator to end of list so chunks are split correctly
             yield from self._recursive_split(text, separators, chunk_size, chunk_overlap, strip_chars, **kwargs)
-
     
     def _join_chunks(
             self, 
@@ -285,7 +282,6 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
         if strip_chars is not False:
             text = text.strip(strip_chars)
         return text or None
-
     
     def _merge_chunks(
             self, 
@@ -323,7 +319,6 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
 
         if (joined_chunk := self._join_chunks(stack, separator, strip_chars)) is not None:
             yield joined_chunk
-
 
     def _create_documents_from_texts_metadatas_ids(
             self,

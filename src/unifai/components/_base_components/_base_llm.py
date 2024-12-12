@@ -1,4 +1,5 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Callable, Iterator, Iterable, Generator
+from abc import ABC, abstractmethod
 
 from ._base_adapter import UnifAIAdapter
 from ._base_component import convert_exceptions, convert_exceptions_generator
@@ -6,13 +7,13 @@ from ._base_component import convert_exceptions, convert_exceptions_generator
 
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embeddings, Usage
 from ...exceptions import UnifAIError, ProviderUnsupportedFeatureError
-from ...utils import update_kwargs_with_locals
+from ...utils import update_kwargs_with_locals, combine_dicts
 
 from ...configs import LLMConfig
 
 T = TypeVar("T")
 
-class LLM(UnifAIAdapter[LLMConfig]):
+class LLM(UnifAIAdapter[LLMConfig], ABC):
     component_type = "llm"
     provider = "base"    
     config_class = LLMConfig
@@ -21,12 +22,12 @@ class LLM(UnifAIAdapter[LLMConfig]):
     
     _system_prompt_input_type: Literal["first_message", "kwarg"] = "first_message"
 
-    # List Models
-    def list_models(self) -> list[str]:
-        raise NotImplementedError("This method must be implemented by the subclass")    
-    
+    # Abstract Methods
+    @abstractmethod
+    def _list_models(self) -> list[str]:
+        ...
 
-    # Chat
+    @abstractmethod
     def _get_chat_response(
             self,
             stream: bool,
@@ -46,7 +47,87 @@ class LLM(UnifAIAdapter[LLMConfig]):
             top_p: Optional[float] = None, 
             **kwargs
             ) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        ...
+
+    # Convert Objects from UnifAI to LLM format
+        # Messages
+    @abstractmethod
+    def format_user_message(self, message: Message) -> Any:
+        ...
+
+    @abstractmethod
+    def format_assistant_message(self, message: Message) -> Any:
+        ...    
+        
+    @abstractmethod        
+    def format_tool_message(self, message: Message) -> Any:
+        ...
+    
+    def split_tool_message(self, message: Message) -> Iterator[Message]:     
+        # Not abstract but here since common to subclass but can default to just yielding as is
+        yield message
+
+    @abstractmethod
+    def format_system_message(self, message: Message) -> Any:
+        ...
+    
+        # Images
+    @abstractmethod        
+    def format_image(self, image: Image) -> Any:
+        ...    
+    
+        # Tools        
+    @abstractmethod        
+    def format_tool(self, tool: Tool) -> Any:
+        ...
+        
+    @abstractmethod        
+    def format_tool_choice(self, tool_choice: str) -> Any:
+        ...    
+
+        # Response Format
+    @abstractmethod        
+    def format_response_format(self, response_format: Union[str, dict]) -> Any:
+        ...
+
+
+    # Convert Objects from LLM to UnifAI format    
+        # Images
+    @abstractmethod        
+    def parse_image(self, response_image: Any, **kwargs) -> Image:
+        ...
+
+        # Tool Calls
+    @abstractmethod        
+    def parse_tool_call(self, response_tool_call: Any, **kwargs) -> ToolCall:
+        ...
+    
+        # Response Info (Model, Usage, Done Reason, etc.)
+    @abstractmethod        
+    def parse_done_reason(self, response_obj: Any, **kwargs) -> str|None:
+        ...
+    
+    @abstractmethod    
+    def parse_usage(self, response_obj: Any, **kwargs) -> Usage|None:
+        ...
+    
+    @abstractmethod    
+    def parse_response_info(self, response: Any, **kwargs) -> ResponseInfo:
+        ...
+    
+        # Assistant Messages (Content, Images, Tool Calls, Response Info)
+    @abstractmethod        
+    def parse_message(self, response: Any, **kwargs) -> tuple[Message, Any]:
+        ...     
+    
+    @abstractmethod    
+    def parse_stream(self, response: Any, **kwargs) -> Generator[MessageChunk, None, tuple[Message, Any]]:
+        ...
+
+
+    # Concrete Methods
+    def list_models(self) -> list[str]:
+        return self._run_func(self._list_models)
 
     def chat(
             self,
@@ -66,18 +147,12 @@ class LLM(UnifAIAdapter[LLMConfig]):
             top_p: Optional[float] = None, 
             **kwargs
             ) -> tuple[Message, T]:
-
-        update_kwargs_with_locals(kwargs, locals())
         kwargs["stream"] = False
-        
-        response = self.run_func_convert_exceptions(
-            func=self._get_chat_response, 
-            **kwargs
-        )
+        update_kwargs_with_locals(kwargs, locals())
+        response = self._run_func(self._get_chat_response, **kwargs)
         unifai_message, client_message = self.parse_message(response, **kwargs)
         return unifai_message, client_message
     
-
     def chat_stream(
             self,
             messages: list[T],     
@@ -96,24 +171,12 @@ class LLM(UnifAIAdapter[LLMConfig]):
             top_p: Optional[float] = None, 
             **kwargs
             ) -> Generator[MessageChunk, None, tuple[Message, T]]:
-        
+        kwargs["stream"] = True        
         update_kwargs_with_locals(kwargs, locals())
-        kwargs["stream"] = True
-
-        response = self.run_func_convert_exceptions(
-            func=self._get_chat_response, 
-            **kwargs
-        )
-        unifai_message, client_message = yield from self.run_func_convert_exceptions_generator(
-            func=self.parse_stream,
-            response=response,
-            **kwargs
-        )       
+        response = self._run_func(self._get_chat_response, **kwargs)
+        unifai_message, client_message = yield from self._run_generator(self.parse_stream, response, **kwargs)
         return unifai_message, client_message
 
-
-    # Convert Objects from UnifAI to AI Provider format        
-        # Messages
     def format_message(self, message: Message) -> Any:
         if message.role == "user":
             return self.format_user_message(message)
@@ -132,70 +195,3 @@ class LLM(UnifAIAdapter[LLMConfig]):
                 yield from map(self.format_message, self.split_tool_message(message))
             else:
                 yield self.format_message(message)
-
-    def format_user_message(self, message: Message) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")
-
-    def format_assistant_message(self, message: Message) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")    
-        
-    def format_tool_message(self, message: Message) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-    def split_tool_message(self, message: Message) -> Iterator[Message]:     
-        yield message
-
-    def format_system_message(self, message: Message) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-
-        # Images
-    def format_image(self, image: Image) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")    
-    
-
-        # Tools        
-    def format_tool(self, tool: Tool) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")
-        
-    def format_tool_choice(self, tool_choice: str) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")    
-
-
-        # Response Format
-    def format_response_format(self, response_format: Union[str, dict]) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")
-
-
-    # Convert Objects from AI Provider to UnifAI format    
-        # Images
-    def parse_image(self, response_image: Any, **kwargs) -> Image:
-        raise NotImplementedError("This method must be implemented by the subclass")
-
-
-        # Tool Calls
-    def parse_tool_call(self, response_tool_call: Any, **kwargs) -> ToolCall:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-
-        # Response Info (Model, Usage, Done Reason, etc.)    
-    def parse_done_reason(self, response_obj: Any, **kwargs) -> str|None:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-    def parse_usage(self, response_obj: Any, **kwargs) -> Usage|None:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-    def parse_response_info(self, response: Any, **kwargs) -> ResponseInfo:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
-
-        # Assistant Messages (Content, Images, Tool Calls, Response Info)
-    def parse_message(self, response: Any, **kwargs) -> tuple[Message, Any]:
-        raise NotImplementedError("This method must be implemented by the subclass")     
-    
-    def parse_stream(self, response: Any, **kwargs) -> Generator[MessageChunk, None, tuple[Message, Any]]:
-        raise NotImplementedError("This method must be implemented by the subclass")
-
-
-    
-     

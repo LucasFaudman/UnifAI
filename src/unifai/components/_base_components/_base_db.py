@@ -1,5 +1,5 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Collection,  Callable, Iterator, Iterable, Generator, Self, Generic, TypeAlias
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from ._base_component import UnifAIComponent
 from ._base_adapter import UnifAIAdapter
@@ -17,7 +17,7 @@ DBConfigT = TypeVar("DBConfigT", bound=BaseDBConfig)
 CollectionConfigT = TypeVar("CollectionConfigT", bound=BaseDBCollectionConfig)
 WrappedT = TypeVar("WrappedT")
 
-class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionConfigT, WrappedT], ABC):
+class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionConfigT, WrappedT]):
     component_type = "base_db_collection"
     provider = "base"
     config_class: Type[CollectionConfigT]
@@ -25,8 +25,9 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
     wrapped_type: Type[WrappedT]
     
     _document_attrs = ("id", "metadata", "text")
-    _is_abstract = True
+    _is_abstract = True    
     _abstract_methods = ("_add", "_update", "_upsert", "_delete", "_get")
+    _abstract_method_suffixes = ("_documents",)
 
     def _setup(self) -> None:
         self.wrapped: WrappedT = self.init_kwargs.pop("wrapped", None)
@@ -34,17 +35,6 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             raise ValueError(f"No wrapped {self.wrapped_type.__name__} provided")
         self.response_infos = []
     
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        if getattr(cls, "_is_abstract", False):
-            return
-        for method in (cls._abstract_methods):
-            if (
-                getattr(cls, method) is getattr(BaseDBCollection, method) # lists form not implemented
-                and getattr(cls, f"{method}_documents") is getattr(BaseDBCollection, f"{method}_documents") # documents form not implemented
-            ):
-                raise NotImplementedError(f"Can't instantiate abstract class {cls.__name__} with neither '{method}' nor '{method}_documents' implemented")
-
     @staticmethod
     def check_filters(
             where: Optional[dict] = None,
@@ -162,10 +152,10 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
 
     ## Concrete methods
     def count(self, **kwargs) -> int:
-        return self.run_func_convert_exceptions(self._count, **kwargs)
+        return self._run_func(self._count, **kwargs)
     
     def list_ids(self, **kwargs) -> list[str]:
-        return self.run_func_convert_exceptions(self._list_ids, **kwargs)
+        return self._run_func(self._list_ids, **kwargs)
     
     def add(
             self,
@@ -174,14 +164,14 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             texts: Optional[list[str]] = None,
             **kwargs
             ) -> Self:
-        return self.run_func_convert_exceptions(self._add, ids, metadatas, texts, **kwargs)
+        return self._run_func(self._add, ids, metadatas, texts, **kwargs)
         
     def add_documents(
             self,
             documents: Iterable[Document] | Documents,
             **kwargs
             ) -> Self:            
-        return self.run_func_convert_exceptions(self._add_documents, documents, **kwargs)
+        return self._run_func(self._add_documents, documents, **kwargs)
 
     def update(
             self,
@@ -190,14 +180,14 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             texts: Optional[list[str]] = None,
             **kwargs
                 ) -> Self:
-        return self.run_func_convert_exceptions(self._update, ids, metadatas, texts, **kwargs)
+        return self._run_func(self._update, ids, metadatas, texts, **kwargs)
     
     def update_documents(
             self,
             documents: Iterable[Document] | Documents,
             **kwargs
                 ) -> Self:
-        return self.run_func_convert_exceptions(self._update_documents, documents, **kwargs)
+        return self._run_func(self._update_documents, documents, **kwargs)
                  
     def upsert(
             self,
@@ -207,14 +197,14 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             **kwargs
                 ) -> Self:
         
-        return self.run_func_convert_exceptions(self._upsert, ids, metadatas, texts, **kwargs)
+        return self._run_func(self._upsert, ids, metadatas, texts, **kwargs)
     
     def upsert_documents(
             self,
             documents: Iterable[Document] | Documents,
             **kwargs
                 ) -> Self:                
-        return self.run_func_convert_exceptions(self._upsert_documents, documents, **kwargs)
+        return self._run_func(self._upsert_documents, documents, **kwargs)
   
     def delete(
             self, 
@@ -223,7 +213,7 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             where_document: Optional[dict] = None,
             **kwargs
                ) -> Self:
-        return self.run_func_convert_exceptions(self._delete, ids, where, where_document, **kwargs)
+        return self._run_func(self._delete, ids, where, where_document, **kwargs)
     
     def delete_all(self, **kwargs) -> Self:
         kwargs["ids"] = kwargs.pop("ids", None) or self.list_ids()
@@ -236,7 +226,7 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             where_document: Optional[dict] = None,
             **kwargs
                 ) -> Self:    
-        return self.run_func_convert_exceptions(self._delete_documents, documents, where, where_document, **kwargs)
+        return self._run_func(self._delete_documents, documents, where, where_document, **kwargs)
     
     def get(
             self,
@@ -248,7 +238,7 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             offset: Optional[int] = None,            
             **kwargs
             ) -> GetResult:
-        return self.run_func_convert_exceptions(self._get, ids, where, where_document, include, limit, offset, **kwargs)
+        return self._run_func(self._get, ids, where, where_document, include, limit, offset, **kwargs)
     
     def get_all(
             self,
@@ -267,7 +257,7 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             offset: Optional[int] = None,            
             **kwargs
     ) -> list[Document]:
-        return self.run_func_convert_exceptions(self._get_documents, ids, where, where_document, include, limit, offset, **kwargs)
+        return self._run_func(self._get_documents, ids, where, where_document, include, limit, offset, **kwargs)
 
     def get_document(
             self,
@@ -286,7 +276,7 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
 
 CollectionT = TypeVar("CollectionT", bound=BaseDBCollection)
 
-class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, CollectionT, WrappedT], ABC):
+class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, CollectionT, WrappedT]):
     component_type = "base_db"
     provider = "base"    
     config_class: Type[DBConfigT]    
@@ -348,14 +338,14 @@ class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, Col
             config: CollectionConfigT,
             **kwargs
     ) -> CollectionT:  
-        return self.run_func_convert_exceptions(self._create_collection_from_config, config, **kwargs)
+        return self._run_func(self._create_collection_from_config, config, **kwargs)
     
     def get_collection_from_config(
             self,
             config: CollectionConfigT,
             **kwargs
     ) -> CollectionT:
-        return self.run_func_convert_exceptions(self._get_collection_from_config, config, **kwargs)
+        return self._run_func(self._get_collection_from_config, config, **kwargs)
     
     def get_or_create_collection_from_config(
             self,
@@ -407,13 +397,13 @@ class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, Col
             offset: Optional[int] = None, # woop woop,
             **kwargs
     ) -> list[str]:
-        return self.run_func_convert_exceptions(self._list_collections, limit, offset, **kwargs)
+        return self._run_func(self._list_collections, limit, offset, **kwargs)
     
     def count_collections(self, **kwargs) -> int:
-        return self.run_func_convert_exceptions(self._count_collections, **kwargs)
+        return self._run_func(self._count_collections, **kwargs)
 
     def delete_collection(self, name: CollectionName, **kwargs) -> None:
-        return self.run_func_convert_exceptions(self._delete_collection, name, **kwargs)
+        return self._run_func(self._delete_collection, name, **kwargs)
     
     def delete_collections(self, names: Iterable[CollectionName], **kwargs) -> None:
         for name in names:

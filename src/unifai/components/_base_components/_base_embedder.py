@@ -1,4 +1,5 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Callable, Iterator, Iterable, Generator
+from abc import abstractmethod
 
 from ._base_adapter import UnifAIAdapter
 
@@ -8,6 +9,7 @@ from ...utils import chunk_iterable
 from ...configs.embedder_config import EmbedderConfig
 
 T = TypeVar("T")
+
 class Embedder(UnifAIAdapter[EmbedderConfig]):   
     component_type = "embedder"
     provider = "base"    
@@ -20,9 +22,8 @@ class Embedder(UnifAIAdapter[EmbedderConfig]):
     default_embedding_dimensions = 768
     default_model_max_tokens = 2048
 
-    # def __init__(self, config: Optional[EmbedderConfig] = None, **init_kwargs):
-    #     super().__init__(config, **init_kwargs)
-
+    # Abstract Methods
+    @abstractmethod
     def _get_embed_response(
             self,            
             input: list[str],
@@ -41,20 +42,21 @@ class Embedder(UnifAIAdapter[EmbedderConfig]):
             truncate: Literal[False, "end", "start"] = False,                  
             **kwargs
             ) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        ...
     
-
+    @abstractmethod
     def _extract_embeddings(
             self,            
             response: Any,
             model: str,
             **kwargs
             ) -> Embeddings:
-        raise NotImplementedError("This method must be implemented by the subclass")    
+        ...
 
-    # List Models
+
+    # Concrete Methods
     def list_models(self) -> list[str]:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        return list(self.model_embedding_dimensions.keys())
     
     @property
     def default_model(self) -> str:
@@ -169,7 +171,7 @@ class Embedder(UnifAIAdapter[EmbedderConfig]):
         if self.config.extra_kwargs and (extra_kwargs := self.config.extra_kwargs.get("embed")):
             kwargs.update(extra_kwargs)
 
-        response = self.run_func_convert_exceptions(
+        response = self._run_func(
             func=self._get_embed_response,
             **kwargs
         )
@@ -242,5 +244,3 @@ class Embedder(UnifAIAdapter[EmbedderConfig]):
         return Documents.from_generator(self.iembed_documents(
             documents, model, dimensions, task_type, truncate, reduce_dimensions, use_closest_supported_task_type, batch_size, **kwargs
         ))
-
-

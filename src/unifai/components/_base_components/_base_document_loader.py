@@ -1,5 +1,5 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Iterable,  Callable, Iterator, Iterable, Generator, Self, IO
-from pathlib import Path
+from abc import abstractmethod
 
 from ._base_component import UnifAIComponent
 from ...utils import stringify_content, sha256_hash, clean_text, _next
@@ -53,12 +53,14 @@ class DocumentLoader(UnifAIComponent[DocumentLoaderConfig], Generic[SourceT, Loa
             self._mimetype_func = self.get_mimetype_with_magic
         else:
             self._mimetype_func = self.config.mimetype_func                
-            
-    def _load_source(self, source: SourceT, *args, **kwargs) -> LoadedSourceT:
-        raise NotImplementedError("This method must be implemented by the subclass")
     
+    @abstractmethod            
+    def _load_source(self, source: SourceT, *args, **kwargs) -> LoadedSourceT:
+        ...
+    
+    @abstractmethod    
     def _load_metadata(self, source: SourceT, loaded_source: LoadedSourceT, metadata: SourceT|dict|None, *args, **kwargs) -> dict|None:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        ...
 
     def _add_to_metadata(self, source: SourceT, loaded_source: LoadedSourceT, loaded_metadata: dict, *args, **kwargs) -> dict:
         if not (add_to_metadata := self.config.add_to_metadata):
@@ -78,7 +80,7 @@ class DocumentLoader(UnifAIComponent[DocumentLoaderConfig], Generic[SourceT, Loa
     
     def _load_document(self, source: SourceT, metadata: SourceT|dict|None, *args, **kwargs) -> Document|None|Exception:
         loaded_source = load_source_exception = None
-        for i in range(max(self.config.error_retries["source_load_error"] + 1, 1)):
+        for _ in range(max(self.config.error_retries["source_load_error"] + 1, 1)):
             try:
                 loaded_source = self._load_source(source, *args, **kwargs)
                 load_source_exception = None
@@ -96,7 +98,7 @@ class DocumentLoader(UnifAIComponent[DocumentLoaderConfig], Generic[SourceT, Loa
         
 
         loaded_metadata = load_metadata_exception = None
-        for i in range(max(self.config.error_retries["metadata_load_error"] + 1, 1)):
+        for _ in range(max(self.config.error_retries["metadata_load_error"] + 1, 1)):
             try:
                 loaded_metadata = self._load_metadata(source, loaded_source, metadata, *args, **kwargs)
                 if self.config.add_to_metadata:
@@ -115,7 +117,7 @@ class DocumentLoader(UnifAIComponent[DocumentLoaderConfig], Generic[SourceT, Loa
                 return load_metadata_exception
                 
         processor_exception = None
-        for i in range(max(self.config.error_retries["processor_error"] + 1, 1)):
+        for _ in range(max(self.config.error_retries["processor_error"] + 1, 1)):
             try:
                 processed_text = self._process_text(source, loaded_source, loaded_metadata, *args, **kwargs)
                 final_text = clean_text(processed_text, self.config.replacements, self.config.strip_chars)                

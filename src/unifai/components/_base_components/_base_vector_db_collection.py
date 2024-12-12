@@ -1,5 +1,5 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Collection,  Callable, Iterator, Iterable, Generator, Self, Generic
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from itertools import zip_longest
 
@@ -18,7 +18,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
 
     _document_attrs = ("ids", "metadatas", "texts", "embeddings")
     _is_abstract = True
-    _abstract_methods = ("_add", "_update", "_upsert", "_delete", "_get", "_query")    
+    _abstract_methods = ("_add", "_update", "_upsert", "_delete", "_get", "_query")
 
     def _setup(self) -> None:
         super()._setup()
@@ -75,7 +75,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
         raise ValueError(f"Invalid input type {type(inputs)}")
 
     # Abstract methods (One of _<method> or _<method>_documents must be implemented by the subclass)
-    # see BaseDBCollection.__init_subclass__ 
+    # see AbstractBaseComponent.__init_subclass__ for more details
     
     # Abstract methods from BaseDBCollection:
     # def _count(self, **kwargs) -> int:
@@ -231,7 +231,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             update_document_db: bool = True,
             **kwargs
             ) -> Self:
-        return self.run_func_convert_exceptions(self._add, ids, metadatas, texts, embeddings, update_document_db, **kwargs)
+        return self._run_func(self._add, ids, metadatas, texts, embeddings, update_document_db, **kwargs)
         
     def add_documents(
             self,
@@ -239,7 +239,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             update_document_db: bool = True,
             **kwargs
             ) -> Self:
-        return self.run_func_convert_exceptions(self._add_documents, documents, update_document_db, **kwargs)
+        return self._run_func(self._add_documents, documents, update_document_db, **kwargs)
 
     def update(
             self,
@@ -250,7 +250,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             update_document_db: bool = True,
             **kwargs
                 ) -> Self:
-        return self.run_func_convert_exceptions(self._update, ids, metadatas, texts, embeddings, update_document_db, **kwargs)
+        return self._run_func(self._update, ids, metadatas, texts, embeddings, update_document_db, **kwargs)
     
     def update_documents(
             self,
@@ -258,7 +258,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             update_document_db: bool = True,            
             **kwargs
                 ) -> Self:
-        return self.run_func_convert_exceptions(self._update_documents, documents, update_document_db, **kwargs)
+        return self._run_func(self._update_documents, documents, update_document_db, **kwargs)
                  
     def upsert(
             self,
@@ -269,7 +269,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             update_document_db: bool = True,
             **kwargs
                 ) -> Self:
-        return self.run_func_convert_exceptions(self._upsert, ids, metadatas, texts, embeddings, update_document_db, **kwargs)
+        return self._run_func(self._upsert, ids, metadatas, texts, embeddings, update_document_db, **kwargs)
     
     def upsert_documents(
             self,
@@ -277,7 +277,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             update_document_db: bool = True,
             **kwargs
                 ) -> Self:
-        return self.run_func_convert_exceptions(self._upsert_documents, documents, update_document_db, **kwargs)
+        return self._run_func(self._upsert_documents, documents, update_document_db, **kwargs)
     
     def delete(
             self, 
@@ -287,7 +287,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             update_document_db: bool = True,
             **kwargs
                ) -> Self:
-        return self.run_func_convert_exceptions(self._delete, ids, where, where_document, update_document_db, **kwargs)
+        return self._run_func(self._delete, ids, where, where_document, update_document_db, **kwargs)
 
     def delete_documents(
             self,
@@ -297,7 +297,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             update_document_db: bool = True,
             **kwargs
                 ) -> Self:    
-        return self.run_func_convert_exceptions(self._delete_documents, documents, where, where_document, update_document_db, **kwargs)
+        return self._run_func(self._delete_documents, documents, where, where_document, update_document_db, **kwargs)
     
     def get(
             self,
@@ -309,7 +309,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             offset: Optional[int] = None,            
             **kwargs
             ) -> GetResult:
-        return self.run_func_convert_exceptions(self._get, ids, where, where_document, include, limit, offset, **kwargs)
+        return self._run_func(self._get, ids, where, where_document, include, limit, offset, **kwargs)
     
     def get_documents(
             self,
@@ -321,7 +321,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             offset: Optional[int] = None,            
             **kwargs
     ) -> list[Document]:
-        return self.run_func_convert_exceptions(self._get_documents, ids, where, where_document, include, limit, offset, **kwargs)
+        return self._run_func(self._get_documents, ids, where, where_document, include, limit, offset, **kwargs)
 
     def query(
             self,              
@@ -332,7 +332,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             include: list[Literal["metadatas", "texts", "embeddings", "distances"]] = ["metadatas", "texts", "embeddings", "distances"],
             **kwargs
               ) -> QueryResult:        
-        return self.run_func_convert_exceptions(self._query, query_input, top_k, where, where_document, include, **kwargs)
+        return self._run_func(self._query, query_input, top_k, where, where_document, include, **kwargs)
     
     def query_documents(
             self,              
@@ -343,7 +343,7 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             include: list[Literal["metadatas", "texts", "embeddings", "distances"]] = ["metadatas", "texts", "embeddings", "distances"],
             **kwargs
               ) -> list[RankedDocument]:        
-        return self.query(query_input, top_k, where, where_document, include, **kwargs).to_documents()
+        return self._run_func(self._query_documents, query_input, top_k, where, where_document, include, **kwargs)
 
     def query_many(
             self,              
@@ -354,4 +354,4 @@ class VectorDBCollection(BaseDBCollection[VectorDBCollectionConfig, WrappedT], G
             include: list[Literal["metadatas", "texts", "embeddings", "distances"]] = ["metadatas", "texts", "embeddings", "distances"],
             **kwargs
               ) -> list[QueryResult]:        
-        return self.run_func_convert_exceptions(self._query_many, query_inputs, top_k, where, where_document, include, **kwargs)
+        return self._run_func(self._query_many, query_inputs, top_k, where, where_document, include, **kwargs)

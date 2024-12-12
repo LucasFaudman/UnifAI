@@ -9,16 +9,16 @@ from ...utils import combine_dicts
 from ...configs._base_configs import ComponentConfig
 
 class UnifAIAdapter(UnifAIComponent[ConfigT]):
+
     def _setup(self) -> None:
         self._client = None
-    
+
     def import_client(self) -> Callable:
-        raise NotImplementedError("This method must be implemented by the subclass")
-    
+        raise NotImplementedError("This method must be implemented by the subclass")    
+            
     def init_client(self, **init_kwargs) -> Any:
         if init_kwargs:
             self.init_kwargs.update(init_kwargs)
-
         # TODO: ClientInitError
         self._client = self.import_client()(**self.init_kwargs)
         return self._client    

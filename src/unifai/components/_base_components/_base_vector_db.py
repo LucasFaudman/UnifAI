@@ -1,5 +1,5 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Collection,  Callable, Iterator, Iterable, Generator, Self, Generic, TypeAlias
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from ._base_adapter import UnifAIAdapter
 from ._base_db import BaseDB, WrappedT
@@ -20,7 +20,7 @@ T = TypeVar("T")
 # DBConfigT = TypeVar("DBConfigT", bound=VectorDBConfig)
 CollectionT = TypeVar("CollectionT", bound=VectorDBCollection)
 
-class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, WrappedT], Generic[CollectionT, WrappedT], ABC):
+class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, WrappedT], Generic[CollectionT, WrappedT]):
     component_type = "vector_db"
     provider = "base"
     config_class = VectorDBConfig
@@ -65,6 +65,7 @@ class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, Wra
         embedding_model = config.embedding_model or embedder.default_model
         
         if config.dimensions is None:
+            # Use the dimensions of the embedding model if not specified
             config.dimensions = embedder.get_model_dimensions(embedding_model)
         else:
             # Raise an error if the specified dimensions are too large for the model
@@ -88,6 +89,7 @@ class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, Wra
             return config, _default_document_db_collection
     
         if isinstance(document_db_collection, DocumentDBCollection):
+            # If a DocumentDBCollection instance is passed, use it as is
             return config, document_db_collection
         if isinstance(document_db_collection, DocumentDBCollectionConfig):
             document_db = self._document_db or self._get_document_db(document_db_collection.provider)
@@ -96,7 +98,7 @@ class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, Wra
         
         if isinstance(document_db_collection, DocumentDB):
             # Arg passed is a DocumentDB instance not DocumentDBCollection 
-            # so get or create a collection with the same name as the vector DB collection from the DocumentDB
+            # so get or create a collection with the same name as the VectorDBCollection from the DocumentDB
             document_db = document_db_collection 
         elif isinstance(document_db_collection, DocumentDBConfig):
             # Same as above but with a DocumentDBConfig
@@ -105,6 +107,7 @@ class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, Wra
             # Same as above but with a provider name or tuple or (provider name, component name)
             document_db = self._get_document_db(document_db_collection)
         
+        # DocumentDBCollection is not specified so use VectorDBCollection name
         return config, document_db.get_or_create_collection(config.name)
 
     def _create_collection_from_config(
@@ -139,9 +142,8 @@ class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, Wra
             config: VectorDBCollectionConfig,
             embedder: Optional[Embedder | EmbedderConfig | ProviderName | tuple[ProviderName, ComponentName]] = None,            
             document_db_collection: Optional[DocumentDBCollection | DocumentDBCollectionConfig | DocumentDB | DocumentDBConfig | ProviderName | tuple[ProviderName, ComponentName]] = None,            
-            ) -> CollectionT:
-        
-        return self.run_func_convert_exceptions(self._create_collection_from_config, config, embedder, document_db_collection)
+            ) -> CollectionT:        
+        return self._run_func(self._create_collection_from_config, config, embedder, document_db_collection)
 
     def get_collection_from_config(
             self, 
@@ -149,7 +151,7 @@ class VectorDB(BaseDB[VectorDBConfig, VectorDBCollectionConfig, CollectionT, Wra
             embedder: Optional[Embedder | EmbedderConfig | ProviderName | tuple[ProviderName, ComponentName]] = None,            
             document_db_collection: Optional[DocumentDBCollection | DocumentDBCollectionConfig | DocumentDB | DocumentDBConfig | ProviderName | tuple[ProviderName, ComponentName]] = None,            
             ) -> CollectionT:
-        return self.run_func_convert_exceptions(self._get_collection_from_config, config, embedder, document_db_collection)
+        return self._run_func(self._get_collection_from_config, config, embedder, document_db_collection)
 
     def get_or_create_collection_from_config(
             self, 

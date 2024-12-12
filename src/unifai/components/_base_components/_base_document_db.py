@@ -8,7 +8,10 @@ class DocumentDBCollection(BaseDBCollection[DocumentDBCollectionConfig, WrappedT
     component_type = "document_db_collection"
     provider = "base"    
     config_class = DocumentDBCollectionConfig
-    _is_abstract = True
+
+    _is_abstract = True    
+    _abstract_methods = ("_add", "_update", "_upsert", "_delete", "_get")
+    _abstract_method_suffixes = ("_documents",)
     
 CollectionT = TypeVar("CollectionT", bound=DocumentDBCollection)
 
@@ -17,4 +20,3 @@ class DocumentDB(BaseDB[DocumentDBConfig, DocumentDBCollectionConfig, Collection
     provider = "base"    
     config_class = DocumentDBConfig
     collection_class: Type[CollectionT]
-    _is_abstract = True

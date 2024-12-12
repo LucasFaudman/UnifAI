@@ -1,4 +1,5 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Collection,  Callable, Iterator, Iterable, Generator, Self
+from abc import abstractmethod
 
 from ._base_adapter import UnifAIAdapter, UnifAIComponent
 
@@ -16,10 +17,8 @@ class Reranker(UnifAIAdapter[RerankerConfig]):
 
     default_reranking_model = "rerank-english-v3.0"
 
-    # List Models
-    def list_models(self) -> list[str]:
-        raise NotImplementedError("This method must be implemented by the subclass")     
-
+    # Abstract Methods
+    @abstractmethod
     def _get_rerank_response(
         self,
         query: str,
@@ -28,7 +27,7 @@ class Reranker(UnifAIAdapter[RerankerConfig]):
         top_n: Optional[int] = None,               
         **kwargs
         ) -> Any:
-        raise NotImplementedError("This method must be implemented by the subclass")
+        ...
 
     def _extract_similarity_scores(
         self,
@@ -36,6 +35,18 @@ class Reranker(UnifAIAdapter[RerankerConfig]):
         **kwargs
         ) -> list[float]:
         return response       
+
+    def _list_models(self) -> list[str]:
+        return [self.default_reranking_model]
+    
+
+    # Concrete Methods
+    def list_models(self) -> list[str]:
+        return self._run_func(self._list_models)
+    
+    @property
+    def default_model(self) -> str:
+        return self.config.default_model or self.default_reranking_model
 
     def rerank(
         self, 
@@ -47,11 +58,11 @@ class Reranker(UnifAIAdapter[RerankerConfig]):
         **reranker_kwargs
         ) -> RerankedQueryResult:
         
-        rerank_response = self.run_func_convert_exceptions(
-            func=self._get_rerank_response,
+        rerank_response = self._run_func(
+            self._get_rerank_response,
             query=query,
             query_result=query_result,
-            model=model or self.default_reranking_model,
+            model=model or self.default_model,
             top_n=top_n,
             **reranker_kwargs
         )
@@ -62,73 +73,3 @@ class Reranker(UnifAIAdapter[RerankerConfig]):
         if top_n is not None:
             reranked_query_result.reduce_to_top_n(top_n)
         return reranked_query_result
-
-
-
-
-    # def _extract_reranked_order_and_similarity_scores(
-    #     self,
-    #     response: Any,
-    #     top_n: Optional[int] = None,
-    #     **kwargs
-    #     ) -> tuple[list[int], list[float]]:
-    #     raise NotImplementedError("This method must be implemented by the subclass")        
-        
-    # def _extract_reranked_order(
-    #     self,
-    #     response: Any,
-    #     top_n: Optional[int] = None,
-    #     **kwargs
-    #     ) -> list[int]:
-    #     raise NotImplementedError("This method must be implemented by the subclass")    
-
-    # def _extract_similarity_scores(
-    #     self,
-    #     response: Any,
-    #     top_n: Optional[int] = None,
-    #     **kwargs
-    #     ) -> list[float]:
-    #     raise NotImplementedError("This method must be implemented by the subclass")  
-
-    # def rerank(
-    #     self, 
-    #     query: str, 
-    #     query_result: QueryResult,
-    #     model: Optional[str] = None,
-    #     top_n: Optional[int] = None,
-    #     **reranker_kwargs
-    #     ) -> QueryResult:
-        
-    #     rerank_response = self.run_func_convert_exceptions(
-    #         func=self._get_rerank_response,
-    #         query=query,
-    #         query_result=query_result,
-    #         model=model or self.default_reranking_model,
-    #         top_n=top_n,
-    #         **reranker_kwargs
-    #     )
-    #     reranked_order = self._extract_reranked_order(rerank_response)
-    #     query_result.rerank(reranked_order)
-    #     if top_n is not None:
-    #         query_result.reduce_to_top_n(top_n)
-    #     return query_result
-
-
-    # def _get_rerank_response(
-    #     self,
-    #     query: str,
-    #     query_result: QueryResult,
-    #     model: str,
-    #     top_n: Optional[int] = None,               
-    #     **kwargs
-    #     ) -> Any:
-    #     raise NotImplementedError("This method must be implemented by the subclass")
-        
-
-    # def _extract_reranked_order(
-    #     self,
-    #     response: Any,
-    #     top_n: Optional[int] = None,
-    #     **kwargs
-    #     ) -> list[int]:
-    #     raise NotImplementedError("This method must be implemented by the subclass")    
