@@ -63,7 +63,7 @@ from ...utils import stringify_content
 from ..adapters.anthropic_adapter import AnthropicAdapter
 from .._base_components._base_llm import LLM
     
-class AnthropicLLM(AnthropicAdapter, LLM):
+class AnthropicLLM(LLM, AnthropicAdapter):
     default_model = "claude-3-5-sonnet-20240620"
 
     _system_prompt_input_type = "kwarg"

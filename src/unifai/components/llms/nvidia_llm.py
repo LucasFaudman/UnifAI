@@ -10,7 +10,7 @@ from unifai.types import Message, Image, Tool
 from ..adapters.nvidia_adapter import NvidiaAdapter, TempBaseURL
 from .openai_llm import OpenAILLM
 
-
+# Adapter before OpenAILLM to override OpenAILLM methods
 class NvidiaLLM(NvidiaAdapter, OpenAILLM):
     provider = "nvidia"
     default_model = "meta/llama-3.1-405b-instruct"

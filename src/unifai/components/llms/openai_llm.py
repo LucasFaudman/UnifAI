@@ -15,7 +15,7 @@ from ...utils import stringify_content
 from ..adapters.openai_adapter import OpenAIAdapter
 from .._base_components._base_llm import LLM
 
-class OpenAILLM(OpenAIAdapter, LLM):
+class OpenAILLM(LLM, OpenAIAdapter):
     provider = "openai"
     default_model = "gpt-4o"
 

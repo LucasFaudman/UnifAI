@@ -67,7 +67,7 @@ from ..adapters.google_adapter import GoogleAdapter
 from .._base_components._base_llm import LLM
 from ...utils import generate_random_id
 
-class GoogleLLM(GoogleAdapter, LLM):
+class GoogleLLM(LLM, GoogleAdapter):
     provider = "google"
     default_model = "gemini-1.5-flash-latest"
 

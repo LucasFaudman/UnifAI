@@ -6,7 +6,7 @@ from ..adapters.cohere_adapter import CohereAdapter
 from .._base_components._base_reranker import Reranker
 
 
-class CohereReranker(CohereAdapter, Reranker):
+class CohereReranker(Reranker, CohereAdapter):
     provider = "cohere"
     default_reranking_model = "rerank-multilingual-v3.0"
 

@@ -21,7 +21,7 @@ from ..adapters.ollama_adapter import OllamaAdapter
 from .._base_components._base_llm import LLM
 
 
-class OllamaLLM(OllamaAdapter, LLM):
+class OllamaLLM(LLM, OllamaAdapter):
     provider = "ollama"
     default_model = "mistral:7b-instruct"
 
