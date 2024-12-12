@@ -53,8 +53,7 @@ class GetResult(BaseModel):
         return self.rerank(new_order)
     
     def yield_attrs(self, *include: Literal["ids", "metadatas", "texts", "embeddings", "distances"]) -> Iterator:
-        _include = include or self.included
-        for attr in _include:
+        for attr in (include or self.included):
             yield getattr(self, attr)
 
     def get_attrs(self, *include: Literal["ids", "metadatas", "texts", "embeddings", "distances"]) -> tuple:
