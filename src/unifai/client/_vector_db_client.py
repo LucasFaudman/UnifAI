@@ -12,6 +12,7 @@ from ._embed_client import UnifAIEmbedClient
 from ._document_db_client import UnifAIDocumentDBClient
 
 class UnifAIVectorDBClient(UnifAIEmbedClient, UnifAIDocumentDBClient):
+    
     def vector_db(
             self, 
             provider_config_or_name: "ProviderName | VectorDBConfig | tuple[ProviderName, ComponentName]" = "default",          
