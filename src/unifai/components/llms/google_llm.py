@@ -67,12 +67,16 @@ from ..adapters.google_adapter import GoogleAdapter
 from .._base_components._base_llm import LLM
 from ...utils import generate_random_id
 
-class GoogleLLM(LLM, GoogleAdapter):
+class GoogleLLM(GoogleAdapter, LLM):
     provider = "google"
-    default_model = "gemini-1.5-flash-latest"
+    default_llm_model = "gemini-1.5-flash-latest"
 
     _system_prompt_input_type = "kwarg"
     
+    # List Models
+    def _list_models(self) -> list[str]:
+        return GoogleAdapter._list_models(self)
+
     # Chat
     def _get_chat_response(
             self,

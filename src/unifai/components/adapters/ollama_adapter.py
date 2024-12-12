@@ -66,8 +66,7 @@ class OllamaAdapter(UnifAIAdapter):
             original_exception=exception
         )
 
-
     # List Models
-    def _list_models(self) -> Sequence[str]:
+    def _list_models(self) -> list[str]:
         return [model_name for model_dict in self.client.list()["models"] if (model_name := model_dict.get("name"))]
     

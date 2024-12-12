@@ -15,22 +15,25 @@ from ...utils import stringify_content
 from ..adapters.openai_adapter import OpenAIAdapter
 from .._base_components._base_llm import LLM
 
-class OpenAILLM(LLM, OpenAIAdapter):
+class OpenAILLM(OpenAIAdapter, LLM):
     provider = "openai"
-    default_model = "gpt-4o"
+    default_llm_model = "gpt-4o"
 
     _system_prompt_input_type = "first_message"
     
+    def _list_models(self) -> list[str]:
+        return OpenAIAdapter._list_models(self)
+
+    # Chat
     def _create_completion(self, kwargs) -> ChatCompletion|Stream[ChatCompletionChunk]:
         # As as separate method to allow for easier overriding in subclasses (Nvidia, more in the future)
         return self.client.chat.completions.create(**kwargs)
                 
-    # Chat 
     def _get_chat_response(
             self,
             stream: bool,            
             messages: list[dict],     
-            model: str = default_model,
+            model: Optional[str] = None,
             system_prompt: Optional[str] = None,                    
             tools: Optional[list[dict]] = None,
             tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,

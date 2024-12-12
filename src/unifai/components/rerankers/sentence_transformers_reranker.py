@@ -11,7 +11,7 @@ from ..adapters.sentence_transformers_adapter import SentenceTransformersAdapter
 from .._base_components._base_reranker import Reranker
 from ...utils import lazy_import
 
-class SentenceTransformersReranker(Reranker, SentenceTransformersAdapter):
+class SentenceTransformersReranker(SentenceTransformersAdapter, Reranker):
     provider = "sentence_transformers"
     default_reranking_model = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 

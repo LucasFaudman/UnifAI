@@ -10,7 +10,7 @@ from .openai_embedder import OpenAIEmbedder
 
 class NvidiaEmbedder(NvidiaAdapter, OpenAIEmbedder):
     provider = "nvidia"    
-    default_model = "nvidia/nv-embed-v1" #NV-Embed-QA
+    default_embedding_model = "nvidia/nv-embed-v1" #NV-Embed-QA
 
     model_embedding_dimensions = {
         "baai/bge-m3": 1024,

@@ -1,4 +1,4 @@
-from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Iterable,  Callable, Iterator, Iterable, Generator, Self
+from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Iterable,  Callable, Iterator, Iterable, Generator, Self, AbstractSet, Collection
 from abc import abstractmethod
 
 from ...exceptions import UnsupportedFeatureError
@@ -13,7 +13,10 @@ class Tokenizer(UnifAIComponent[TokenizerConfig]):
     provider = "tokenizer"
     config_class = TokenizerConfig
 
+    default_tokenizer_model = "gpt2"
     default_encoding = "cl100k_base"
+    default_allowed_special: Literal["all"]|AbstractSet[str] = set()
+    default_disallowed_special: Literal["all"]|Collection[str] = "all"    
 
     # Abstract Methods
     @abstractmethod
@@ -84,6 +87,9 @@ class Tokenizer(UnifAIComponent[TokenizerConfig]):
             **kwargs) -> int:
         return self._run_func(self._count_tokens, text, model, **kwargs)
 
+    @property
+    def default_model(self) -> str:
+        return self.config.default_model or self.default_tokenizer_model
 
 class TokenizerAdapter(Tokenizer, UnifAIAdapter):
     """UnifAIAdapter Base Class for Tokenizers"""

@@ -63,30 +63,21 @@ from ...utils import stringify_content
 from ..adapters.anthropic_adapter import AnthropicAdapter
 from .._base_components._base_llm import LLM
     
-class AnthropicLLM(LLM, AnthropicAdapter):
-    default_model = "claude-3-5-sonnet-20240620"
+class AnthropicLLM(AnthropicAdapter, LLM):
+    default_llm_model = "claude-3-5-sonnet-20240620"
 
     _system_prompt_input_type = "kwarg"
 
     # List Models
     def _list_models(self) -> list[str]:
-        claude_models = [
-            "claude-3-5-sonnet-20240620",
-            "claude-3-opus-20240229",
-            "claude-3-sonnet-20240229",
-            "claude-3-haiku-20240307",
-            "claude-2.1",
-            "claude-2.0",
-            "claude-instant-1.2",
-        ]
-        return claude_models
+        return AnthropicAdapter._list_models(self)
         
-    
+    # Chat    
     def _get_chat_response(
             self,
             stream: bool,
             messages: list[AnthropicMessageParam], 
-            model: str = default_model, 
+            model: Optional[str] = None, 
             system_prompt: Optional[str] = None,                 
             tools: Optional[list[AnthropicToolParam]] = None,
             tool_choice: Optional[dict] = None,

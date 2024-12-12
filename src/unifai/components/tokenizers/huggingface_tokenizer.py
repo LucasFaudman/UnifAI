@@ -10,10 +10,8 @@ T = TypeVar("T")
 class HuggingFaceTokenizer(TokenizerAdapter):
     provider = "huggingface"
 
-    default_model = "bert-base-cased"
-    default_allowed_special: Literal["all"]|AbstractSet[str] = set()
-    default_disallowed_special: Literal["all"]|Collection[str] = "all"
-
+    default_tokenizer_model = "bert-base-cased"
+    
     _cache: ClassVar[dict[str, PreTrainedTokenizerBase]] = {}
     
     def import_client(self):

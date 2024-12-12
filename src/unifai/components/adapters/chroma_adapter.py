@@ -51,14 +51,12 @@ class ChromaExceptionConverter(UnifAIComponent):
 
 
 class ChromaAdapter(UnifAIAdapter, ChromaExceptionConverter):
+    provider = "chroma"
     client: ChromaClientAPI
-    default_embedding_provider = "ollama"
-
 
     def import_client(self) -> Any:
         from chromadb import Client
         return Client
-
         
     def init_client(self, **init_kwargs) -> ChromaClientAPI:
         self.init_kwargs.update(init_kwargs)

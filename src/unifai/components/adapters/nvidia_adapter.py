@@ -38,7 +38,6 @@ class TempBaseURL:
 
 class NvidiaAdapter(OpenAIAdapter):
     provider = "nvidia"
-    default_model = "meta/llama-3.1-405b-instruct"
     
     # Nvidia API is (kinda) OpenAI Compatible 
     # (with minor differences: 
@@ -68,6 +67,5 @@ class NvidiaAdapter(OpenAIAdapter):
             init_kwargs["base_url"] = self.default_base_url
         return super().init_client(**init_kwargs)
   
-
     def _list_models(self) -> list[str]:
         return super()._list_models()

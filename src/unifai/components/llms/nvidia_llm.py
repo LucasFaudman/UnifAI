@@ -13,7 +13,7 @@ from .openai_llm import OpenAILLM
 # Adapter before OpenAILLM to override OpenAILLM methods
 class NvidiaLLM(NvidiaAdapter, OpenAILLM):
     provider = "nvidia"
-    default_model = "meta/llama-3.1-405b-instruct"
+    default_llm_model = "meta/llama-3.1-405b-instruct"
     
     vlm_base_url = "https://ai.api.nvidia.com/v1/vlm/"
     vlm_models = {
@@ -32,6 +32,10 @@ class NvidiaLLM(NvidiaAdapter, OpenAILLM):
         "nvidia/neva-22b",
         "nvidia/vila"
     }
+
+    # List Models
+    def _list_models(self) -> list[str]:
+        return OpenAILLM._list_models(self)
 
     # Chat
     def _create_completion(self, kwargs) -> ChatCompletion|Stream[ChatCompletionChunk]:        

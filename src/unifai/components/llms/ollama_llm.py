@@ -21,11 +21,15 @@ from ..adapters.ollama_adapter import OllamaAdapter
 from .._base_components._base_llm import LLM
 
 
-class OllamaLLM(LLM, OllamaAdapter):
+class OllamaLLM(OllamaAdapter, LLM):
     provider = "ollama"
-    default_model = "mistral:7b-instruct"
+    default_llm_model = "mistral:7b-instruct"
 
     _system_prompt_input_type = "first_message"
+
+    # List Models
+    def _list_models(self) -> list[str]:
+        return OllamaAdapter._list_models(self)
 
     # Chat
     def _get_chat_response(

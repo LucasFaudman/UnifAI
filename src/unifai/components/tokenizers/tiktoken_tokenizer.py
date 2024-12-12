@@ -15,9 +15,8 @@ T = TypeVar("T")
 class TikTokenTokenizer(TokenizerAdapter):
     provider = "tiktoken"
 
-    default_encoding = "gpt2"
-    default_allowed_special: Literal["all"]|AbstractSet[str] = set()
-    default_disallowed_special: Literal["all"]|Collection[str] = "all"
+    default_tokenizer_model = "gpt2"
+    default_encoding = "cl100k_base"
 
     _encoding_cache: ClassVar[dict[str, tiktoken.Encoding]] = {}
 
@@ -41,10 +40,8 @@ class TikTokenTokenizer(TokenizerAdapter):
         return UnknownUnifAIError(message=str(exception), original_exception=exception)
 
     def get_tiktoken_encoding(self, model: Optional[str] = None, encoding: Optional[str] = None) -> tiktoken.Encoding:
-        if model:
-            encoding = tiktoken.encoding_name_for_model(model)
-        if not encoding:
-            encoding = self.default_encoding
+        model = model or self.default_tokenizer_model
+        encoding = tiktoken.encoding_name_for_model(model) or self.default_encoding
         if not (tiktoken_encoding := self._encoding_cache.get(encoding)):
             tiktoken_encoding = tiktoken.get_encoding(encoding)
             self._encoding_cache[encoding] = tiktoken_encoding

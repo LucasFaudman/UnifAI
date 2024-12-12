@@ -17,7 +17,7 @@ class NvidiaRerankResponse(BaseModel):
     rankings: list[NvidiaRerankItem]
 
 
-class NvidiaReranker(Reranker, NvidiaAdapter):
+class NvidiaReranker(NvidiaAdapter, Reranker):
     provider = "nvidia"    
     default_reranking_model = "nv-rerank-qa-mistral-4b:1"
   

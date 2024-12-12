@@ -42,14 +42,12 @@ class GoogleAdapter(UnifAIAdapter):
         import google.generativeai as genai
         return genai
 
-
     def init_client(self, **init_kwargs):
         if init_kwargs:
             self.init_kwargs.update(init_kwargs)        
         self._client = self.import_client()
         self._client.configure(**self.init_kwargs)
         return self._client
-
 
     # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
     def _convert_exception(self, exception: Exception) -> UnifAIError:      
@@ -74,13 +72,11 @@ class GoogleAdapter(UnifAIAdapter):
             unifai_exception_type = UnknownAPIError
         return unifai_exception_type(message=message, status_code=status_code, original_exception=exception)
 
-
     def format_model_name(self, model: str) -> str:
         if model.startswith("models/"):
             return model
         return f"models/{model}"
     
-
     # List Models
     def _list_models(self) -> list[str]:
         return [model.name[7:] for model in self.client.list_models()]    

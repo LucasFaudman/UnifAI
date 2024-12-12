@@ -1,5 +1,5 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Callable, Iterator, Iterable, Generator
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from ._base_adapter import UnifAIAdapter
 from ._base_component import convert_exceptions, convert_exceptions_generator
@@ -13,12 +13,12 @@ from ...configs import LLMConfig
 
 T = TypeVar("T")
 
-class LLM(UnifAIAdapter[LLMConfig], ABC):
+class LLM(UnifAIAdapter[LLMConfig]):
     component_type = "llm"
     provider = "base"    
     config_class = LLMConfig
     can_get_components = True
-    default_model = "default"
+    default_llm_model = "default"
     
     _system_prompt_input_type: Literal["first_message", "kwarg"] = "first_message"
 
@@ -32,7 +32,7 @@ class LLM(UnifAIAdapter[LLMConfig], ABC):
             self,
             stream: bool,
             messages: list[Any],
-            model: str = default_model,
+            model: Optional[str] = None,
             system_prompt: Optional[str] = None,  
             tools: Optional[list[dict]] = None,
             tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
@@ -129,10 +129,14 @@ class LLM(UnifAIAdapter[LLMConfig], ABC):
     def list_models(self) -> list[str]:
         return self._run_func(self._list_models)
 
+    @property
+    def default_model(self) -> str:
+        return self.config.default_model or self.default_llm_model
+
     def chat(
             self,
             messages: list[T],     
-            model: str = default_model,
+            model: Optional[str] = None,
             system_prompt: Optional[str] = None,  
             tools: Optional[list[dict]] = None,
             tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
@@ -156,7 +160,7 @@ class LLM(UnifAIAdapter[LLMConfig], ABC):
     def chat_stream(
             self,
             messages: list[T],     
-            model: str = default_model,
+            model: Optional[str] = None,
             system_prompt: Optional[str] = None,  
             tools: Optional[list[dict]] = None,
             tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
