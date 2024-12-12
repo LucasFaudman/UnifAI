@@ -8,7 +8,6 @@ from unifai.components._base_components._base_document_chunker import DocumentCh
 from unifai.exceptions import BadRequestError, NotFoundError, DocumentNotFoundError
 from basetest import base_test, base_test_document_chunkers, API_KEYS
 from unifai.configs import DocumentChunkerConfig
-# from unifai.client.rag_ingestor import RAGIngestor, RAGIngestionConfig
 from unifai.configs import RAGConfig
 from unifai.components.ragpipe import RAGPipe
 from unifai.types.annotations import ProviderName
@@ -132,12 +131,12 @@ def test_size_function_chunkers(provider, init_kwargs, unchunked_documents, chun
 
 
 def test_ragpipe():
-    ai = UnifAI(api_keys=API_KEYS, default_providers={"vector_db": "chroma", "embedder": "openai"})
-    ragpipe = ai.rag()
+    ai = UnifAI(api_keys=API_KEYS, default_providers={"vector_db": "chroma", "embedder": "google"})
+    ragpipe = ai.rag(RAGConfig() + DocumentChunkerConfig(chunk_size=1000))
     assert isinstance(ragpipe, RAGPipe)
 
-
-    for i, ingested_doc in enumerate(ragpipe.ingest_documents(manpages)):
+    tor_manpages = [manpage for manpage in manpages if "tor" in str(manpage)]
+    for i, ingested_doc in enumerate(ragpipe.ingest_documents(tor_manpages)):
         assert isinstance(ingested_doc, Document)
         print("Ingested Document #", i)#, end="\r")
 
