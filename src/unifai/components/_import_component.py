@@ -1,177 +1,157 @@
-from typing import Type, Callable
-from ..types.annotations import ComponentType, ProviderName
+from typing import TYPE_CHECKING, Type, Callable, Any
+if TYPE_CHECKING:
+    from ..types.annotations import ComponentType, ProviderName
+from ._defaults import PROVIDERS
 
-PROVIDERS = {
-    "llm": frozenset(("anthropic", "cohere", "google", "ollama", "nvidia")),
-    "embedder": frozenset(("cohere", "google", "nvidia", "ollama", "openai"  ,"sentence_transformers")),
-    "vector_db": frozenset(("chroma", "pinecone")),
-    "reranker": frozenset(("cohere", "nvidia", "rank_bm25", "sentence_transformers")),
-    "document_db": frozenset(("dict", "sqlite", "mongo", "firebase")),
-    "document_chunker": frozenset(("count_chars_chunker", "count_tokens_chunker", "count_words_chunker", "code_chunker", "html_chunker", "json_chunker", "semantic_chunker", "unstructured")),
-    "document_loader": frozenset(("csv_loader", "document_db_loader", "html_loader", "json_loader", "markdown_loader", "ms_office_loader", "pdf_loader", "text_file_loader", "url_loader")),
-    "output_parser": frozenset(("json_parser", "pydantic_parser")),
-    "ragpipe": frozenset(("default", "concurrent")),
-    "tool_caller": frozenset(("default", "concurrent")),
-    "tokenizer": frozenset(("huggingface", "str_len", "str_split", "tiktoken", "voyage"))
-}    
+from importlib import import_module
 
-def import_component(component_type: ComponentType, provider: ProviderName) -> Type|Callable:
-    try:
-        match component_type:
-            case "llm":
-                if provider == "anthropic":
-                    from .llms.anhropic_llm import AnthropicLLM
-                    return AnthropicLLM
-                if provider == "google":
-                    from .llms.google_llm import GoogleLLM
-                    return GoogleLLM
-                if provider == "nvidia":
-                    from .llms.nvidia_llm import NvidiaLLM
-                    return NvidiaLLM
-                if provider == "ollama":
-                    from .llms.ollama_llm import OllamaLLM
-                    return OllamaLLM
-                if provider == "openai":
-                    from .llms.openai_llm import OpenAILLM
-                    return OpenAILLM
-                
-            case "embedder":
-                if provider == "cohere":
-                    from .embedders.cohere_embedder import CohereEmbedder
-                    return CohereEmbedder
-                if provider == "google":
-                    from .embedders.google_embedder import GoogleEmbedder
-                    return GoogleEmbedder
-                if provider == "nvidia":
-                    from .embedders.nvidia_embedder import NvidiaEmbedder
-                    return NvidiaEmbedder
-                if provider == "ollama":
-                    from .embedders.ollama_embedder import OllamaEmbedder
-                    return OllamaEmbedder
-                if provider == "openai":
-                    from .embedders.openai_embedder import OpenAIEmbedder
-                    return OpenAIEmbedder
-                if provider == "sentence_transformers":
-                    from .embedders.sentence_transformers_embedder import SentenceTransformersEmbedder
-                    return SentenceTransformersEmbedder
+class ComponentImporter:
+    """
+    Lazy import mechanism for UnifAI components.
+    """
+
+    _COMPONENT_PATHS = {
+        "document_chunker": {
+            "html_chunker": ".document_chunkers.html_chunker.HTMLDocumentChunker",
+            "json_chunker": ".document_chunkers.json_chunker.JSONDocumentChunker",
+            "semantic_chunker": ".document_chunkers.semantic_chunker.SemanticDocumentChunker",
+            "text_chunker": ".document_chunkers.text_chunker.TextDocumentChunker",
+        },
+        "document_db": {
+            "dict": ".document_dbs.dict_doc_db.DictDocumentDB",
+            "sqlite": ".document_dbs.sqlite_doc_db.SQLiteDocumentDB",
+        },
+        "document_loader": {
+            "document_db_loader": ".document_loaders.document_db_loader.DocumentDBLoader",
+            "html_loader": ".document_loaders.html_loader.HTMLDocumentLoader",
+            "json_loader": ".document_loaders.json_loader.JSONDocumentLoader",
+            "markdown_loader": ".document_loaders.markdown_loader.MarkdownDocumentLoader",
+            "ms_office_loader": ".document_loaders.ms_office_loader.MSOfficeDocumentLoader",
+            "pdf_loader": ".document_loaders.pdf_loader.PDFDocumentLoader",
+            "text_file_loader": ".document_loaders.text_file_loader.TextFileDocumentLoader",
+            "url_loader": ".document_loaders.url_loader.URLDocumentLoader",
+        },
+        "embedder": {
+            "cohere": ".embedders.cohere_embedder.CohereEmbedder",
+            "google": ".embedders.google_embedder.GoogleEmbedder",
+            "nvidia": ".embedders.nvidia_embedder.NvidiaEmbedder",
+            "ollama": ".embedders.ollama_embedder.OllamaEmbedder",
+            "openai": ".embedders.openai_embedder.OpenAIEmbedder",
+            "sentence_transformers": ".embedders.sentence_transformers_embedder.SentenceTransformersEmbedder",
+        },
+        "llm": {
+            "anthropic": ".llms.anhropic_llm.AnthropicLLM",
+            "google": ".llms.google_llm.GoogleLLM",
+            "nvidia": ".llms.nvidia_llm.NvidiaLLM",
+            "ollama": ".llms.ollama_llm.OllamaLLM",
+            "openai": ".llms.openai_llm.OpenAILLM",
+        },
+        "output_parser": {
+            "json_parser": ".output_parsers.json_output_parser.JSONParser",
+            "pydantic_parser": ".output_parsers.pydantic_output_parser.PydanticParser",
+        },
+        "ragpipe": {
+            "default": ".ragpipe.RAGPipe",
+        },
+        "reranker": {
+            "cohere": ".rerankers.cohere_reranker.CohereReranker",
+            "nvidia": ".rerankers.nvidia_reranker.NvidiaReranker",
+            "rank_bm25": ".rerankers.rank_bm25_reranker.RankBM25Reranker",
+            "sentence_transformers": ".rerankers.sentence_transformers_reranker.SentenceTransformersReranker",
+        },
+        "tool_caller": {
+            "default": "._base_components._base_tool_caller.ToolCaller",
+            "concurrent": ".tool_callers.concurrent_tool_caller.ConcurrentToolCaller",
+        },
+        "tokenizer": {
+            "huggingface": ".tokenizers.huggingface_tokenizer.HuggingFaceTokenizer",
+            "str_len": ".tokenizers.str_test_tokenizers.StrLenTokenizer",
+            "str_split": ".tokenizers.str_test_tokenizers.StrSplitTokenizer",
+            "tiktoken": ".tokenizers.tiktoken_tokenizer.TikTokenTokenizer",
+            "voyage": ".tokenizers.voyage_tokenizer.VoyageTokenizer",
+        },
+        "vector_db": {
+            "chroma": ".vector_dbs.chroma_vector_db.ChromaVectorDB",
+            "pinecone": ".vector_dbs.pinecone_vector_db.PineconeVectorDB",
+        }
+    }
+
+    @classmethod
+    def import_component(cls, component_type: str, provider: str) -> Type[Any] | Callable[..., Any]:
+        """
+        Lazily import and return a specific component based on type and provider.
+        
+        Args:
+            component_type (str): The type of component to import
+            provider (str): The specific provider/implementation to use
+        
+        Returns:
+            The imported component class or factory function
+        
+        Raises:
+            ImportError: If the component type or provider is invalid
+        """
+        # Validate component type
+        if component_type not in cls._COMPONENT_PATHS:
+            raise ImportError(f"Invalid component type: {component_type}. " 
+                              f"Available types: {list(cls._COMPONENT_PATHS.keys())}")
+        
+        # Validate provider
+        providers = cls._COMPONENT_PATHS[component_type]
+        if provider not in providers:
+            raise ImportError(f"Invalid provider '{provider}' for component type '{component_type}'. " 
+                              f"Available providers: {list(providers.keys())}")
+        
+        # Lazily import the module
+        try:
+            import_path = providers[provider]
+            package = __package__ if import_path.startswith('.') else None
+            module_path, class_name = import_path.rsplit('.', 1)            
+            module = import_module(module_path, package)
+            # Return the specific class or function
+            return getattr(module, class_name)
+        
+        except (ImportError, AttributeError) as e:
+            raise ImportError(
+                f"Could not import component: {component_type} "
+                f"with provider: {provider}. Error: {e}"
+            ) from e
+        
+    @classmethod
+    def register_for_import(cls, component_type: str, provider: str, import_path: str) -> None:
+        """
+        Register a custom import path for a specific component type and provider.
+        
+        Args:
+            component_type (str): The type of component to register
+            provider (str): The specific provider/implementation to register
+            import_path (str): The import path for the component
+        """
+        if component_type not in cls._COMPONENT_PATHS:
+            cls._COMPONENT_PATHS[component_type] = {}
+        if provider in cls._COMPONENT_PATHS[component_type]:
+            raise ValueError(f"Import path for {component_type} and {provider} already exists")
+        
+        cls._COMPONENT_PATHS[component_type][provider] = import_path
 
 
-            case "vector_db":
-                if provider == "chroma":
-                    from .vector_dbs.chroma_vector_db import ChromaVectorDB
-                    return ChromaVectorDB
-                if provider == "pinecone":
-                    from .vector_dbs.pinecone_vector_db import PineconeVectorDB
-                    return PineconeVectorDB
-            
-            case "reranker":
-                if provider == "cohere":
-                    from .rerankers.cohere_reranker import CohereReranker
-                    return CohereReranker
-                if provider == "nvidia":
-                    from .rerankers.nvidia_reranker import NvidiaReranker
-                    return NvidiaReranker
-                if provider == "rank_bm25":
-                    from .rerankers.rank_bm25_reranker import RankBM25Reranker
-                    return RankBM25Reranker
-                if provider == "sentence_transformers":
-                    from .rerankers.sentence_transformers_reranker import SentenceTransformersReranker
-                    return SentenceTransformersReranker
-                
-            case "document_db":
-                if provider == "dict":
-                    from .document_dbs.dict_doc_db import DictDocumentDB
-                    return DictDocumentDB
-                if provider == "sqlite":
-                    from .document_dbs.sqlite_doc_db import SQLiteDocumentDB
-                    return SQLiteDocumentDB
-                if provider == "mongo":
-                    raise NotImplementedError("MongoDB DocumentDB not yet implemented")
-                if provider == "firebase":
-                    raise NotImplementedError("Firebase DocumentDB not yet implemented")
-                
-            case "document_chunker":
-                if provider == "text_chunker":
-                    from .document_chunkers.text_chunker import TextDocumentChunker
-                    return TextDocumentChunker
-                if provider == "html_chunker":
-                    from .document_chunkers.html_chunker import HTMLDocumentChunker
-                    return HTMLDocumentChunker
-                if provider == "json_chunker":
-                    from .document_chunkers.json_chunker import JSONDocumentChunker
-                    return JSONDocumentChunker
-                if provider == "semantic_chunker":
-                    from .document_chunkers.semantic_chunker import SemanticDocumentChunker
-                    return SemanticDocumentChunker
-                if provider == "unstructured":
-                    raise NotImplementedError("Unstructured Document Chunker not yet implemented")
-            
-            case "document_loader":
-                if provider == "document_db_loader":
-                    from .document_loaders.document_db_loader import DocumentDBLoader
-                    return DocumentDBLoader
-                if provider == "html_loader":
-                    from .document_loaders.html_loader import HTMLDocumentLoader
-                    return HTMLDocumentLoader
-                if provider == "json_loader":
-                    from .document_loaders.json_loader import JSONDocumentLoader
-                    return JSONDocumentLoader
-                if provider == "markdown_loader":
-                    from .document_loaders.markdown_loader import MarkdownDocumentLoader
-                    return MarkdownDocumentLoader
-                if provider == "ms_office_loader":
-                    from .document_loaders.ms_office_loader import MSOfficeDocumentLoader
-                    return MSOfficeDocumentLoader
-                if provider == "pdf_loader":
-                    from .document_loaders.pdf_loader import PDFDocumentLoader
-                    return PDFDocumentLoader
-                if provider == "text_file_loader":
-                    from .document_loaders.text_file_loader import TextFileDocumentLoader
-                    return TextFileDocumentLoader
-                if provider == "url_loader":
-                    from .document_loaders.url_loader import URLDocumentLoader
-                    return URLDocumentLoader
+def import_component(component_type: str, provider: str) -> Type[Any] | Callable[..., Any]:
+    """
+    Convenience wrapper for LazyImporter.import_component
+    
+    Args:
+        component_type (str): The type of component to import
+        provider (str): The specific provider/implementation to use
+    """
+    return ComponentImporter.import_component(component_type, provider)
 
+def register_for_import(component_type: str, provider: str, import_path: str) -> None:
+    """
+    Convenience wrapper for LazyImporter.register_for_import
 
-            case "output_parser":
-                if provider == "json_parser":
-                    from .output_parsers.json_output_parser import JSONParser
-                    return JSONParser
-                if provider == "pydantic_parser":
-                    from .output_parsers.pydantic_output_parser import PydanticParser
-                    return PydanticParser
-            
-            case "ragpipe":
-                if provider == "default":
-                    from .ragpipe import RAGPipe
-                    return RAGPipe
-
-            case "tool_caller":
-                if provider == "default":
-                    from ._base_components._base_tool_caller import ToolCaller
-                    return ToolCaller
-                if provider == "concurrent":
-                    from .tool_callers.concurrent_tool_caller import ConcurrentToolCaller
-                    return ConcurrentToolCaller
-                
-            case "tokenizer":
-                if provider == "huggingface":
-                    from .tokenizers.huggingface_tokenizer import HuggingFaceTokenizer
-                    return HuggingFaceTokenizer
-                if provider == "str_len":
-                    from .tokenizers.str_test_tokenizers import StrLenTokenizer
-                    return StrLenTokenizer  
-                if provider == "str_split":
-                    from .tokenizers.str_test_tokenizers import StrSplitTokenizer
-                    return StrSplitTokenizer    
-                if provider == "tiktoken":
-                    from .tokenizers.tiktoken_tokenizer import TikTokenTokenizer
-                    return TikTokenTokenizer
-                if provider == "voyage":
-                    from .tokenizers.voyage_tokenizer import VoyageTokenizer
-                    return VoyageTokenizer            
-            case _:
-                raise ValueError(f"Invalid component_type: {component_type}. Must be one of: {list(PROVIDERS.keys())}")
-        raise ValueError(f"Invalid {component_type} provider: {provider}. Must be one of: {PROVIDERS[component_type]}")
-    except ImportError as e:
-        raise ValueError(f"Could not import {component_type} for {provider}. Error: {e}")
+    Args:
+        component_type (str): The type of component to register
+        provider (str): The specific provider/implementation to register
+        import_path (str): The import path for the component
+    """
+    return ComponentImporter.register_for_import(component_type, provider, import_path)
