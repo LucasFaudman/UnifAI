@@ -55,14 +55,3 @@ class RankBM25Reranker(Reranker):
             **kwargs
         )
         return bm25.get_scores(self.tokenize(query))
-
-    # def _extract_reranked_order(
-    #     self,
-    #     response: Any,
-    #     top_n: Optional[int] = None,        
-    #     **kwargs
-    #     ) -> list[int]:
-        
-    #     # return argsort(response, **kwargs)[::-1][:top_n].tolist()
-    #     return [index for index, score in sorted(enumerate(response), key=lambda x: x[1], reverse=True)[:top_n]]
-

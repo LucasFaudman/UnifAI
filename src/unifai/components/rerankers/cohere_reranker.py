@@ -38,29 +38,3 @@ class CohereReranker(CohereAdapter, Reranker):
         **kwargs
         ) -> list[float]:
         return [result.relevance_score for result in sorted(response.results, key=lambda result: result.index)]
-
-
-
-    # def _extract_reranked_order(
-    #     self,
-    #     response: Any,
-    #     top_n: Optional[int] = None,        
-    #     **kwargs
-    #     ) -> list[int]:
-    #     sorted_results = sorted(response.results, key=lambda result: result.relevance_score, reverse=True)
-    #     if top_n is not None and top_n < len(sorted_results):
-    #         sorted_results = sorted_results[:top_n]
-    #     return [result.index for result in sorted_results]
-
-    
-    # def _extract_reranked_order_and_similarity_scores(
-    #     self,
-    #     response: Any,
-    #     top_n: Optional[int] = None,
-    #     **kwargs
-    #     ) -> tuple[list[int], list[float]]:
-    #     reranked_order, similarity_scores = [], []
-    #     for item in sorted(response.results, key=lambda result: result.relevance_score, reverse=True):
-    #         reranked_order.append(item.index)
-    #         similarity_scores.append(item.relevance_score)
-    #     return reranked_order, similarity_scores

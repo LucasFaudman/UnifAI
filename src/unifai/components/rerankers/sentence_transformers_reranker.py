@@ -44,11 +44,3 @@ class SentenceTransformersReranker(SentenceTransformersAdapter, Reranker):
         pairs = list(product([query], query_result.texts))
         relevance_scores = ce_model.predict(pairs, **kwargs)
         return relevance_scores
-    
-    # def _extract_reranked_order(
-    #     self,
-    #     response: Any,
-    #     top_n: Optional[int] = None,        
-    #     **kwargs
-    #     ) -> list[int]:        
-    #     return [index for index, score in sorted(enumerate(response), key=lambda x: x[1], reverse=True)[:top_n]]

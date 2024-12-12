@@ -75,11 +75,3 @@ class NvidiaReranker(NvidiaAdapter, Reranker):
         **kwargs
         ) -> list[float]:
         return [item.logit for item in sorted(response.rankings, key=lambda item: item.index)]
-    
-    # def _extract_reranked_order(
-    #     self,
-    #     response,
-    #     top_n: Optional[int] = None,
-    #     **kwargs
-    #     ) -> list[int]:
-    #     return [item.index for item in response.rankings]    
