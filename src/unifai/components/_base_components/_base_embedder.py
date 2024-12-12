@@ -203,25 +203,18 @@ class Embedder(UnifAIAdapter[EmbedderConfig]):
             ) -> Generator[Document, None, ResponseInfo]:
         
         response_info = ResponseInfo()
-        if batch_size is not None:
-            for batch in chunk_iterable(documents, batch_size):
-                texts = [document.text or "" for document in batch]
-                embeddings = self.embed(texts, model, dimensions, task_type, truncate, reduce_dimensions, use_closest_supported_task_type, **kwargs)
-                response_info += embeddings.response_info
-                for document, embedding in zip(batch, embeddings):
-                    document.embedding = embedding
-                    yield document
-        else:
-            for document in documents:
-                text = document.text or ""
-                embeddings = self.embed(text, model, dimensions, task_type, truncate, reduce_dimensions, use_closest_supported_task_type, **kwargs)
-                response_info += embeddings.response_info
-                document.embedding = embeddings[0]
+        batches = chunk_iterable(documents, batch_size) if batch_size and batch_size > 1 else [documents]
+        for batch in batches:
+            texts = [document.text or "" for document in batch]
+            embeddings = self.embed(texts, model, dimensions, task_type, truncate, reduce_dimensions, use_closest_supported_task_type, **kwargs)
+            response_info += embeddings.response_info
+            for document, embedding in zip(batch, embeddings):
+                document.embedding = embedding
                 yield document
         return response_info
     
     def embed_documents(
-            self,            
+            self,
             documents: Iterable[Document],
             model: Optional[str] = None,
             dimensions: Optional[int] = None,
