@@ -9,7 +9,7 @@ def lazy_import(module_name: str) -> Any:
         globals()[module_name] = module
                 
     for submodule in submodules:
-        module = getattr(module, submodule)        
+        module = getattr(module, submodule)
     return module
 
 
