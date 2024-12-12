@@ -8,12 +8,10 @@ class RankBM25Reranker(Reranker):
     can_get_components = True
     default_reranking_model = "BM25Okapi"
     
-
     def import_client(self):
         import rank_bm25
         return rank_bm25
     
-
     def init_client(self, **init_kwargs):
         self.init_kwargs.update(init_kwargs)        
         # DO NOT set self._client to prevent issues pickling the module
