@@ -339,6 +339,10 @@ class GoogleLLM(GoogleAdapter, LLM):
         for chunk in response:
             parts.extend(chunk.parts)
             content, tool_calls, images = self._extract_parts(chunk.parts)
+            
+            if not content and not tool_calls and not images:
+                continue
+
             yield MessageChunk(
                 role="assistant",
                 content=content,
