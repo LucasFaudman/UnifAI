@@ -2,7 +2,7 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 
 from ...types import Tool, ToolCall
 from ...exceptions.tool_errors import ToolCallExecutionError, ToolCallableNotFoundError, ToolCallArgumentValidationError
-from ._base_component import UnifAIComponent
+from .__base_component import UnifAIComponent
 from ...configs.tool_caller_config import ToolCallerConfig
 
 class ToolCaller(UnifAIComponent[ToolCallerConfig]):

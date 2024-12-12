@@ -2,7 +2,7 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 
 from ...types import Tool, ToolCall
 from ...exceptions.tool_errors import ToolCallExecutionError, ToolCallableNotFoundError, ToolCallArgumentValidationError
-from ..concurrent_executor import ConcurrentExecutor
+from ..executors.concurrent_executor import ConcurrentExecutor
 from .._base_components._base_tool_caller import ToolCaller
 
 class ConcurrentToolCaller(ToolCaller):

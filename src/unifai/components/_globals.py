@@ -11,6 +11,7 @@ COMPONENT_TYPES = [
     "http_client",
     "llm",
     "output_parser",
+    "prompt_template",
     "ragpipe",
     "reranker",
     "tokenizer",
@@ -21,15 +22,17 @@ COMPONENT_TYPES = [
 
 DEFAULT_PROVIDERS = {
     "chat": "default",
-    "chat_db": "dict",
+    "chat_db": "ephemeral",
     "document_chunker": "text_chunker",
-    "document_db": "dict",
+    "document_db": "ephemeral",
     "document_loader": "text_file_loader",
+    "document_transformer": "default",
     "embedder": "openai",
     "executor": "default",
     "function": "default",
     "llm": "openai",
     "output_parser": "pydantic_parser",
+    "prompt_template": "default",
     "ragpipe": "default",
     "reranker": "rank_bm25",
     "tokenizer": "tiktoken",
@@ -44,7 +47,7 @@ PROVIDERS = {
         "dynamic_memory", # TODO bfg clean repo before merge
     ],
     "chat_db": [
-        "dict", # TODO bfg clean repo before merge
+        "ephemeral", # TODO bfg clean repo before merge
         "firestore", # TODO bfg clean repo before merge
         "sqlite", # TODO bfg clean repo before merge
         "mongodb", # TODO bfg clean repo before merge
@@ -57,7 +60,7 @@ PROVIDERS = {
         "unstructured" # TODO bfg clean repo before merge
     ],
     "document_db": [
-        "dict", 
+        "ephemeral", 
         "firestore", # TODO bfg clean repo before merge
         "sqlite", 
         "mongodb", # TODO bfg clean repo before merge
@@ -112,12 +115,14 @@ PROVIDERS = {
         "json_parser", 
         "pydantic_parser"
     ],
-    "ragpipe": [
+    "prompt_template": [
         "default",
-        "single_collection_single_query", # TODO bfg before merge
-        "single_collection_multi_query", # TODO bfg before merge
-        "multi_collection_single_query", # TODO bfg before merge
-        "multi_query_multi_collection" # TODO bfg before merge
+    ],        
+    "ragpipe": [
+        "default", # single collection, single query
+        "multi_query", # single collection, multiple queries
+        "multi_collection", # multiple collections, single query
+        "multi" # multiple collections, multiple queries
     ],
     "reranker": [
         "cohere", 
@@ -136,6 +141,9 @@ PROVIDERS = {
     "tool_caller": [
         "default", 
         "concurrent"
+    ],
+    "toolkit": [
+        "default", # TODO bfg before merge
     ],
     "vector_db": [
         "chroma", 

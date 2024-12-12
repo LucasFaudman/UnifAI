@@ -1,7 +1,7 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Collection,  Callable, Iterator, Iterable, Generator, Self, Generic, TypeAlias
 from abc import abstractmethod
 
-from ._base_component import UnifAIComponent
+from .__base_component import UnifAIComponent
 from ._base_adapter import UnifAIAdapter
 
 from ...types.annotations import CollectionName

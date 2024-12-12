@@ -9,7 +9,7 @@ from unifai.exceptions import BadRequestError, NotFoundError, DocumentNotFoundEr
 from basetest import base_test, base_test_document_chunkers, API_KEYS
 from unifai.configs import DocumentChunkerConfig
 from unifai.configs import RAGConfig
-from unifai.components.ragpipe import RAGPipe
+from unifai.components.ragpipes import RAGPipe
 from unifai.types.annotations import ProviderName
 
 
@@ -132,7 +132,7 @@ def test_size_function_chunkers(provider, init_kwargs, unchunked_documents, chun
 
 def test_ragpipe():
     ai = UnifAI(api_keys=API_KEYS, default_providers={"vector_db": "chroma", "embedder": "google"})
-    ragpipe = ai.rag(RAGConfig() + DocumentChunkerConfig(chunk_size=1000))
+    ragpipe = ai.ragpipe(RAGConfig() + DocumentChunkerConfig(chunk_size=1000))
     assert isinstance(ragpipe, RAGPipe)
 
     tor_manpages = [manpage for manpage in manpages if "tor" in str(manpage)]

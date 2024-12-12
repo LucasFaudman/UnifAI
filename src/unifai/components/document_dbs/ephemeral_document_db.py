@@ -12,8 +12,8 @@ from ...configs.document_db_config import DocumentDBConfig, DocumentDBCollection
 T = TypeVar("T")
 DataDict = dict[str, dict[Literal["text", "metadata"], Any]]
 
-class DictDocumentDBCollection(DocumentDBCollection[DataDict]):
-    provider = "dict_document_db"
+class EphemeralDocumentDBCollection(DocumentDBCollection[DataDict]):
+    provider = "ephemeral"
 
     def _count(self, **kwargs) -> int:
         return len(self.wrapped)
@@ -170,9 +170,9 @@ class DictDocumentDBCollection(DocumentDBCollection[DataDict]):
         return GetResult(ids=result_ids, metadatas=metadatas, texts=texts, included=["ids", *include])
       
     
-class DictDocumentDB(DocumentDB[DictDocumentDBCollection, DataDict]):
-    provider = "dict_document_db"
-    collection_class: Type[DictDocumentDBCollection] = DictDocumentDBCollection 
+class EphemeralDocumentDB(DocumentDB[EphemeralDocumentDBCollection, DataDict]):
+    provider = "ephemeral"
+    collection_class: Type[EphemeralDocumentDBCollection] = EphemeralDocumentDBCollection 
 
     def _setup(self) -> None:
         super()._setup()
@@ -200,7 +200,7 @@ class DictDocumentDB(DocumentDB[DictDocumentDBCollection, DataDict]):
             self,
             config: DocumentDBCollectionConfig,
             **collection_kwargs
-    ) -> DictDocumentDBCollection:
+    ) -> EphemeralDocumentDBCollection:
         collection_name = config.name
         if collection_name in self.collections:
             raise CollectionAlreadyExistsError(f"Collection with name {collection_name} already exists in database {self.name}")
@@ -212,7 +212,7 @@ class DictDocumentDB(DocumentDB[DictDocumentDBCollection, DataDict]):
             self,
             config: DocumentDBCollectionConfig,
             **collection_kwargs
-    ) -> DictDocumentDBCollection:
+    ) -> EphemeralDocumentDBCollection:
         collection_name = config.name
         if (wrapped := self._data.get(collection_name)) is None:
             raise CollectionNotFoundError(f"Collection with name {collection_name} not found in database {self.name}")

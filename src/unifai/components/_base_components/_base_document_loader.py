@@ -1,7 +1,7 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Iterable,  Callable, Iterator, Iterable, Generator, Self, IO
 from abc import abstractmethod
 
-from ._base_component import UnifAIComponent
+from .__base_component import UnifAIComponent
 from ...utils import stringify_content, sha256_hash, clean_text, _next
 from ...types import Document, Documents
 from ...configs.document_loader_config import DocumentLoaderConfig
@@ -14,6 +14,7 @@ from typing import Dict, Optional, Union, Pattern, Generic, Type
 T = TypeVar("T")
 SourceT = TypeVar("SourceT")
 LoadedSourceT = TypeVar("LoadedSourceT")
+
 class DocumentLoader(UnifAIComponent[DocumentLoaderConfig], Generic[SourceT, LoadedSourceT]):
     component_type = "document_loader"
     provider = "base"    

@@ -1,7 +1,7 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Generic, ClassVar, Collection,  Callable, Iterator, Iterable, Generator, Self
 from abc import abstractmethod
 
-from ._base_component import UnifAIComponent
+from .__base_component import UnifAIComponent
 
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embedding, Embeddings, Usage, ProviderName, GetResult, QueryResult, RerankedQueryResult
 from ...exceptions import UnifAIError, OutputParserError

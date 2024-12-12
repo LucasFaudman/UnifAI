@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Type, Callable, Any
 if TYPE_CHECKING:
     from ..types.annotations import ComponentType, ProviderName
-from ._defaults import PROVIDERS
 
 from importlib import import_module
 
@@ -11,6 +10,11 @@ class ComponentImporter:
     """
 
     _COMPONENT_PATHS = {
+        "chat": {
+            "default": ".chats.Chat",
+        },
+        "chat_db": {
+        },
         "document_chunker": {
             "html_chunker": ".document_chunkers.html_chunker.HTMLDocumentChunker",
             "json_chunker": ".document_chunkers.json_chunker.JSONDocumentChunker",
@@ -18,8 +22,9 @@ class ComponentImporter:
             "text_chunker": ".document_chunkers.text_chunker.TextDocumentChunker",
         },
         "document_db": {
-            "dict": ".document_dbs.dict_doc_db.DictDocumentDB",
-            "sqlite": ".document_dbs.sqlite_doc_db.SQLiteDocumentDB",
+            "ephemeral": ".document_dbs.ephemeral_document_db.EphemeralDocumentDB",
+            "firestore": ".document_dbs.firestore_docu_db.FirestoreDocumentDB",
+            "sqlite": ".document_dbs.sqlite_document_db.SQLiteDocumentDB",
         },
         "document_loader": {
             "document_db_loader": ".document_loaders.document_db_loader.DocumentDBLoader",
@@ -30,6 +35,8 @@ class ComponentImporter:
             "pdf_loader": ".document_loaders.pdf_loader.PDFDocumentLoader",
             "text_file_loader": ".document_loaders.text_file_loader.TextFileDocumentLoader",
             "url_loader": ".document_loaders.url_loader.URLDocumentLoader",
+        },
+        "document_transformer": {
         },
         "embedder": {
             "cohere": ".embedders.cohere_embedder.CohereEmbedder",
@@ -51,7 +58,7 @@ class ComponentImporter:
             "pydantic_parser": ".output_parsers.pydantic_output_parser.PydanticParser",
         },
         "ragpipe": {
-            "default": ".ragpipe.RAGPipe",
+            "default": ".ragpipes.RAGPipe",
         },
         "reranker": {
             "cohere": ".rerankers.cohere_reranker.CohereReranker",
@@ -60,7 +67,7 @@ class ComponentImporter:
             "sentence_transformers": ".rerankers.sentence_transformers_reranker.SentenceTransformersReranker",
         },
         "tool_caller": {
-            "default": "._base_components._base_tool_caller.ToolCaller",
+            "default": ".tool_callers.ToolCaller",
             "concurrent": ".tool_callers.concurrent_tool_caller.ConcurrentToolCaller",
         },
         "tokenizer": {
@@ -77,7 +84,7 @@ class ComponentImporter:
     }
 
     @classmethod
-    def import_component(cls, component_type: str, provider: str) -> Type[Any] | Callable[..., Any]:
+    def import_component(cls, component_type: "ComponentType", provider: "ProviderName") -> Type[Any] | Callable[..., Any]:
         """
         Lazily import and return a specific component based on type and provider.
         
@@ -118,7 +125,7 @@ class ComponentImporter:
             ) from e
         
     @classmethod
-    def register_for_import(cls, component_type: str, provider: str, import_path: str) -> None:
+    def register_for_import(cls, component_type: "ComponentType", provider: "ProviderName", import_path: str) -> None:
         """
         Register a custom import path for a specific component type and provider.
         
@@ -135,7 +142,7 @@ class ComponentImporter:
         cls._COMPONENT_PATHS[component_type][provider] = import_path
 
 
-def import_component(component_type: str, provider: str) -> Type[Any] | Callable[..., Any]:
+def import_component(component_type: "ComponentType", provider: "ProviderName") -> Type[Any] | Callable[..., Any]:
     """
     Convenience wrapper for LazyImporter.import_component
     
@@ -145,7 +152,7 @@ def import_component(component_type: str, provider: str) -> Type[Any] | Callable
     """
     return ComponentImporter.import_component(component_type, provider)
 
-def register_for_import(component_type: str, provider: str, import_path: str) -> None:
+def register_for_import(component_type: "ComponentType", provider: "ProviderName", import_path: str) -> None:
     """
     Convenience wrapper for LazyImporter.register_for_import
 

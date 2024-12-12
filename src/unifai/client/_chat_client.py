@@ -3,7 +3,12 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 
 if TYPE_CHECKING:
     from ..components._base_components._base_llm import LLM
+if TYPE_CHECKING:
+    from ..types.annotations import ComponentName, ProviderName
+    from ..configs import UnifAIConfig
+    from pathlib import Path
 
+from ..type_conversions import standardize_config
 
 from ..types import (
     ProviderName,
@@ -12,13 +17,6 @@ from ..types import (
     MessageInput, 
     Tool,
     ToolInput,
-    Embeddings,
-    Embedding,
-    QueryResult,    
-    
-    ReturnOnInput,
-    ResponseFormatInput,
-    ToolChoiceInput,
 )
 from ..type_conversions import standardize_tool, standardize_tools
 from ..types.annotations import ComponentName, ProviderName, ModelName, ToolName, ToolInput, BaseModel
@@ -27,8 +25,8 @@ from ..configs.chat_config import ChatConfig
 from ..configs.tool_caller_config import ToolCallerConfig
 
 from ..components._base_components._base_tool_caller import ToolCaller
-from ..components.prompt_template import PromptTemplate
-from ..components.chat import Chat
+from ..components.prompt_templates import PromptTemplate
+from ..components.chats import Chat
 from ._base_client import BaseClient, UnifAIConfig, Path
 
 from ..utils import update_kwargs_with_locals
@@ -45,13 +43,14 @@ class UnifAIChatClient(BaseClient):
     
     def configure(
         self,
-        config: Optional[UnifAIConfig|dict[str, Any]|str|Path] = None,
-        api_keys: Optional[dict[ProviderName, str]] = None,
+        config: Optional["UnifAIConfig|dict[str, Any]|str|Path"] = None,
+        api_keys: Optional["dict[ProviderName, str]"] = None,
         **kwargs
     ) -> None:
         BaseClient.configure(self, config, api_keys, **kwargs)
         self._init_tools(self.config.tools, self.config.tool_callables)
 
+    # Tools
     def _init_tools(self, tools: Optional[Sequence[ToolInput]] = None, tool_callables: Optional[dict[str, Callable]] = None) -> None:
         self._tools: dict[str, Tool] = {}
         self._tool_callables: dict[str, Callable] = {} 
@@ -67,7 +66,6 @@ class UnifAIChatClient(BaseClient):
         BaseClient.cleanup(self)
         self._cleanup_tools()
 
-    # Tools
     def register_tool(self, tool: ToolInput, tool_callable: Optional[Callable] = None, name: Optional[str] = None) -> None:
         tool = standardize_tool(tool)
         tool_name = name or tool.name

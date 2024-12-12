@@ -1,14 +1,11 @@
 from typing import TYPE_CHECKING, Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Iterable,  Callable, Iterator, Iterable, Generator, Self, AbstractSet, Collection
 
-# if TYPE_CHECKING:
-#     import tiktoken
-import tiktoken
+if TYPE_CHECKING:
+    import tiktoken
 
 from ...exceptions import UnifAIError, UnknownUnifAIError, TokenizerVocabError, TokenizerDisallowedSpecialTokenError
-from .._base_components._base_component import convert_exceptions
 from .._base_components._base_tokenizer import TokenizerAdapter
 from ...utils import lazy_import
-
 
 T = TypeVar("T")
 
@@ -18,7 +15,7 @@ class TikTokenTokenizer(TokenizerAdapter):
     default_tokenizer_model = "gpt2"
     default_encoding = "cl100k_base"
 
-    _encoding_cache: ClassVar[dict[str, tiktoken.Encoding]] = {}
+    _encoding_cache: ClassVar["dict[str, tiktoken.Encoding]"] = {}
 
     def import_client(self):
         return lazy_import("tiktoken")
@@ -39,11 +36,11 @@ class TikTokenTokenizer(TokenizerAdapter):
             return TokenizerVocabError(message=message, original_exception=exception)
         return UnknownUnifAIError(message=str(exception), original_exception=exception)
 
-    def get_tiktoken_encoding(self, model: Optional[str] = None, encoding: Optional[str] = None) -> tiktoken.Encoding:
+    def get_tiktoken_encoding(self, model: Optional[str] = None, encoding: Optional[str] = None) -> "tiktoken.Encoding":
         model = model or self.default_tokenizer_model
-        encoding = tiktoken.encoding_name_for_model(model) or self.default_encoding
+        encoding = self.client.encoding_name_for_model(model) or self.default_encoding
         if not (tiktoken_encoding := self._encoding_cache.get(encoding)):
-            tiktoken_encoding = tiktoken.get_encoding(encoding)
+            tiktoken_encoding = self.client.get_encoding(encoding)
             self._encoding_cache[encoding] = tiktoken_encoding
         return tiktoken_encoding
     

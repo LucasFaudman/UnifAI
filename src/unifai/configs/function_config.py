@@ -8,7 +8,7 @@ from ..types import (
 )
 
 
-from ..components.prompt_template import PromptTemplate
+from ..components.prompt_templates import PromptTemplate
 from ._base_configs import BaseConfig
 from .chat_config import ChatConfig
 from .llm_config import LLMConfig
@@ -18,7 +18,7 @@ from .output_parser_config import OutputParserConfig, OutputT, ReturnT
 
 from typing import TypeAlias, TypeVar, Generic
 if TYPE_CHECKING:
-    from ..components.chat import Chat
+    from ..components.chats import Chat
 
 from pydantic import BaseModel, Field
 InputT = TypeVar('InputT', bound=BaseModel) # Input type of the function

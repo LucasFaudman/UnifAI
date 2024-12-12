@@ -1,16 +1,17 @@
 from ._base_configs import ProviderConfig
-from .chat_config import ChatConfig
 from .document_chunker_config import DocumentChunkerConfig
 from .document_db_config import DocumentDBConfig, DocumentDBCollectionConfig
 from .document_loader_config import DocumentLoaderConfig
 from .embedder_config import EmbedderConfig
-from .function_config import FunctionConfig
 from .llm_config import LLMConfig
 from .output_parser_config import OutputParserConfig
 from .reranker_config import RerankerConfig
 from .tokenizer_config import TokenizerConfig
 from .tool_caller_config import ToolCallerConfig
 from .vector_db_config import VectorDBConfig, VectorDBCollectionConfig
+
+# High level configs must be imported last to avoid circular imports
+from .chat_config import ChatConfig
 from .rag_config import RAGConfig
 from .function_config import FunctionConfig
 from .unifai_config import UnifAIConfig

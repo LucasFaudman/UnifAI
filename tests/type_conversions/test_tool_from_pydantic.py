@@ -19,13 +19,13 @@ from unifai.types import (
     Tool,
     PROVIDER_TOOLS
 )
-from basetest import base_test_llms
+from basetest import base_test_llms, API_KEYS
 
 from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 from typing import Literal, get_args, get_origin, Any, Optional, Union, TypeVar, ClassVar, TypeAlias, Sequence, Collection, Mapping, List, Annotated, Union
 
-from unifai.type_conversions.tool_from_pydantic import tool_from_pydantic, construct_tool_parameter
+from unifai.type_conversions.tools.tool_from_pydantic import tool_from_pydantic, construct_tool_parameter
 
 
 
@@ -380,14 +380,12 @@ def test_tool_from_base_model(
     param_names = [param.name for param in return_tool.parameters.properties.values()]
     assert all(field_name in param_names for field_name in model_fields)
 
-    ai = UnifAI({provider: init_kwargs})    
-    get_model = ai.function(
-        FunctionConfig(response_format=bmodel,
+    ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])    
+    get_model = ai.function(FunctionConfig(output_parser=bmodel))
             # tools=[return_tool],
             # tool_choice=return_tool,
             # return_on='message', 
             # output_parser=bmodel
-        ))
 
     model = get_model("Fill out the model to test the tool input types.")
     assert model

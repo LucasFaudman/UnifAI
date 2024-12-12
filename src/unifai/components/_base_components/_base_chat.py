@@ -1,39 +1,35 @@
 from typing import TYPE_CHECKING, Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator, TypeVar, Generic
 from copy import deepcopy
 
+if TYPE_CHECKING:
+    from ...types.annotations import (
+        ComponentName, ModelName, ProviderName, ToolName, 
+        MessageInput, ToolInput, ToolChoice, ToolChoiceInput, 
+        BaseModel
+    )
 
-# if TYPE_CHECKING:
-from ..components._base_components._base_tool_caller import ToolCaller
-from ..components._base_components._base_tokenizer import Tokenizer
-from ..components.prompt_template import PromptTemplate
-from ..configs.llm_config import LLMConfig
-from ..configs.tool_caller_config import ToolCallerConfig
-from ..configs.tokenizer_config import TokenizerConfig
-
-from ._base_components._base_llm import LLM
-from ..components._base_components._base_component import UnifAIComponent
-from ..configs.chat_config import ChatConfig
+    from ...configs.llm_config import LLMConfig
+    from ...configs.tool_caller_config import ToolCallerConfig
+    from ...configs.tokenizer_config import TokenizerConfig
 
 
-from ..types.annotations import ComponentName, ModelName, ProviderName, ToolName, ToolInput, BaseModel
-from ..types import (
-    ProviderName, 
+from ._base_llm import LLM
+from ._base_prompt_template import PromptTemplate
+from ._base_tokenizer import Tokenizer
+from ._base_tool_caller import ToolCaller
+from .__base_component import UnifAIComponent
+
+from ...configs.chat_config import ChatConfig
+from ...types import (
     Message,
     MessageChunk,
-    MessageInput, 
-    ResponseFormatInput,
-    ReturnOnInput,
     Tool,
-    ToolInput,
     ToolCall,
-    ToolChoiceInput,
-    ToolChoice,
-    ToolName,
     ResponseInfo,
     Usage,
 )
-from ..type_conversions import standardize_tool, standardize_tools, standardize_messages, standardize_message, standardize_tool_choice, standardize_response_format
-from ..utils import combine_dicts, stringify_content
+from ...type_conversions import standardize_tool, standardize_tools, standardize_messages, standardize_message, standardize_tool_choice, standardize_response_format
+from ...utils import combine_dicts, stringify_content
 
 ChatConfigT = TypeVar("ChatConfigT", bound=ChatConfig)
 
@@ -149,21 +145,21 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         return self
         
     @property
-    def llm_provider(self) -> ProviderName:
+    def llm_provider(self) -> "ProviderName":
         return self.llm.provider
     
     @llm_provider.setter
-    def llm_provider(self, provider: ProviderName) -> None:
+    def llm_provider(self, provider: "ProviderName") -> None:
         self.llm = provider
 
     @property
-    def llm_model(self) -> ModelName:
+    def llm_model(self) -> "ModelName":
         if self._llm_model is None:
             self._llm_model = self.config.llm_model or self.llm.default_model
         return self._llm_model
     
     @llm_model.setter
-    def llm_model(self, model: Optional[ModelName]) -> None:
+    def llm_model(self, model: Optional["ModelName"]) -> None:
         self._llm_model = model
 
     @property
@@ -181,15 +177,15 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         return _system_prompt(**self.system_prompt_kwargs)
         
     @system_prompt.setter
-    def system_prompt(self, system_prompt: Optional[str | PromptTemplate | Callable[...,str]]) -> None:
+    def system_prompt(self, system_prompt: Optional["str | PromptTemplate | Callable[..., str]"]) -> None:
         self._system_prompt = system_prompt
 
     @property
-    def examples(self) -> Optional[list[Message]]:
+    def examples(self) -> Optional["list[Message]"]:
         return self._unifai_examples
     
     @examples.setter
-    def examples(self, examples: Optional[list[Union[Message, dict[Literal["input", "response"], Any]]]]) -> None:
+    def examples(self, examples: Optional['list[Message | dict[Literal["input", "response"], Any]]']) -> None:
         if self._unifai_examples:
             self._unifai_examples.clear()
         if self._client_examples:
@@ -205,11 +201,11 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         self._client_examples.extend(self.llm.format_messages(self._unifai_examples))
 
     @property
-    def messages(self) -> list[Message]:
+    def messages(self) -> "list[Message]":
         return self._unifai_messages
 
     @messages.setter
-    def messages(self, messages: Sequence[MessageInput]) -> None: 
+    def messages(self, messages: Sequence["MessageInput"]) -> None: 
         if self._client_messages:
             self._client_messages.clear()        
         if self._unifai_messages:
@@ -217,10 +213,10 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
             self._unifai_messages.clear() # preserve original list in case of outside references
         self.extend_messages(messages)
 
-    def append_message(self, message: MessageInput) -> None:
+    def append_message(self, message: "MessageInput") -> None:
         self.extend_messages([message])
 
-    def extend_messages(self, messages: Sequence[MessageInput]) -> None:
+    def extend_messages(self, messages: Sequence["MessageInput"]) -> None:
         # convert inputs to UnifAI format
         unifai_messages = standardize_messages(messages)
 
@@ -240,7 +236,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         # update history with new messages
         self.history.extend(unifai_messages)
 
-    def extend_messages_with_tool_outputs(self, tool_calls: list[ToolCall], content: Optional[str] = None) -> None:
+    def extend_messages_with_tool_outputs(self, tool_calls: list["ToolCall"], content: Optional[str] = None) -> None:
         self.append_message(Message(role="tool", tool_calls=tool_calls, content=content))
         
     def clear_messages(self) -> Self:
@@ -261,18 +257,18 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
             return self._unifai_messages[-1]
     
     @property
-    def tools(self) -> dict[ToolName, Tool]|None:
+    def tools(self) -> Optional["dict[ToolName, Tool]"]:
         return self._unifai_tools
 
     @tools.setter
-    def tools(self, tools: Optional[list[ToolInput]|dict[ToolName, Tool]]):
+    def tools(self, tools: Optional["list[ToolInput] | dict[ToolName, Tool]"]):
         if tools:
             self._unifai_tools = standardize_tools(tools, self.tool_registry) if not isinstance(tools, dict) else tools
             self._client_tools = list(map(self.llm.format_tool, self._unifai_tools.values()))
         else:
             self._unifai_tools = self._client_tools = None
 
-    def add_tool(self, tool: ToolInput) -> None:
+    def add_tool(self, tool: "ToolInput") -> None:
         tool = standardize_tool(tool, self.tool_registry)
         if self._unifai_tools is None:
             self._unifai_tools = {}
@@ -303,13 +299,13 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         return combine_dicts(_callables_from_tools, self._tool_callables, tool_callables)            
 
     @property
-    def tool_caller(self) -> Optional[ToolCaller]:
+    def tool_caller(self) -> Optional["ToolCaller"]:
         return self._tool_caller
 
     @tool_caller.setter
     def tool_caller(
             self, 
-            tool_caller: Optional[ToolCaller | ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]]
+            tool_caller: Optional["ToolCaller | ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]"]
     ) -> None:
 
         if tool_caller is None or isinstance(tool_caller, ToolCaller):
@@ -319,11 +315,11 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
             self._tool_caller.set_tool_callables(self._resolve_tool_callables())
 
     @property
-    def tool_choice(self) -> Optional[ToolChoice]:
+    def tool_choice(self) -> Optional["ToolChoice"]:
         return self._unifai_tool_choice
     
     @tool_choice.setter
-    def tool_choice(self, tool_choice: Optional[ToolChoiceInput]):
+    def tool_choice(self, tool_choice: Optional["ToolChoiceInput"]):
         self._tool_choice_index = 0
         if tool_choice:
             if isinstance(tool_choice, str):
@@ -338,7 +334,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
     def enforce_tool_choice_needed(self) -> bool:
         return self.config.enforce_tool_choice and self._unifai_tool_choice != 'auto' and self._unifai_tool_choice is not None    
     
-    def _check_tool_choice_obeyed(self, tool_choice: str, tool_calls: Optional[list[ToolCall]]) -> bool:
+    def _check_tool_choice_obeyed(self, tool_choice: str, tool_calls: Optional[list["ToolCall"]]) -> bool:
         if tool_choice == "auto":
             print("tool_choice='auto' OBEYED")
             return True
@@ -383,11 +379,11 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         self.deleted_messages.append(message) # keep for calculating usage and debugging
 
     @property
-    def return_on(self) -> Literal["content", "tool_call", "message"] | ToolName | list[ToolName]:
+    def return_on(self) -> 'Literal["content", "tool_call", "message"] | ToolName | list[ToolName]':
         return self._return_on
     
     @return_on.setter
-    def return_on(self, return_on: Union[Literal["content", "tool_call", "message"], ToolName, Tool, list[ToolName | Tool]]) -> None:
+    def return_on(self, return_on: 'Literal["content", "tool_call", "message"]| ToolName | Tool| list[ToolName | Tool]') -> None:
         if return_on in ("content", "message"):            
             self._return_on = return_on
             return
@@ -409,7 +405,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
             return
         raise ValueError(f"Invalid return_on: {return_on}")
 
-    def _check_return_on_tool_call(self, tool_calls: list[ToolCall]) -> bool:
+    def _check_return_on_tool_call(self, tool_calls: list["ToolCall"]) -> bool:
         # (type Literal['tool_call']) true on any tool call regardless of tool name
         if (_return_on := self._return_on) == "tool_call":
             return True
@@ -424,7 +420,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         return self._unifai_response_format
 
     @response_format.setter
-    def response_format(self, response_format: Optional[Literal["text", "json"] | dict[Literal["json_schema"], dict[str, str] | Type[BaseModel] | Tool]]) -> None:
+    def response_format(self, response_format: Optional['Literal["text", "json"] | dict[Literal["json_schema"], dict[str, str] | Type[BaseModel] | Tool]']) -> None:
         if response_format:
             self._unifai_response_format = standardize_response_format(response_format)
             self._client_response_format = self.llm.format_response_format(self._unifai_response_format)
@@ -535,7 +531,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
             break
         return self
 
-    def _send_message(self, *message: MessageInput, **kwargs):
+    def _send_message(self, *message: "MessageInput", **kwargs):
         if not message:
             raise ValueError("No message(s) provided")
         # prevent error when using multiple return_tools without submitting tool outputs
@@ -543,18 +539,18 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
             self.pop_message()                    
         self.extend_messages(message)
         
-    def send_message(self, *message: MessageInput, **kwargs) -> Message|None:
+    def send_message(self, *message: "MessageInput", **kwargs) -> Message|None:
         self._send_message(*message, **kwargs)
         self.run(**kwargs)
         return self.last_message
         
-    def send_message_stream(self, *message: MessageInput, **kwargs) -> Generator[MessageChunk, None,  Message|None]:
+    def send_message_stream(self, *message: "MessageInput", **kwargs) -> Generator[MessageChunk, None,  Message|None]:
         self._send_message(*message, **kwargs)
         yield from self.run_stream(**kwargs)
         return self.last_message
     
     def _submit_tool_outputs(self, 
-                            tool_calls: list[ToolCall], 
+                            tool_calls: list["ToolCall"], 
                             tool_outputs: Optional[Iterable[Any]],
                             ):
         if tool_outputs:
@@ -563,7 +559,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         self.extend_messages_with_tool_outputs(tool_calls)
         
     def submit_tool_outputs(self,
-                            tool_calls: list[ToolCall], 
+                            tool_calls: list["ToolCall"], 
                             tool_outputs: Optional[Iterable[Any]],
                             **kwargs
                             ) -> Self:
@@ -571,7 +567,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         return self.run(**kwargs)
     
     def submit_tool_outputs_stream(self,
-                            tool_calls: list[ToolCall], 
+                            tool_calls: list["ToolCall"], 
                             tool_outputs: Optional[Iterable[Any]],
                             **kwargs
                             ) -> Generator[MessageChunk, None, Self]:
@@ -596,17 +592,17 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
     content = last_content
 
     @property
-    def last_response_info(self) -> Optional[ResponseInfo]:
+    def last_response_info(self) -> Optional["ResponseInfo"]:
         if last_message := (self.last_message or self.last_deleted_message):
             return last_message.response_info
         
     @property
-    def last_usage(self) -> Optional[Usage]:
+    def last_usage(self) -> Optional["Usage"]:
         if last_response_info := self.last_response_info:
             return last_response_info.usage
     
     @property
-    def last_tool_calls(self) -> Optional[list[ToolCall]]:
+    def last_tool_calls(self) -> Optional[list["ToolCall"]]:
         if last_message := (self.last_message or self.last_deleted_message):
             return last_message.tool_calls
         
@@ -630,7 +626,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         
     # History properties
     @property
-    def all_messages(self) -> list[Message]:
+    def all_messages(self) -> "list[Message]":
         return self.history
     
     @property
@@ -638,16 +634,13 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         return [message.content for message in self.history]
     
     @property
-    def all_response_infos(self) -> list[ResponseInfo]:
+    def all_response_infos(self) -> list["ResponseInfo"]:
         return [message.response_info for message in self.history if message.response_info]
     
     @property
-    def all_usages(self) -> list[Usage]:
+    def all_usages(self) -> list["Usage"]:
         return [response_info.usage for response_info in self.all_response_infos if response_info.usage]
 
     def __str__(self) -> str:
         return f"Chat(provider={self.llm_provider}, model={self.llm_model},  messages={len(self.messages)}, tools={len(self._unifai_tools) if self._unifai_tools else None}, tool_choice={self._unifai_tool_choice}, response_format={self._unifai_response_format})"
 
-
-class Chat(BaseChat[ChatConfig]):
-    config_class = ChatConfig

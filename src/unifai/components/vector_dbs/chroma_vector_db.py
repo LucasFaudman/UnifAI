@@ -8,7 +8,7 @@ from ...utils.iter_utils import zippable
 from ...exceptions import ProviderUnsupportedFeatureError
 from ...types import Embedding, Embeddings, GetResult, QueryResult, CollectionName
 from ...configs import VectorDBCollectionConfig
-from .._base_components._base_component import convert_exceptions
+from .._base_components.__base_component import convert_exceptions
 from .._base_components._base_vector_db_collection import VectorDBCollection
 from .._base_components._base_vector_db import VectorDB
 from ..adapters.chroma_adapter import ChromaExceptionConverter, ChromaAdapter

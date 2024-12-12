@@ -3,7 +3,7 @@ from abc import abstractmethod
 
 from ...types import Embedding, Embeddings, QueryResult, RankedDocument
 from ...configs._base_configs import ComponentConfig
-from ._base_component import UnifAIComponent
+from .__base_component import UnifAIComponent
 
 RetreiverConfig = TypeVar("RetreiverConfig", bound=ComponentConfig)
 QueryInputT = TypeVar("QueryInputT")

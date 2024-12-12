@@ -2,7 +2,7 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 
 from ..types.annotations import ComponentName, ModelName, ProviderName
 from ..types.db_results import QueryResult
-from ..components.prompt_template import PromptTemplate
+from ..components.prompt_templates import PromptTemplate
 
 from ._base_configs import ComponentConfig
 from .document_loader_config import DocumentLoaderConfig

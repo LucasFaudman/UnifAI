@@ -5,7 +5,7 @@ from ..types import (
     Message,
     Tool,
 )
-from ..components.prompt_template import PromptTemplate
+from ..components.prompt_templates import PromptTemplate
 from ._base_configs import ComponentConfig
 from .llm_config import LLMConfig
 from .tokenizer_config import TokenizerConfig

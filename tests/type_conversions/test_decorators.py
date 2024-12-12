@@ -18,7 +18,7 @@ from unifai.types import (
 
 from basetest import base_test_llms
 
-from unifai.type_conversions.tool_from_func import parse_docstring_and_annotations
+from unifai.type_conversions.tools.tool_from_func import parse_docstring_and_annotations
 from unifai.type_conversions import tool
 from pydantic import BaseModel, Field
 

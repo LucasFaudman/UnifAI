@@ -1,38 +1,28 @@
-from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator, Generic
+from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, TypeVar, Union, Self, Iterable, Mapping, Generator, Generic
 
-from ..components.prompt_template import PromptTemplate
-from ..components.output_parsers.json_output_parser import json_parse
-from ..components.output_parsers.pydantic_output_parser import pydantic_parse
-from ..components.tool_callers import ToolCaller
+from ._base_prompt_template import PromptTemplate
 
-from ..types.annotations import ComponentName, ModelName, ProviderName, ToolName, ToolInput
-from ..types import Message, MessageChunk, Tool, ToolCall, ToolInput, ToolChoiceInput
-from ..type_conversions import tool_from_model
-from ..utils import stringify_content
 
-from ._base_components._base_component import UnifAIComponent
-from .chat import BaseChat
-from .ragpipe import RAGPipe
-from .output_parsers.pydantic_output_parser import PydanticParser
+from ...types.annotations import ComponentName, ModelName, ProviderName, ToolName, ToolInput
+from ...types import Message, MessageChunk, Tool, ToolCall, ToolInput, ToolChoiceInput
+from ...type_conversions import tool_from_model
+from ...utils import stringify_content
 
-from ..configs.rag_config import RAGConfig
-from ..configs.function_config import FunctionConfig, InputT, OutputT, ReturnT
+from ._base_chat import BaseChat
+from ..ragpipes import RAGPipe
+from ..output_parsers.pydantic_output_parser import PydanticParser
+
+from ...configs.rag_config import RAGConfig
+from ...configs.function_config import FunctionConfig, InputT, OutputT, ReturnT
 
 from pydantic import BaseModel, Field, ConfigDict
 
-def is_base_model_type(value: Any) -> bool:
-    return isinstance(value, type) and issubclass(value, BaseModel)
+FunctionConfigT = TypeVar('FunctionConfigT', bound=FunctionConfig)
 
-def is_tool_or_model(value: Any) -> bool:
-    return isinstance(value, Tool) or is_base_model_type(value)
-
-class Function(BaseChat[FunctionConfig[InputT, OutputT, ReturnT]], Generic[InputT, OutputT, ReturnT]):
+class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputT, OutputT, ReturnT]):
     component_type = "function"
     provider = "base"
-    config_class = FunctionConfig
-
-    def __init__(self, config: FunctionConfig[InputT, OutputT, ReturnT], **init_kwargs) -> None:
-        super().__init__(config, **init_kwargs)
+    config_class: Type[FunctionConfigT]
 
     def reset(self) -> Self:
         self.clear_messages()

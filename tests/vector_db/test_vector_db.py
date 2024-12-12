@@ -3,7 +3,7 @@ from typing import Optional, Literal
 
 from unifai import UnifAI, ProviderName
 from unifai.components._base_components._base_vector_db import VectorDB, VectorDBCollection, DocumentDB
-from unifai.components import DictDocumentDB
+from unifai.components.document_dbs.ephemeral_document_db import EphemeralDocumentDB
 
 from unifai.exceptions import CollectionNotFoundError, DocumentNotFoundError
 from basetest import base_test, base_test_vector_dbs, API_KEYS
@@ -210,7 +210,7 @@ def test_vector_db_add(provider: ProviderName,
         embedding_model=embedding_model,
         dimensions=dimensions,
         distance_metric=distance_metric,
-        document_db_collection="dict",
+        document_db_collection="ephemeral",
     )
     assert collection
     assert isinstance(collection, VectorDBCollection)
@@ -406,7 +406,7 @@ def test_vector_db_query_simple(provider: ProviderName,
         embedding_model=embedding_model,
         dimensions=dimensions,
         distance_metric=distance_metric,
-        document_db_collection="dict",
+        document_db_collection="ephemeral",
     )
     assert collection
     assert isinstance(collection, VectorDBCollection)

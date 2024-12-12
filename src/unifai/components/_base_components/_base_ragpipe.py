@@ -1,38 +1,37 @@
-from typing import TYPE_CHECKING, Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator, NoReturn
+from typing import TYPE_CHECKING, Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator, NoReturn, Generic, TypeVar
 
 if TYPE_CHECKING:
-    from ..types.annotations import ComponentName, ModelName, ProviderName
+    from ...types.annotations import ComponentName, ModelName, ProviderName
 
+from .._base_components._base_document_chunker import DocumentChunker
+from .._base_components._base_document_db import DocumentDB, DocumentDBCollection
+from .._base_components._base_document_loader import DocumentLoader
+from .._base_components._base_embedder import Embedder
+from .._base_components._base_vector_db import VectorDB, VectorDBCollection
+from .._base_components._base_reranker import Reranker
+from .._base_components._base_tokenizer import Tokenizer
+from ._base_prompt_template import PromptTemplate
 
+from ...configs.rag_config import RAGConfig
+from ...configs.document_chunker_config import DocumentChunkerConfig
+from ...configs.document_db_config import DocumentDBConfig, DocumentDBCollectionConfig
+from ...configs.document_loader_config import DocumentLoaderConfig
+from ...configs.embedder_config import EmbedderConfig
+from ...configs.reranker_config import RerankerConfig
+from ...configs.tokenizer_config import TokenizerConfig
+from ...configs.vector_db_config import VectorDBConfig, VectorDBCollectionConfig
 
-from ._base_components._base_document_chunker import DocumentChunker
-from ._base_components._base_document_db import DocumentDB, DocumentDBCollection
-from ._base_components._base_document_loader import DocumentLoader
-from ._base_components._base_embedder import Embedder
-from ._base_components._base_vector_db import VectorDB, VectorDBCollection
-from ._base_components._base_reranker import Reranker
-from ._base_components._base_tokenizer import Tokenizer
-from .prompt_template import PromptTemplate
+from ...types import Document, Documents, ResponseInfo, QueryResult
 
-from ..configs.rag_config import RAGConfig
-from ..configs.document_chunker_config import DocumentChunkerConfig
-from ..configs.document_db_config import DocumentDBConfig, DocumentDBCollectionConfig
-from ..configs.document_loader_config import DocumentLoaderConfig
-from ..configs.embedder_config import EmbedderConfig
-from ..configs.reranker_config import RerankerConfig
-from ..configs.tokenizer_config import TokenizerConfig
-from ..configs.vector_db_config import VectorDBConfig, VectorDBCollectionConfig
+from ...utils import chunk_iterable, combine_dicts
 
-from ..types import Document, Documents, ResponseInfo, QueryResult
+from .__base_component import UnifAIComponent
 
-from ..utils import chunk_iterable, combine_dicts
+RAGConfigT = TypeVar('RAGConfigT', bound=RAGConfig)
 
-from ._base_components._base_component import UnifAIComponent
-
-class RAGPipe(UnifAIComponent[RAGConfig]):
+class BaseRAGPipe(UnifAIComponent[RAGConfigT], Generic[RAGConfigT]):
     component_type = "ragpipe"
-    provider = "default"
-    config_class = RAGConfig
+    provider = "base"
 
     can_get_components = True
 
@@ -45,6 +44,7 @@ class RAGPipe(UnifAIComponent[RAGConfig]):
         self._reranker = self.init_kwargs.get("reranker")
         self._tokenizer = self.init_kwargs.get("tokenizer")
         self._extra_kwargs = self.config.extra_kwargs or {}
+        self.response_infos: list[ResponseInfo] = []
 
     @property
     def document_loader(self) -> DocumentLoader:
@@ -207,6 +207,29 @@ class RAGPipe(UnifAIComponent[RAGConfig]):
             batch_size=batch_size,
         )
     
+    def ingest_all_documents(
+            self,
+            documents: Iterable[Document],
+            *,
+            document_chunker: Optional[DocumentChunker] = None,
+            embedder: Optional[Embedder] = None,
+            vector_db_collection: Optional[VectorDBCollection] = None,
+            chunk_kwargs: Optional[dict[str, Any]] = None,
+            embed_kwargs: Optional[dict[str, Any]] = None,
+            upsert_kwargs: Optional[dict[str, Any]] = None,
+            batch_size: Optional[int] = None,
+        ) -> Documents:      
+        return Documents.from_generator(self.ingest_documents(
+            documents,
+            document_chunker=document_chunker,
+            embedder=embedder,
+            vector_db_collection=vector_db_collection,
+            chunk_kwargs=chunk_kwargs,
+            embed_kwargs=embed_kwargs,
+            upsert_kwargs=upsert_kwargs,
+            batch_size=batch_size,
+        ))
+                    
     def ingest(
             self,
             *load_args,
@@ -239,7 +262,35 @@ class RAGPipe(UnifAIComponent[RAGConfig]):
             embed_kwargs=embed_kwargs,
             upsert_kwargs=upsert_kwargs,
             batch_size=batch_size,
-        )    
+        )
+    
+    def ingest_all(
+            self,
+            *load_args,
+            document_loader: Optional[DocumentLoader] = None,
+            document_chunker: Optional[DocumentChunker] = None,
+            embedder: Optional[Embedder] = None,
+            vector_db_collection: Optional[VectorDBCollection] = None,
+            load_kwargs: Optional[dict[str, Any]] = None,
+            chunk_kwargs: Optional[dict[str, Any]] = None,
+            embed_kwargs: Optional[dict[str, Any]] = None,
+            upsert_kwargs: Optional[dict[str, Any]] = None,
+            batch_size: Optional[int] = None,
+            **kwargs
+    ) -> Documents:
+        return Documents.from_generator(self.ingest(
+            *load_args,
+            document_loader=document_loader,
+            document_chunker=document_chunker,
+            embedder=embedder,
+            vector_db_collection=vector_db_collection,
+            load_kwargs=load_kwargs,
+            chunk_kwargs=chunk_kwargs,
+            embed_kwargs=embed_kwargs,
+            upsert_kwargs=upsert_kwargs,
+            batch_size=batch_size,
+            **kwargs
+        ))
     
     def query(
             self, 
@@ -272,6 +323,7 @@ class RAGPipe(UnifAIComponent[RAGConfig]):
             # TODO: maybe move to VectorDBCollection
             query_result.trim_by_distance(max_distance)
 
+        # If a reranker is configured and there are results rerank them
         if self.reranker and query_result.ids:
             reranker_model = reranker_model or self.config.reranker_model
             rerank_kwargs = combine_dicts(self._extra_kwargs.get("rerank"), rerank_kwargs)

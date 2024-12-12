@@ -8,7 +8,7 @@ from ...types import Message, ToolCall
 from pydantic import BaseModel, ValidationError
 
 if TYPE_CHECKING:
-    from ..chat import Chat
+    from ..chats import Chat
 
 T = TypeVar("T", bound=BaseModel)
 

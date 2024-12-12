@@ -1,6 +1,6 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator
 from pydantic import BaseModel
-from ..utils import combine_dicts
+from ...utils import combine_dicts
 
 class PromptTemplate(BaseModel):
     template: str|Callable[..., str] = "{content}"

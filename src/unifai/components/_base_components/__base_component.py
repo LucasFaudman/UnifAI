@@ -13,8 +13,8 @@ class AbstractBaseComponent(ABC):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         
-        # _is_abstract=True must be set explicitly by the subclass (present in cls.__dict__) 
-        # if the subclass is abstract, otherwise it is assumed to be concrete and will be validated
+        # _is_abstract=True must explicitly set by the subclass (in __dict__) if the subclass is abstract, 
+        # otherwise it is assumed to be concrete and will be validated
         if cls.__dict__.get('_is_abstract'):
             return # Subclass is abstract, allow abstract methods to be unimplemented
         if not (methods := getattr(cls, "_abstract_methods", None)):

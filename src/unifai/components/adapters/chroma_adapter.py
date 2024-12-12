@@ -6,7 +6,7 @@ from chromadb.errors import ChromaError, InvalidCollectionException, InvalidDime
 from chromadb.api import ClientAPI as ChromaClientAPI
 
 from ...exceptions import UnifAIError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, CollectionAlreadyExistsError, CollectionNotFoundError, EmbeddingDimensionsError
-from .._base_components._base_component import UnifAIComponent
+from .._base_components.__base_component import UnifAIComponent
 from .._base_components._base_adapter import UnifAIAdapter
  
 

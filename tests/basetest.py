@@ -35,7 +35,7 @@ DOCUMENT_CHUNKER_CONFIGS = [
 ]
 
 DOCUMENT_DB_CONFIGS = [
-    DocumentDBConfig(provider='dict'),
+    DocumentDBConfig(provider='ephemeral'),
     DocumentDBConfig(provider='sqlite'),
     # DocumentDBConfig(provider='firebase'),
     # DocumentDBConfig(provider='mongodb'),

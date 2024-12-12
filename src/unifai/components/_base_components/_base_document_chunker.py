@@ -6,7 +6,7 @@ from ...types import Document
 from ...types.annotations import ComponentName, ModelName, ProviderName, CollectionName
 
 from ._base_adapter import UnifAIAdapter
-from ._base_component import UnifAIComponent
+from .__base_component import UnifAIComponent
 from ._base_tokenizer import Tokenizer
 from ..tokenizers.tiktoken_tokenizer import TikTokenTokenizer
 from ...configs.document_chunker_config import DocumentChunkerConfig
@@ -235,42 +235,6 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
         # Yield any remaining chunks
         if stack:
             yield from self._merge_chunks(stack, merge_separator, chunk_size, chunk_overlap, strip_chars, **kwargs)
-
-    def _chunk_text(
-        self,
-        text: str,
-        chunk_size: int,
-        chunk_overlap: int,
-        keep_separator: Literal["start", "end", False],
-        strip_chars: str|Literal[False],
-        **kwargs
-    ) -> Iterator[str]:
-        """Chunk text into smaller pieces using character-based splitting.
-
-        Args:
-            text: Text to chunk
-            chunk_size: Maximum size of chunks
-            chunk_overlap: Number of characters to overlap
-            keep_separator: Whether to keep separators
-            strip_chars: Characters to strip from chunks
-            **kwargs: Additional arguments passed to splitting functions
-
-        Returns:
-            Iterator of text chunks
-        """
-
-        # For single separator case, use simple splitting
-        if len(self.separators) == 1:
-            split_separator = self.separators[0] if self.regex else re.escape(self.separators[0])
-            merge_separator = self.separators[0] if self.keep_separator else ""
-            chunks = self._split_text_with_regex(text, split_separator, keep_separator)
-            yield from self._merge_chunks(chunks, merge_separator, chunk_size, chunk_overlap, strip_chars, **kwargs)
-        # For multiple separators, use recursive splitting
-        else:
-            separators = self.separators.copy()
-            if separators[-1] != "":
-                separators.append("") # add empty separator to end of list so chunks are split correctly
-            yield from self._recursive_split(text, separators, chunk_size, chunk_overlap, strip_chars, **kwargs)
     
     def _join_chunks(
             self, 
@@ -319,6 +283,42 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
 
         if (joined_chunk := self._join_chunks(stack, separator, strip_chars)) is not None:
             yield joined_chunk
+
+    def _chunk_text(
+        self,
+        text: str,
+        chunk_size: int,
+        chunk_overlap: int,
+        keep_separator: Literal["start", "end", False],
+        strip_chars: str|Literal[False],
+        **kwargs
+    ) -> Iterator[str]:
+        """Chunk text into smaller pieces using character-based splitting.
+
+        Args:
+            text: Text to chunk
+            chunk_size: Maximum size of chunks
+            chunk_overlap: Number of characters to overlap
+            keep_separator: Whether to keep separators
+            strip_chars: Characters to strip from chunks
+            **kwargs: Additional arguments passed to splitting functions
+
+        Returns:
+            Iterator of text chunks
+        """
+
+        # For single separator case, use simple splitting
+        if len(self.separators) == 1:
+            split_separator = self.separators[0] if self.regex else re.escape(self.separators[0])
+            merge_separator = self.separators[0] if self.keep_separator else ""
+            chunks = self._split_text_with_regex(text, split_separator, keep_separator)
+            yield from self._merge_chunks(chunks, merge_separator, chunk_size, chunk_overlap, strip_chars, **kwargs)
+        # For multiple separators, use recursive splitting
+        else:
+            separators = self.separators.copy()
+            if separators[-1] != "":
+                separators.append("") # add empty separator to end of list so chunks are split correctly
+            yield from self._recursive_split(text, separators, chunk_size, chunk_overlap, strip_chars, **kwargs)
 
     def _create_documents_from_texts_metadatas_ids(
             self,
@@ -392,7 +392,7 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
         strip_chars = strip_chars if strip_chars is not None else self.strip_chars
         for document in documents:
             if (not (doc_text := document.text) # Null or empty text before stripping
-                or (strip_chars is not False and not doc_text.strip(strip_chars)) # empty text after stripping
+                or (strip_chars is not False and not doc_text.strip(strip_chars)) # empty text after stripping (Note2self is not False since .strip(None) is valid)
                 ):
                 continue
             yield document.text, document.metadata, document.id

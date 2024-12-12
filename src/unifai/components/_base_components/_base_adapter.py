@@ -3,7 +3,7 @@ from importlib import import_module
 
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embeddings, Usage
 from ...exceptions import UnifAIError, ProviderUnsupportedFeatureError
-from ._base_component import UnifAIComponent, ConfigT
+from .__base_component import UnifAIComponent, ConfigT
 
 from ...utils import combine_dicts
 from ...configs._base_configs import ComponentConfig

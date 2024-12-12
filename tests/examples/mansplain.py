@@ -55,7 +55,7 @@ rag_config = RAGConfig(
 )
 
 # Create a RAGPipe with the RAGConfig
-ragpipe = ai.rag(rag_config)
+ragpipe = ai.ragpipe(rag_config)
 
 # Ingest the manpages for tor, curl, and nc. (Since the loader is the ManpageDocumentLoader, the source is the binary name)
 for i, ingested_chunk in enumerate(ragpipe.ingest("tor", "curl", "nc")):

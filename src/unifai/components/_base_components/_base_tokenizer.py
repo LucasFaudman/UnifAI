@@ -2,7 +2,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Class
 from abc import abstractmethod
 
 from ...exceptions import UnsupportedFeatureError
-from ._base_component import UnifAIComponent
+from .__base_component import UnifAIComponent
 from ._base_adapter import UnifAIAdapter
 from ...configs.tokenizer_config import TokenizerConfig
 

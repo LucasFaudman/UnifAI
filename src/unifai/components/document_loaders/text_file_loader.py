@@ -1,6 +1,6 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Iterable,  Callable, Iterator, Iterable, Generator, Self, IO, Pattern 
 
-from .._base_components._base_component import UnifAIComponent
+from .._base_components.__base_component import UnifAIComponent
 from ...types import Document, Documents
 from .._base_components._base_document_loader import DocumentLoader
 

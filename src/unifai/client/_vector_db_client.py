@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from ..components._base_components._base_document_db import DocumentDB
     from ..configs.vector_db_config import VectorDBConfig
 
-from ._embed_client import UnifAIEmbedClient
+from ._embedder_client import UnifAIEmbedClient
 from ._document_db_client import UnifAIDocumentDBClient
 
 class UnifAIVectorDBClient(UnifAIEmbedClient, UnifAIDocumentDBClient):

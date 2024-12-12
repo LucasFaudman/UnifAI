@@ -2,7 +2,7 @@ from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Class
 from abc import abstractmethod
 
 from ._base_adapter import UnifAIAdapter
-from ._base_component import convert_exceptions, convert_exceptions_generator
+from .__base_component import convert_exceptions, convert_exceptions_generator
 
 
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embeddings, Usage
