@@ -34,7 +34,7 @@ class AnthropicAdapter(UnifAIAdapter):
 
 
     # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
-    def convert_exception(self, exception: AnthropicAPIError) -> UnifAIError:
+    def _convert_exception(self, exception: AnthropicAPIError) -> UnifAIError:
         if isinstance(exception, AnthropicAPIResponseValidationError):
             return APIResponseValidationError(
                 message=exception.message,
@@ -63,7 +63,7 @@ class AnthropicAdapter(UnifAIAdapter):
     
 
     # List Models
-    def list_models(self) -> list[str]:
+    def _list_models(self) -> list[str]:
         claude_models = [
             "claude-3-5-sonnet-20240620",
             "claude-3-opus-20240229",

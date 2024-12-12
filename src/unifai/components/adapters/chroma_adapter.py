@@ -13,7 +13,7 @@ from .._base_components._base_adapter import UnifAIAdapter
 class ChromaExceptionConverter(UnifAIComponent):
     provider = "chroma"
 
-    def convert_exception(self, exception: ChromaError|UniqueConstraintError) -> UnifAIError:
+    def _convert_exception(self, exception: ChromaError|UniqueConstraintError) -> UnifAIError:
         if isinstance(exception, InvalidCollectionException):
             return CollectionNotFoundError(
                 message=exception.message(),

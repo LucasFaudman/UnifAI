@@ -69,7 +69,7 @@ class AnthropicLLM(AnthropicAdapter, LLM):
     _system_prompt_input_type = "kwarg"
 
     # List Models
-    def list_models(self) -> list[str]:
+    def _list_models(self) -> list[str]:
         claude_models = [
             "claude-3-5-sonnet-20240620",
             "claude-3-opus-20240229",
@@ -343,4 +343,3 @@ class AnthropicLLM(AnthropicAdapter, LLM):
             raise ValueError("No message found")
                     
         return self.parse_message(message, **kwargs)
-

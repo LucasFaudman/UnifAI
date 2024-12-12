@@ -12,7 +12,7 @@ class SentenceTransformersAdapter(UnifAIAdapter):
         self.init_kwargs.update(init_kwargs)
     
     # List Models
-    def list_models(self) -> list[str]:
+    def _list_models(self) -> list[str]:
         hugging_face_api = lazy_import('huggingface_hub.HfApi')()
         return hugging_face_api.list_models(library="sentence-transformers")
   

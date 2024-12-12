@@ -14,7 +14,7 @@ from .._base_components._base_adapter import UnifAIAdapter
 class PineconeExceptionConverter(UnifAIComponent):
     provider = "pinecone"
     
-    def convert_exception(self, exception: PineconeException) -> UnifAIError:
+    def _convert_exception(self, exception: PineconeException) -> UnifAIError:
         if not isinstance(exception, PineconeApiException):
             return UnknownUnifAIError(
                 message=str(exception),

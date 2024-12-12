@@ -26,7 +26,7 @@ class CohereAdapter(UnifAIAdapter):
 
 
     # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
-    def convert_exception(self, exception: CohereAPIError) -> UnifAIError:
+    def _convert_exception(self, exception: CohereAPIError) -> UnifAIError:
         message = exception.body
         status_code = exception.status_code
         if status_code is not None:

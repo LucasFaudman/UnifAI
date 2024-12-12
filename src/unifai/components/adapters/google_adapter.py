@@ -52,7 +52,7 @@ class GoogleAdapter(UnifAIAdapter):
 
 
     # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
-    def convert_exception(self, exception: Exception) -> UnifAIError:      
+    def _convert_exception(self, exception: Exception) -> UnifAIError:      
         if isinstance(exception, GoogleAPICallError):
             message = exception.message
             status_code = exception.code
@@ -82,5 +82,5 @@ class GoogleAdapter(UnifAIAdapter):
     
 
     # List Models
-    def list_models(self) -> list[str]:
+    def _list_models(self) -> list[str]:
         return [model.name[7:] for model in self.client.list_models()]    

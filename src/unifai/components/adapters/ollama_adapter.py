@@ -42,7 +42,7 @@ class OllamaAdapter(UnifAIAdapter):
 
 
     # Convert Exceptions from AI Provider Exceptions to UnifAI Exceptions
-    def convert_exception(self, exception: OllamaRequestError|OllamaResponseError|NetworkError|TimeoutError) -> UnifAIError:
+    def _convert_exception(self, exception: OllamaRequestError|OllamaResponseError|NetworkError|TimeoutError) -> UnifAIError:
         if isinstance(exception, OllamaRequestError):            
             message = exception.error
             status_code = 400
@@ -68,6 +68,6 @@ class OllamaAdapter(UnifAIAdapter):
 
 
     # List Models
-    def list_models(self) -> Sequence[str]:
+    def _list_models(self) -> Sequence[str]:
         return [model_name for model_dict in self.client.list()["models"] if (model_name := model_dict.get("name"))]
     
