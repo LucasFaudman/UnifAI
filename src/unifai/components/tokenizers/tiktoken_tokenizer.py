@@ -33,7 +33,7 @@ class TikTokenTokenizer(TokenizerAdapter):
         self._client = self.import_client()
         return self._client
     
-    def convert_exception(self, exception: Exception) -> UnifAIError:
+    def _convert_exception(self, exception: Exception) -> UnifAIError:
         if isinstance(exception, ValueError) and exception.args and "disallowed special token" in (message := exception.args[0]):
             return TokenizerDisallowedSpecialTokenError(message=message, original_exception=exception)
         if isinstance(exception, KeyError) and exception.args and "Unknown encoding" in (message := exception.args[0]):
