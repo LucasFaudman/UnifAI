@@ -25,12 +25,12 @@ class ComponentConfig(BaseConfig):
                              "Only ComponentConfig objects can be added to other ComponentConfig objects.")
         if not hasattr(self, other_component_type):
             self_name, other_name = self.__class__.__name__, other.__class__.__name__            
-            raise ValueError(f"Cannot add {other_name} to {self_name} since {self_name} does not a use an {other_name} object."
+            raise ValueError(f"Cannot add {other_name} to {self_name} since {self_name} does not a use an {other_name} object. "
                              f"{other_name} objects can only be added to ComponentConfig objects that have an attribute named {other_component_type}."
                              )
         return other_component_type
     
-    def __add__(self, other: "ComponentConfig") -> "ComponentConfig":
+    def __add__(self, other: "ComponentConfig") -> Self:
         return self.model_copy(update={self._get_other_component_type(other): other}, deep=True)
 
     def __iadd__(self, other: "ComponentConfig") -> Self:
