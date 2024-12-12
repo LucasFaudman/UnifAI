@@ -2,8 +2,6 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Type
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator, overload
 
 if TYPE_CHECKING:
-    from ..components._base_components._base_llm import LLM
-if TYPE_CHECKING:
     from ..types.annotations import ComponentName, ProviderName
     from ..configs import UnifAIConfig
     from pathlib import Path
@@ -24,6 +22,7 @@ from ..configs.llm_config import LLMConfig
 from ..configs.chat_config import ChatConfig
 from ..configs.tool_caller_config import ToolCallerConfig
 
+from ..components._base_components._base_llm import LLM
 from ..components._base_components._base_tool_caller import ToolCaller
 from ..components.prompt_templates import PromptTemplate
 from ..components.chats import Chat

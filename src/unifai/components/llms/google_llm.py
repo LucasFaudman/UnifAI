@@ -69,7 +69,7 @@ from ...utils import generate_random_id
 
 class GoogleLLM(GoogleAdapter, LLM):
     provider = "google"
-    default_llm_model = "gemini-1.5-flash-latest"
+    default_llm_model = "gemini-2.0-flash-exp"
 
     _system_prompt_input_type = "kwarg"
     
