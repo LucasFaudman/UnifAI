@@ -39,6 +39,7 @@ class GetResult(BaseModel):
         if hasattr(self, "_sorted_by"):
             return self._sorted_by
         self._sorted_by = self._default_sorted_by
+        return self._sorted_by
 
     def sort(
             self,
