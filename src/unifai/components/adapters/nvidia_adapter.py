@@ -69,4 +69,5 @@ class NvidiaAdapter(OpenAIAdapter):
         return super().init_client(**init_kwargs)
   
 
- 
+    def _list_models(self) -> list[str]:
+        return super()._list_models()
