@@ -470,7 +470,7 @@ class SQLiteDocumentDB(DocumentDB):
                 if self.db.db_path != ":memory:":  # Don't close in-memory databases
                     self.db.close()
                                 
-        return ConnectionContextManager(self)        
+        return ConnectionContextManager(self)
     
     def _list_collections(
             self,
