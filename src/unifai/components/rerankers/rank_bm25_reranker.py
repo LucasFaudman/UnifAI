@@ -19,16 +19,13 @@ class RankBM25Reranker(Reranker):
         self._client = self.import_client()
         return self._client
         
-
     # List Models
     def list_models(self) -> list[str]:
         return ["BM25", "BM25Okapi", "BM25L", "BM25Plus"]
     
-
     def tokenize(self, text: str) -> list[str]:
         # TODO - Add support for custom tokenization
         return text.split()
-
     
     # Reranking
     def _get_rerank_response(
