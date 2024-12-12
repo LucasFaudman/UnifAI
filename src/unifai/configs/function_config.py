@@ -74,6 +74,7 @@ def return_as_message(output: Message) -> Message:
     return output
 
 class FunctionConfig(ChatConfig, _FunctionConfig[InputT, OutputT, ReturnT], Generic[InputT, OutputT, ReturnT]):
+    component_type: ClassVar = "function"
     input_parser: Callable[[InputT], dict|str] = Field(default=get_message_content)
     output_parser: Type[ReturnT] | Callable[[OutputT], ReturnT] | OutputParserConfig[OutputT, ReturnT] = Field(default=return_as_message)
     exception_handlers: Optional[dict[Type[Exception], Callable[..., ReturnT]]] = None

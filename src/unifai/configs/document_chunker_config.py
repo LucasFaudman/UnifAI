@@ -17,6 +17,7 @@ class _BaseDocumentChunkerConfig(ComponentConfig):
 
 
 class DocumentChunkerConfig(BaseDocumentCleanerConfig, _BaseDocumentChunkerConfig):
+    component_type: ClassVar = "document_chunker"
     default_base_id: str = "doc"
     extra_kwargs: Optional[dict[Literal["chunk_documents", "chunk_texts", "size_function"], dict[str, Any]]] = None
 
