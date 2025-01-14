@@ -82,8 +82,8 @@ class GetResult(BaseModel):
         for doc_dict in self.zipped_dicts(*self.included):
             yield self._document_class(**doc_dict)
 
-    def to_documents(self) -> list[Document]:
-        return list(self)
+    def to_documents(self) -> Documents:
+        return Documents(list(self))
 
     @classmethod
     def from_documents(cls, 
@@ -121,14 +121,14 @@ class QueryResult(GetResult):
         ).sort(by="distances", reverse=False)
 
     def __getitem__(self, index: int) -> RankedDocument:
-        return RankedDocument(query=self.query, **{attr[:-1]: getattr(self, attr)[index] for attr in self.included})
+        return RankedDocument(query=self.query, rank=index, **{attr[:-1]: getattr(self, attr)[index] for attr in self.included})
 
     def __iter__(self) -> Iterator[RankedDocument]:
         for rank, doc_dict in enumerate(self.zipped_dicts()):
             yield RankedDocument(query=self.query, rank=rank, **doc_dict)
 
-    def to_documents(self) -> list[RankedDocument]:
-        return list(self)
+    def to_documents(self) -> RankedDocuments:
+        return RankedDocuments(list(self))
     
     @classmethod
     def from_documents(cls, 
@@ -186,9 +186,9 @@ class RerankedQueryResult(QueryResult):
         for rank, doc_dict in enumerate(self.zipped_dicts()):
             yield RerankedDocument(query=self.query, rank=rank, **doc_dict)
 
-    def to_documents(self) -> list[RerankedDocument]:
-        return list(self)
-    
+    def to_documents(self) -> RerankedDocuments:
+        return RerankedDocuments(list(self))
+
     @classmethod
     def from_documents(cls, 
                           documents: Iterable[RerankedDocument]|RerankedDocuments, 
