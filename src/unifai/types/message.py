@@ -9,7 +9,7 @@ from .response_info import ResponseInfo, ListWithResponseInfo
 
 class Message(BaseModel):
     # id: str
-    role: Literal['user', 'assistant', 'tool', 'system']
+    role: Literal['user', 'assistant', 'tool', 'system'] = Field(default='user')
     content: Optional[str] = None
     images: Optional[list[Image]] = None
     tool_calls: Optional[list[ToolCall]] = None
