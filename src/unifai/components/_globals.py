@@ -13,6 +13,7 @@ COMPONENT_TYPES = [
     "output_parser",
     "prompt_template",
     "ragpipe",
+    "rag_prompter",
     "reranker",
     "tokenizer",
     "toolkit",
@@ -34,6 +35,7 @@ DEFAULT_PROVIDERS = {
     "output_parser": "pydantic_parser",
     "prompt_template": "default",
     "ragpipe": "default",
+    "rag_prompter": "default",
     "reranker": "rank_bm25",
     "tokenizer": "tiktoken",
     "toolkit": "default",
@@ -123,6 +125,9 @@ PROVIDERS = {
         "multi_query", # single collection, multiple queries
         "multi_collection", # multiple collections, single query
         "multi" # multiple collections, multiple queries
+    ],
+    "rag_prompter": [
+        "default", # TODO bfg before merge
     ],
     "reranker": [
         "cohere", 

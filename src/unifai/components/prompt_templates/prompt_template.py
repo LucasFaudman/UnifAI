@@ -1,0 +1,1 @@
+from .._base_components._base_prompt_template import PromptTemplate

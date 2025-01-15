@@ -7,7 +7,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from ..type_conversions import standardize_config
-from ..configs.function_config import FunctionConfig, InputT, OutputT, ReturnT
+from ..configs.function_config import FunctionConfig, InputParserConfig, OutputParserConfig, InputP, InputReturnT, OutputT, ReturnT
+from ..components.input_parsers import InputParser
+from ..components.output_parsers import OutputParser
 from ..components.functions import Function
 
 from ._base_client import BaseClient
@@ -17,7 +19,25 @@ from ._rag_client import UnifAIRAGClient
 
 class UnifAIFunctionClient(UnifAIChatClient, UnifAIRAGClient):
 
-    def function(self, config: FunctionConfig[InputT, OutputT, ReturnT], **init_kwargs) -> Function[InputT, OutputT, ReturnT]:
+    def output_parser(
+            self, 
+            provider_config_or_name: "ProviderName | OutputParserConfig[OutputT,ReturnT] | tuple[ProviderName, ComponentName]" = "default",          
+            **init_kwargs
+            ) -> "OutputParser[OutputT,ReturnT]":
+        return self._get_component("output_parser", provider_config_or_name, init_kwargs)
+    
+    def input_parser(
+            self,
+            provider_config_or_name: "ProviderName | InputParserConfig[InputP,InputReturnT] | tuple[ProviderName, ComponentName]" = "default",
+            **init_kwargs
+            ) -> "InputParser[InputP,InputReturnT]":
+        return self._get_component("input_parser", provider_config_or_name, init_kwargs)
+
+    def function(
+            self, 
+            config: FunctionConfig[InputP, InputReturnT, OutputT, ReturnT], 
+            **init_kwargs
+        ) -> Function[InputP, InputReturnT, OutputT, ReturnT]:
         return Function(config=config, tool_registry=self._tools, _get_component=self._get_component, **init_kwargs)
 
     def configure(

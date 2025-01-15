@@ -1,8 +1,10 @@
-from typing import Any, Literal, Union, Sequence, Dict, Collection, Callable, TypeAlias, Type
+from typing import Any, ParamSpec, Literal, Union, Sequence, Dict, Collection, Callable, TypeAlias, Type
 from .message import Message
 from .tool import Tool
 
 from pydantic import BaseModel
+
+InputP = ParamSpec('InputP')
 
 ComponentType: TypeAlias = str
 ProviderName: TypeAlias = str

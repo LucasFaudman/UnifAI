@@ -4,7 +4,7 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 if TYPE_CHECKING:
     from ..types.annotations import ComponentName, ProviderName
     from ..configs.unifai_config import UnifAIConfig
-    from ..components.ragpipes import RAGPipe
+    from ..components.ragpipes import RAGPipe, RAGPrompter
     from pathlib import Path
 
 from ..type_conversions import standardize_config
@@ -15,16 +15,25 @@ from ._reranker_client import UnifAIRerankClient
 from ._document_chunker_client import UnifAIDocumentChunkerClient
 from ._document_loader_client import UnifAIDocumentLoaderClient
 
-from ..configs.rag_config import RAGConfig
+from ..configs.rag_config import RAGConfig, RAGPrompterConfig, InputP
 
 class UnifAIRAGClient(UnifAIVectorDBClient, UnifAIRerankClient, UnifAIDocumentChunkerClient, UnifAIDocumentLoaderClient):
     
     def ragpipe(
             self, 
-            provider_config_or_name: "ProviderName | RAGConfig | tuple[ProviderName, ComponentName]" = "default",
+            provider_config_or_name: "ProviderName | RAGConfig[InputP] | tuple[ProviderName, ComponentName]" = "default",
             **init_kwargs
-            ) -> "RAGPipe":
+            ) -> "RAGPipe[InputP]":
         return self._get_component("ragpipe", provider_config_or_name, init_kwargs)
+    
+
+    def rag_prompter(
+            self, 
+            provider_config_or_name: "ProviderName | RAGPrompterConfig[InputP] | tuple[ProviderName, ComponentName]" = "default",
+            **init_kwargs
+            ) -> "RAGPrompter[InputP]":
+        return self._get_component("rag_prompter", provider_config_or_name, init_kwargs)
+            
     
     def configure(
         self,

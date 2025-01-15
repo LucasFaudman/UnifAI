@@ -60,6 +60,9 @@ class ComponentImporter:
         "ragpipe": {
             "default": ".ragpipes.RAGPipe",
         },
+        "rag_prompter": {
+            "default": ".ragpipes.RAGPrompter",
+        },
         "reranker": {
             "cohere": ".rerankers.cohere_reranker.CohereReranker",
             "nvidia": ".rerankers.nvidia_reranker.NvidiaReranker",
