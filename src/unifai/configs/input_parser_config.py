@@ -3,7 +3,7 @@ from ._base_configs import ComponentConfig
 from ..types import Message, ToolCall
 from ..types.annotations import InputP
 
-InputReturnT = TypeVar('InputReturnT', Message, str)
+InputReturnT = TypeVar('InputReturnT', Message, str, Message | str)
 
 class InputParserConfig(ComponentConfig, Generic[InputP, InputReturnT]):
     component_type: ClassVar = "input_parser"
