@@ -1,12 +1,13 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator, ClassVar
-from pydantic import BaseModel, ConfigDict
 from textwrap import dedent
+
+from ...types import BaseModel, Field
 from ...utils import combine_dicts
 
+from warnings import filterwarnings
+filterwarnings("ignore", message=r"Field name \".*\" in \"\w*Prompt\w*\" shadows an attribute in parent \"\w*Prompt\w*\"")
 
 class PromptModel(BaseModel):
-    model_config = ConfigDict(use_attribute_docstrings=True)
-
     template: ClassVar[str | Callable[..., str] | Literal["__doc__"]] = "__doc__"
     template_getter_kwargs: ClassVar[Optional[dict[str, Any]]] = None
 
@@ -89,10 +90,9 @@ class PromptModel(BaseModel):
         return self.format()
     
 
-
 class PromptTemplate(PromptModel):
     "{input}{content}"
-    template: str | Callable[..., str] | Literal["__doc__"]  = "__doc__"
+    template: str | Callable[..., str] | Literal["__doc__"]  = Field(default="__doc__")
     template_getter_kwargs: Optional[dict[str, Any]] = None
 
     default_kwargs: Optional[dict[str, Any]] = None
@@ -111,14 +111,20 @@ class PromptTemplate(PromptModel):
         # Note to self reason for this is to allow PromptTemplate("Hello {name}", name="World")
         # to work as PromptTemplate(template="Hello {name}", name="World")
         # which is not possible with pydantic BaseModel which requires PromptTemplate(template="Hello {name}")
-        BaseModel.__init__(self, 
-                           template=template, 
-                           value_formatters=value_formatters,
-                           template_getter_kwargs=template_getter_kwargs,
-                           default_kwargs=default_kwargs,
-                           default_nested_kwargs=default_nested_kwargs,
-                           )
-
+        init_kwargs = {}
+        if template is not None:
+            init_kwargs["template"] = template
+        if value_formatters is not None:
+            init_kwargs["value_formatters"] = value_formatters
+        if template_getter_kwargs is not None:
+            init_kwargs["template_getter_kwargs"] = template_getter_kwargs
+        if default_kwargs is not None:
+            init_kwargs["default_kwargs"] = default_kwargs
+        if default_nested_kwargs is not None:
+            init_kwargs["default_nested_kwargs"] = default_nested_kwargs
+        if default_kwargs:
+            init_kwargs["default_kwargs"] = default_kwargs
+        BaseModel.__init__(self, **init_kwargs)
 
 
 if __name__ == "__main__":
