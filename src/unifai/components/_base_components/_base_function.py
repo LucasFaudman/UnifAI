@@ -3,7 +3,7 @@ from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type,
 from ._base_prompt_template import PromptTemplate
 
 
-from ...types.annotations import ComponentName, ModelName, ProviderName, ToolName, ToolInput
+from ...types.annotations import InputP, InputReturnT, OutputT, ReturnT, NewInputP, NewInputReturnT, NewOutputT, NewReturnT
 from ...types import Message, MessageChunk, Tool, ToolCall, ToolInput, ToolChoiceInput
 from ...type_conversions import tool_from_model
 from ...utils import stringify_content
@@ -20,10 +20,7 @@ from ...configs.function_config import _FunctionConfig, FunctionConfig, InputPar
 from pydantic import BaseModel, Field, ConfigDict
 
 FunctionConfigT = TypeVar('FunctionConfigT', bound=FunctionConfig)
-NewInputP = ParamSpec('NewInputP')
-NewInputReturnT = TypeVar('NewInputReturnT', Message, str, Message | str)
-NewOutputT = TypeVar('NewOutputT')
-NewReturnT = TypeVar('NewReturnT')
+
 
 class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, InputReturnT, OutputT, ReturnT]):
     component_type = "function"
@@ -32,10 +29,6 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
 
     def _setup(self) -> None:
         super()._setup()
-        # self._get_input_parser: Callable[[ProviderName | InputParserConfig[InputP, InputReturnT] | tuple[ProviderName, ComponentName]], InputParser[InputP, InputReturnT]] = self.init_kwargs.pop("_get_input_parser")
-        # self._get_output_parser: Callable[[ProviderName | OutputParserConfig[OutputT, ReturnT] | tuple[ProviderName, ComponentName]], OutputParser[OutputT, ReturnT]] = self.init_kwargs.pop("_get_output_parser")
-        # self._get_ragpipe: Callable[[ProviderName | RAGConfig[InputP] | tuple[ProviderName, ComponentName]], RAGPipe[InputP]] = self.init_kwargs.pop("_get_ragpipe")
-        # self._get_function: Callable[[ProviderName | FunctionConfig[InputP, Any, Any, InputReturnT] | tuple[ProviderName, ComponentName]], "BaseFunction[FunctionConfig[InputP, Any, Any, InputReturnT], InputP, Any, Any, InputReturnT]"] = self.init_kwargs.pop("_get_function")
         self._get_input_parser: Callable[..., InputParser[InputP, InputReturnT]] = self.init_kwargs.pop("_get_input_parser")
         self._get_output_parser: Callable[..., OutputParser[OutputT, ReturnT]] = self.init_kwargs.pop("_get_output_parser")
         self._get_ragpipe: Callable[..., RAGPipe[InputP]] = self.init_kwargs.pop("_get_ragpipe")
@@ -60,7 +53,7 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
                     InputParserConfig[NewInputP, NewInputReturnT] | 
                     RAGConfig[NewInputP] | 
                     FunctionConfig[NewInputP, Any, Any, NewInputReturnT]) -> None:
-        self.set_input_parser(input_parser)
+        self._set_input_parser(input_parser)
 
     def _set_input_parser(self, input_parser: Callable[NewInputP, NewInputReturnT | Callable[..., NewInputReturnT]] | 
                     InputParserConfig[NewInputP, NewInputReturnT] | 
@@ -84,8 +77,7 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
                     RAGConfig[NewInputP] | 
                     FunctionConfig[NewInputP, Any, Any, NewInputReturnT]):
         self._set_input_parser(input_parser)
-        self = cast("BaseFunction[FunctionConfig[NewInputP, NewInputReturnT, OutputT, ReturnT], NewInputP, NewInputReturnT, OutputT, ReturnT]", self)
-        return self
+        return cast("BaseFunction[FunctionConfig[NewInputP, NewInputReturnT, OutputT, ReturnT], NewInputP, NewInputReturnT, OutputT, ReturnT]", self)
 
     @property
     def output_parser(self) -> Callable[[OutputT], ReturnT]:
@@ -96,7 +88,7 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
                      Callable[[NewOutputT], NewReturnT] | 
                      OutputParserConfig[NewOutputT, NewReturnT] | 
                      FunctionConfig[..., Any, Any, NewReturnT]) -> None:
-        self.set_output_parser(output_parser)
+        self._set_output_parser(output_parser)
         
     def _set_output_parser(self, output_parser: Type[NewReturnT] | 
                      Callable[[NewOutputT], NewReturnT] | 
@@ -136,10 +128,8 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
                      FunctionConfig[..., Any, Any, NewReturnT]):
         
         self._set_output_parser(output_parser)
-        self = cast("BaseFunction[FunctionConfig[InputP, InputReturnT, NewOutputT, NewReturnT], InputP, InputReturnT, NewOutputT, NewReturnT]", self)
-        return self
-          
-    
+        return cast("BaseFunction[FunctionConfig[InputP, InputReturnT, NewOutputT, NewReturnT], InputP, InputReturnT, NewOutputT, NewReturnT]", self)
+              
     def handle_exception(self, exception: Exception) -> ReturnT:
         handlers = self.config.exception_handlers
         if not handlers:
@@ -206,8 +196,7 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
         finally:
             if self.config.stateless:
                 self.reset()
-                    
-            
+                                
     # Aliases so func()==func.exec() and func.stream()==func.exec_stream()
     exec = __call__
     exec_stream = stream

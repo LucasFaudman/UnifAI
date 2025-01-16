@@ -5,7 +5,8 @@ from ...configs.output_parser_config import OutputParserConfig
 from ...configs.function_config import FunctionConfig
 from ...configs.rag_config import RAGConfig
 
-from .._base_components._base_function import BaseFunction, FunctionConfig, InputP, InputReturnT, OutputT, ReturnT, NewInputP, NewInputReturnT, NewOutputT, NewReturnT
+from ...types.annotations import InputP, InputReturnT, OutputT, ReturnT, NewInputP, NewInputReturnT, NewOutputT, NewReturnT
+from .._base_components._base_function import BaseFunction
 
 class Function(BaseFunction[FunctionConfig[InputP, InputReturnT, OutputT, ReturnT], InputP, InputReturnT, OutputT, ReturnT], Generic[InputP, InputReturnT, OutputT, ReturnT]):
     component_type = "function"
@@ -17,13 +18,11 @@ class Function(BaseFunction[FunctionConfig[InputP, InputReturnT, OutputT, Return
                     RAGConfig[NewInputP] | 
                     FunctionConfig[NewInputP, Any, Any, NewInputReturnT]):
         self._set_input_parser(input_parser)
-        self = cast("Function[NewInputP, NewInputReturnT, OutputT, ReturnT]", self)
-        return self
+        return cast("Function[NewInputP, NewInputReturnT, OutputT, ReturnT]", self)
     
     def set_output_parser(self, output_parser: Type[NewReturnT] | 
                      Callable[[NewOutputT], NewReturnT] | 
                      OutputParserConfig[NewOutputT, NewReturnT] | 
                      FunctionConfig[..., Any, Any, NewReturnT]):        
         self._set_output_parser(output_parser)
-        self = cast("Function[InputP, InputReturnT, NewOutputT, NewReturnT]", self)
-        return self
+        return cast("Function[InputP, InputReturnT, NewOutputT, NewReturnT]", self)
