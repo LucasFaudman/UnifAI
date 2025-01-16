@@ -1,4 +1,4 @@
-from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, TypeVar, Union, Self, Iterable, Mapping, Generator, Generic
+from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, TypeVar, Union, Self, Iterable, Mapping, Generator, Generic, ParamSpec, cast
 
 from ._base_prompt_template import PromptTemplate
 
@@ -15,11 +15,15 @@ from ..output_parsers import OutputParser
 from ..output_parsers.pydantic_output_parser import PydanticParser
 
 from ...configs.rag_config import RAGConfig
-from ...configs.function_config import FunctionConfig, InputParserConfig, OutputParserConfig, InputP, InputReturnT, OutputT, ReturnT
+from ...configs.function_config import _FunctionConfig, FunctionConfig, InputParserConfig, OutputParserConfig, InputP, InputReturnT, OutputT, ReturnT
 
 from pydantic import BaseModel, Field, ConfigDict
 
 FunctionConfigT = TypeVar('FunctionConfigT', bound=FunctionConfig)
+NewInputP = ParamSpec('NewInputP')
+NewInputReturnT = TypeVar('NewInputReturnT', Message, str, Message | str)
+NewOutputT = TypeVar('NewOutputT')
+NewReturnT = TypeVar('NewReturnT')
 
 class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, InputReturnT, OutputT, ReturnT]):
     component_type = "function"
@@ -28,53 +32,81 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
 
     def _setup(self) -> None:
         super()._setup()
-        self.input_parser = self.config.input_parser
-        # self.output_parser = self.config.output_parser
+        # self._get_input_parser: Callable[[ProviderName | InputParserConfig[InputP, InputReturnT] | tuple[ProviderName, ComponentName]], InputParser[InputP, InputReturnT]] = self.init_kwargs.pop("_get_input_parser")
+        # self._get_output_parser: Callable[[ProviderName | OutputParserConfig[OutputT, ReturnT] | tuple[ProviderName, ComponentName]], OutputParser[OutputT, ReturnT]] = self.init_kwargs.pop("_get_output_parser")
+        # self._get_ragpipe: Callable[[ProviderName | RAGConfig[InputP] | tuple[ProviderName, ComponentName]], RAGPipe[InputP]] = self.init_kwargs.pop("_get_ragpipe")
+        # self._get_function: Callable[[ProviderName | FunctionConfig[InputP, Any, Any, InputReturnT] | tuple[ProviderName, ComponentName]], "BaseFunction[FunctionConfig[InputP, Any, Any, InputReturnT], InputP, Any, Any, InputReturnT]"] = self.init_kwargs.pop("_get_function")
+        self._get_input_parser: Callable[..., InputParser[InputP, InputReturnT]] = self.init_kwargs.pop("_get_input_parser")
+        self._get_output_parser: Callable[..., OutputParser[OutputT, ReturnT]] = self.init_kwargs.pop("_get_output_parser")
+        self._get_ragpipe: Callable[..., RAGPipe[InputP]] = self.init_kwargs.pop("_get_ragpipe")
+        self._get_function: Callable[..., "BaseFunction[FunctionConfig[InputP, Any, Any, InputReturnT], InputP, Any, Any, InputReturnT]"] = self.init_kwargs.pop("_get_function")
+        self._set_input_parser(self.config.input_parser)
+
+    def _init_config_components(self) -> None:
+        super()._init_config_components()
+        self._set_output_parser(self.config.output_parser)        
 
     def reset(self) -> Self:
         self.clear_messages()
         # self._fully_initialized = False
         return self
 
-    def _init_config_components(self) -> None:
-        super()._init_config_components()
-        # self.input_parser = self.config.input_parser
-        self.output_parser = self.config.output_parser
-
-    def _get_input_parser(self, provider_config_or_name: "ProviderName | InputParserConfig[InputP, InputReturnT] | tuple[ProviderName, ComponentName]" = "default", **init_kwargs) -> "InputParser[InputP, InputReturnT]":
-        return self._get_component("input_parser", provider_config_or_name, **init_kwargs)
-    
-    def _get_output_parser(self, provider_config_or_name: "ProviderName | OutputParserConfig[OutputT, ReturnT] | tuple[ProviderName, ComponentName]" = "default", **init_kwargs) -> "OutputParser[OutputT, ReturnT]":
-        return self._get_component("output_parser", provider_config_or_name, **init_kwargs)
-    
-    def _get_ragpipe(
-            self, 
-            provider_config_or_name: "ProviderName | RAGConfig[InputP] | tuple[ProviderName, ComponentName]" = "default",
-            **init_kwargs
-            ) -> "RAGPipe[InputP]":
-        return self._get_component("ragpipe", provider_config_or_name, **init_kwargs)
-
     @property
     def input_parser(self) -> Callable[InputP, InputReturnT | Callable[..., InputReturnT]]:
         return self._input_parser
     
     @input_parser.setter
-    def input_parser(self, input_parser: Callable[InputP, InputReturnT | Callable[..., InputReturnT]] | InputParserConfig[InputP, InputReturnT] | RAGConfig[InputP]):
-        if isinstance(input_parser, RAGConfig):
-            self._input_parser = self._get_ragpipe(input_parser)
-        elif callable(input_parser):
+    def input_parser(self, input_parser: Callable[NewInputP, NewInputReturnT | Callable[..., NewInputReturnT]] | 
+                    InputParserConfig[NewInputP, NewInputReturnT] | 
+                    RAGConfig[NewInputP] | 
+                    FunctionConfig[NewInputP, Any, Any, NewInputReturnT]) -> None:
+        self.set_input_parser(input_parser)
+
+    def _set_input_parser(self, input_parser: Callable[NewInputP, NewInputReturnT | Callable[..., NewInputReturnT]] | 
+                    InputParserConfig[NewInputP, NewInputReturnT] | 
+                    RAGConfig[NewInputP] | 
+                    _FunctionConfig[NewInputP, Any, Any, NewInputReturnT]) -> None:
+        
+        if callable(input_parser):
             self._input_parser = input_parser
-        else:
+        elif isinstance(input_parser, InputParserConfig):
             self._input_parser = self._get_input_parser(input_parser)
+        elif isinstance(input_parser, RAGConfig):
+            self._input_parser = self._get_ragpipe(input_parser)
+        elif isinstance(input_parser, FunctionConfig):
+            self._input_parser = self._get_function(input_parser)
+        else:
+            raise ValueError(f"Invalid input_parser: {input_parser}")
+        return
+        
+    def set_input_parser(self, input_parser: Callable[NewInputP, NewInputReturnT | Callable[..., NewInputReturnT]] | 
+                    InputParserConfig[NewInputP, NewInputReturnT] | 
+                    RAGConfig[NewInputP] | 
+                    FunctionConfig[NewInputP, Any, Any, NewInputReturnT]):
+        self._set_input_parser(input_parser)
+        self = cast("BaseFunction[FunctionConfig[NewInputP, NewInputReturnT, OutputT, ReturnT], NewInputP, NewInputReturnT, OutputT, ReturnT]", self)
+        return self
 
     @property
     def output_parser(self) -> Callable[[OutputT], ReturnT]:
         return self._output_parser
-
+    
     @output_parser.setter
-    def output_parser(self, output_parser: Type[ReturnT] | Callable[[OutputT], ReturnT] | OutputParserConfig[OutputT, ReturnT]):
+    def output_parser(self, output_parser: Type[NewReturnT] | 
+                     Callable[[NewOutputT], NewReturnT] | 
+                     OutputParserConfig[NewOutputT, NewReturnT] | 
+                     FunctionConfig[..., Any, Any, NewReturnT]) -> None:
+        self.set_output_parser(output_parser)
+        
+    def _set_output_parser(self, output_parser: Type[NewReturnT] | 
+                     Callable[[NewOutputT], NewReturnT] | 
+                     OutputParserConfig[NewOutputT, NewReturnT] | 
+                     _FunctionConfig[..., Any, Any, NewReturnT]) -> None:
+
         if isinstance(output_parser, OutputParserConfig):
             output_parser = self._get_output_parser(output_parser)
+        elif isinstance(output_parser, FunctionConfig):
+            output_parser = self._get_function(output_parser)
 
         if isinstance(output_parser, (Tool, PydanticParser)) or isinstance(output_parser, type) and issubclass(output_parser, BaseModel):  
             if isinstance(output_parser, Tool):
@@ -96,30 +128,17 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
             self.return_on = output_tool.name
         
         self._output_parser = output_parser
-          
-    # def _get_ragpipe(
-    #         self, 
-    #         provider_config_or_name: "ProviderName | RAGConfig | tuple[ProviderName, ComponentName]" = "default",
-    #         **init_kwargs
-    #         ) -> "RAGPipe":
-    #     return self._get_component("ragpipe", provider_config_or_name, **init_kwargs)
-        
-    # @property
-    # def ragpipe(self) -> "Optional[RAGPipe]":
-    #     if (ragpipe := getattr(self, "_ragpipe", None)) is not None:
-    #         return ragpipe
-    #     if self.config.rag_config:
-    #         self._ragpipe = self._get_ragpipe(self.config.rag_config)
-    #         return self._ragpipe
-    #     return None
-    
-    # @ragpipe.setter
-    # def ragpipe(self, value: "Optional[RAGPipe | ProviderName | RAGConfig | tuple[ProviderName, ComponentName]]"):
-    #     if value is None or isinstance(value, RAGPipe):
-    #         self._ragpipe = value
-    #     else:
-    #         self._ragpipe = self._get_ragpipe(value)
+        return
 
+    def set_output_parser(self, output_parser: Type[NewReturnT] | 
+                     Callable[[NewOutputT], NewReturnT] | 
+                     OutputParserConfig[NewOutputT, NewReturnT] | 
+                     FunctionConfig[..., Any, Any, NewReturnT]):
+        
+        self._set_output_parser(output_parser)
+        self = cast("BaseFunction[FunctionConfig[InputP, InputReturnT, NewOutputT, NewReturnT], InputP, InputReturnT, NewOutputT, NewReturnT]", self)
+        return self
+          
     
     def handle_exception(self, exception: Exception) -> ReturnT:
         handlers = self.config.exception_handlers
@@ -193,10 +212,3 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
     exec = __call__
     exec_stream = stream
     
-    # def __or__(self, other: Union['UnifAIFunction', Callable]) -> 'UnifAIFunction':
-    #     """Implements the | operator by appending to output_parsers"""
-    #     if other is self:
-    #         raise ValueError("Cannot pipe a function into itself")        
-    #     new_func = self.with_config()  # Create a copy
-    #     new_func.output_parsers.append(other)
-    #     return new_func

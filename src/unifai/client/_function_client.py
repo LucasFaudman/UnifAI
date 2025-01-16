@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Literal, Optional, Type, Generic, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Literal, Optional, Type, Generic, TypeVar, overload, ParamSpec, Unpack
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator, overload
 
 if TYPE_CHECKING:
@@ -6,8 +6,12 @@ if TYPE_CHECKING:
     from ..configs import UnifAIConfig
     from pathlib import Path
 
+from ..utils import combine_dicts
 from ..type_conversions import standardize_config
-from ..configs.function_config import FunctionConfig, InputParserConfig, OutputParserConfig, InputP, InputReturnT, OutputT, ReturnT
+from ..configs.function_config import FunctionConfig, InputP, InputReturnT, OutputT, ReturnT
+from ..configs.input_parser_config import InputParserConfig
+from ..configs.output_parser_config import OutputParserConfig
+
 from ..components.input_parsers import InputParser
 from ..components.output_parsers import OutputParser
 from ..components.functions import Function
@@ -19,13 +23,6 @@ from ._rag_client import UnifAIRAGClient
 
 class UnifAIFunctionClient(UnifAIChatClient, UnifAIRAGClient):
 
-    def output_parser(
-            self, 
-            provider_config_or_name: "ProviderName | OutputParserConfig[OutputT,ReturnT] | tuple[ProviderName, ComponentName]" = "default",          
-            **init_kwargs
-            ) -> "OutputParser[OutputT,ReturnT]":
-        return self._get_component("output_parser", provider_config_or_name, init_kwargs)
-    
     def input_parser(
             self,
             provider_config_or_name: "ProviderName | InputParserConfig[InputP,InputReturnT] | tuple[ProviderName, ComponentName]" = "default",
@@ -33,12 +30,44 @@ class UnifAIFunctionClient(UnifAIChatClient, UnifAIRAGClient):
             ) -> "InputParser[InputP,InputReturnT]":
         return self._get_component("input_parser", provider_config_or_name, init_kwargs)
 
+    def output_parser(
+            self, 
+            provider_config_or_name: "ProviderName | OutputParserConfig[OutputT,ReturnT] | tuple[ProviderName, ComponentName]" = "default",          
+            **init_kwargs
+            ) -> "OutputParser[OutputT,ReturnT]":
+        return self._get_component("output_parser", provider_config_or_name, init_kwargs)
+        
+    # def function(
+    #         self, 
+    #         config: "FunctionConfig[InputP, InputReturnT, OutputT, ReturnT]", 
+    #         **init_kwargs
+    #     ) -> "Function[InputP, InputReturnT, OutputT, ReturnT]":
+    #     default_init_kwargs = {
+    #         "tool_registry": self._tools,
+    #         "_get_component": self._get_component,
+    #         "_get_input_parser": self.input_parser,
+    #         "_get_output_parser": self.output_parser,
+    #         "_get_ragpipe": self.ragpipe,
+    #         "_get_function": self.function
+    #     }
+    #     _init_kwargs = combine_dicts(default_init_kwargs, init_kwargs)
+    #     return Function(config=config, **_init_kwargs)
+
     def function(
             self, 
-            config: FunctionConfig[InputP, InputReturnT, OutputT, ReturnT], 
+            provider_config_or_name: "ProviderName | FunctionConfig[InputP, InputReturnT, OutputT, ReturnT] | tuple[ProviderName, ComponentName]" = "default",
             **init_kwargs
-        ) -> Function[InputP, InputReturnT, OutputT, ReturnT]:
-        return Function(config=config, tool_registry=self._tools, _get_component=self._get_component, **init_kwargs)
+        ) -> "Function[InputP, InputReturnT, OutputT, ReturnT]":
+        default_init_kwargs = {
+            "tool_registry": self._tools,
+            "_get_component": self._get_component,
+            "_get_input_parser": self.input_parser,
+            "_get_output_parser": self.output_parser,
+            "_get_ragpipe": self.ragpipe,
+            "_get_function": self.function
+        }
+        _init_kwargs = combine_dicts(default_init_kwargs, init_kwargs)
+        return self._get_component("function", provider_config_or_name, _init_kwargs)    
 
     def configure(
         self,
