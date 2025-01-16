@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Concatenate, Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator, NoReturn, Generic, TypeVar
+from typing import TYPE_CHECKING, cast, Concatenate, Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Self, Iterable, Mapping, Generator, NoReturn, Generic, TypeVar
 
 if TYPE_CHECKING:
     from ...types.annotations import ComponentName, ModelName, ProviderName
@@ -22,6 +22,8 @@ from ...configs.tokenizer_config import TokenizerConfig
 from ...configs.vector_db_config import VectorDBConfig, VectorDBCollectionConfig
 
 from ...types import Document, Documents, ResponseInfo, QueryResult
+from ...types.annotations import InputP, NewInputP
+
 
 from ...utils import chunk_iterable, combine_dicts
 
@@ -45,6 +47,9 @@ class BaseRAGPipe(UnifAIComponent[RAGConfigT], Generic[RAGConfigT, InputP]):
         self._tokenizer = self.init_kwargs.get("tokenizer")
         self._extra_kwargs = self.config.extra_kwargs or {}
         self.response_infos: list[ResponseInfo] = []
+        # Set the query_modifier and prompt_template functions        
+        self._set_query_modifier(self.config.query_modifier)
+        self._set_prompt_template(self.config.prompt_template)
 
     @property
     def document_loader(self) -> DocumentLoader:
@@ -292,6 +297,45 @@ class BaseRAGPipe(UnifAIComponent[RAGConfigT], Generic[RAGConfigT, InputP]):
             **kwargs
         ))
     
+
+    @property
+    def query_modifier(self) -> Callable[InputP, str|Callable[..., str]]:
+        return self._query_modifier
+    
+    @query_modifier.setter
+    def query_modifier(self, query_modifier: Callable[InputP, str|Callable[..., str]]) -> None:
+        self._set_query_modifier(query_modifier)
+    
+    def _set_query_modifier(self, query_modifier: Callable[NewInputP, str|Callable[..., str]]) -> None:
+        self._query_modifier = query_modifier
+
+    def set_query_modifier(self, query_modifier: Callable[NewInputP, str|Callable[..., str]]):
+        self._set_query_modifier(query_modifier)
+        return cast("BaseRAGPipe[RAGConfig[NewInputP], NewInputP]", self)
+    
+    @property
+    def prompt_template(self) -> Callable[Concatenate[QueryResult, InputP], str|Callable[..., str]]:
+        return self._prompt_template
+    
+    @prompt_template.setter
+    def prompt_template(self, prompt_template: Callable[Concatenate[QueryResult, InputP], str|Callable[..., str]]) -> None:
+        self._set_prompt_template(prompt_template)
+
+    def _set_prompt_template(self, prompt_template: Callable[Concatenate[QueryResult, NewInputP], str|Callable[..., str]]) -> None:
+        self._prompt_template = prompt_template
+
+    def set_prompt_template(self, prompt_template: Callable[Concatenate[QueryResult, NewInputP], str|Callable[..., str]]):
+        self._set_prompt_template(prompt_template)
+        return cast("BaseRAGPipe[RAGConfig[NewInputP], NewInputP]", self)
+    
+    def set_query_modifier_and_prompt_template(
+            self,
+            query_modifier: Callable[NewInputP, str|Callable[..., str]],
+            prompt_template: Callable[Concatenate[QueryResult, NewInputP], str|Callable[..., str]],
+            ):
+        self._set_query_modifier(query_modifier)
+        return self.set_prompt_template(prompt_template)
+
     def query(
             self, 
             top_k: Optional[int] = None,
@@ -300,7 +344,6 @@ class BaseRAGPipe(UnifAIComponent[RAGConfigT], Generic[RAGConfigT, InputP]):
             where_document: Optional[dict] = None, 
             max_distance: Optional[float] = None,
             min_similarity: Optional[float] = None,                    
-            query_modifier: Optional[Callable[InputP, str]] = None,
             query_kwargs: Optional[dict] = None,
             reranker_model: Optional["ModelName"] = None,          
             rerank_kwargs: Optional[dict] = None,
@@ -315,11 +358,9 @@ class BaseRAGPipe(UnifAIComponent[RAGConfigT], Generic[RAGConfigT, InputP]):
         max_distance = max_distance or self.config.max_distance
         min_similarity = min_similarity or self.config.min_similarity
 
-        _query_modifier = query_modifier or self.config.query_modifier
-        query_input = _query_modifier(*args, **kwargs)
+        query_input = self.query_modifier(*args, **kwargs)
         if callable(query_input):
             query_input = query_input(*args, **kwargs)
-
         query_kwargs = combine_dicts(self._extra_kwargs.get("query"), query_kwargs)
         query_result = self.vector_db_collection.query(query_input, top_k, where, where_document, **query_kwargs)
         
@@ -346,14 +387,11 @@ class BaseRAGPipe(UnifAIComponent[RAGConfigT], Generic[RAGConfigT, InputP]):
     def construct_rag_prompt(
             self,
             query_result: QueryResult,
-            prompt_template: Optional[Callable[Concatenate[QueryResult, InputP], str]] = None,
             *args: InputP.args,
             **kwargs: InputP.kwargs
-            ) -> str:
-        
-        _prompt_template = prompt_template or self.config.prompt_template
-        _kwargs = combine_dicts({"query": query_result.query}, kwargs)
-        prompt = _prompt_template(query_result, *args, **_kwargs)
+            ) -> str:        
+        kwargs["query"] = query_result.query # Add modified query to kwargs
+        prompt = self.prompt_template(query_result, *args, **kwargs)
         if callable(prompt):
             prompt = prompt(query_result, *args, **kwargs)
         return prompt
@@ -366,16 +404,14 @@ class BaseRAGPipe(UnifAIComponent[RAGConfigT], Generic[RAGConfigT, InputP]):
             where_document: Optional[dict] = None,
             max_distance: Optional[float] = None,
             min_similarity: Optional[float] = None,            
-            query_modifier: Optional[Callable[InputP, str]] = None,
             query_kwargs: Optional[dict] = None,
             reranker_model: Optional[str] = None,
             rerank_kwargs: Optional[dict] = None,
-            prompt_template: Optional[Callable[Concatenate[QueryResult, InputP], str]] = None,
             *args: InputP.args,
             **kwargs: InputP.kwargs
             ) -> str:
 
-        query_result = self.query(top_k, top_n, where, where_document, max_distance, min_similarity, query_modifier, query_kwargs, reranker_model, rerank_kwargs, *args, **kwargs)
-        return self.construct_rag_prompt(query_result, prompt_template, *args, **kwargs)
+        query_result = self.query(top_k, top_n, where, where_document, max_distance, min_similarity, query_kwargs, reranker_model, rerank_kwargs, *args, **kwargs)
+        return self.construct_rag_prompt(query_result, *args, **kwargs)
     
     __call__ = prompt
