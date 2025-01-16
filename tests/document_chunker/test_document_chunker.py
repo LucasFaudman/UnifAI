@@ -5,6 +5,8 @@ from collections import Counter
 from unifai import UnifAI
 from unifai.components.document_loaders.text_file_loader import TextFileDocumentLoader
 from unifai.components._base_components._base_document_chunker import DocumentChunker, Document
+from unifai.components.prompt_templates.rag_prompt_model import RAGPromptModel
+
 from unifai.exceptions import BadRequestError, NotFoundError, DocumentNotFoundError
 from basetest import base_test, base_test_document_chunkers, API_KEYS
 from unifai.configs import DocumentChunkerConfig
@@ -132,14 +134,48 @@ def test_size_function_chunkers(provider, init_kwargs, unchunked_documents, chun
 
 def test_ragpipe():
     ai = UnifAI(api_keys=API_KEYS, default_providers={"vector_db": "chroma", "embedder": "google"})
-    ragpipe = ai.ragpipe(RAGConfig() + DocumentChunkerConfig(chunk_size=1000))
+    
+    def strip_question(question: str) -> str:
+        return question.strip() + "?"
+
+    class ManpagePrompt(RAGPromptModel):
+        """Question: {question}\n\nManpage Excerpts:\n{result}"\nAnswer:"""
+        question: str
+        # query: str
+
+
+    rag_config = (
+        RAGConfig(query_modifier=strip_question, prompt_template=ManpagePrompt)
+        + DocumentChunkerConfig(chunk_size=1000)
+    )        
+        
+    ragpipe = ai.ragpipe(rag_config)    
     assert isinstance(ragpipe, RAGPipe)
 
-    tor_manpages = [manpage for manpage in manpages if "tor" in str(manpage)]
+    tor_manpages = [manpage for manpage in manpages if "tor_manpage" in manpage.id]
     for i, ingested_doc in enumerate(ragpipe.ingest_documents(tor_manpages)):
         assert isinstance(ingested_doc, Document)
-        print("Ingested Document #", i)#, end="\r")
+        print(f"Ingested Document # {i}) {len(ingested_doc)} {ragpipe.tokenizer.count_tokens(text=ingested_doc.text)}")
 
-    prompt = 'How can I make a POST request proxied over tor?'
-    rag_prompt = ragpipe.prompt(prompt)
-    print(rag_prompt)
+    question = '\nHow can I make a POST request proxied over tor '
+    rag_prompt = ragpipe.prompt(question=question)
+    print(rag_prompt[:1000])
+
+    class ManpagePrompt2(RAGPromptModel):
+        """Question2: {query}\n\nManpage Excerpts:\n{result}"\nAnswer2:"""
+
+        value_formatters = {
+            "query": strip_question,
+            "result": lambda result: "\n".join(f"Manpage: {doc.id.split('/')[-1]}\n{doc.text}\n" for doc in result)
+        }
+
+    rag_config2 = RAGConfig(
+        prompt_template=ManpagePrompt2,
+    )
+    ragpipe2 = ai.ragpipe(rag_config2)    
+    assert isinstance(ragpipe, RAGPipe)
+    assert ragpipe is not ragpipe2
+    assert ragpipe != ragpipe2
+    
+    rag_prompt2 = ragpipe2(query=question)
+    print(rag_prompt2[:1000])

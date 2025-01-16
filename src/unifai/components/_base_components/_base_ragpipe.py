@@ -352,7 +352,6 @@ class BaseRAGPipe(UnifAIComponent[RAGConfigT], Generic[RAGConfigT, InputP]):
             ) -> str:
         
         _prompt_template = prompt_template or self.config.prompt_template
-        # kwargs["query"] = query_result.query
         _kwargs = combine_dicts({"query": query_result.query}, kwargs)
         prompt = _prompt_template(query_result, *args, **_kwargs)
         if callable(prompt):
