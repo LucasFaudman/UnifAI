@@ -1,10 +1,18 @@
-from typing import Any, ParamSpec, Literal, Union, Sequence, Dict, Collection, Callable, TypeAlias, Type
+from typing import Any, ParamSpec, Literal, Union, Sequence, Dict, Collection, Callable, TypeAlias, TypeVar, Type
 from .message import Message
 from .tool import Tool
 
 from pydantic import BaseModel
 
 InputP = ParamSpec('InputP')
+InputReturnT = TypeVar('InputReturnT', Message, str, Message | str)
+OutputT = TypeVar('OutputT')
+ReturnT = TypeVar('ReturnT')
+
+NewInputP = ParamSpec('NewInputP')
+NewInputReturnT = TypeVar('NewInputReturnT', Message, str, Message | str)
+NewOutputT = TypeVar('NewOutputT')
+NewReturnT = TypeVar('NewReturnT')
 
 ComponentType: TypeAlias = str
 ProviderName: TypeAlias = str

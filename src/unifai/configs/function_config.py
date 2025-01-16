@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Generic, Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator, overload, AbstractSet, IO, Pattern, Self, ClassVar, Concatenate
 
-from ..types.annotations import ComponentName, ModelName, ProviderName, ToolName, ToolInput, ResponseFormatInput, InputP
+from ..types.annotations import InputP, InputReturnT, OutputT, ReturnT, NewInputP, NewInputReturnT, NewOutputT, NewReturnT
 from ..types import (
     Message,
     Tool,
@@ -15,8 +15,8 @@ from .chat_config import ChatConfig
 from .llm_config import LLMConfig
 from .rag_config import RAGConfig
 from .tool_caller_config import ToolCallerConfig
-from .input_parser_config import InputParserConfig, InputP, InputReturnT
-from .output_parser_config import OutputParserConfig, OutputT, ReturnT
+from .input_parser_config import InputParserConfig
+from .output_parser_config import OutputParserConfig
 from .rag_config import RAGConfig
 
 if TYPE_CHECKING:

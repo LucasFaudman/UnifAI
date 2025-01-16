@@ -27,17 +27,17 @@ class RAGConfig(ComponentConfig, Generic[InputP]):
     vector_db: Optional[VectorDBCollectionConfig | VectorDBConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
     reranker: Optional[RerankerConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
     tokenizer: Optional[TokenizerConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
-    
+
+    query_modifier: Callable[InputP, str|Callable[..., str]] = Field(default=leave_query_as_is)
+    prompt_template: Callable[Concatenate[QueryResult, InputP], str|Callable[..., str]] | Callable[..., str|Callable[..., str]]= Field(default=RAGPromptModel)   
+
     top_k: int = 20
     top_n: Optional[int] = 10
     where: Optional[dict] = None
     where_document: Optional[dict] = None   
     
-    query_modifier: Callable[InputP, str|Callable[..., str]] = Field(default=leave_query_as_is)
-    prompt_template: Callable[Concatenate[QueryResult, InputP], str|Callable[..., str]] | Callable[..., str|Callable[..., str]]= Field(default=RAGPromptModel)    
-
     reranker_model: Optional[ModelName] = None
-    tokenizer_model: Optional[ModelName] = None 
+    tokenizer_model: Optional[ModelName] = None
 
     max_distance: Optional[float] = None
     min_similarity: Optional[float] = None
