@@ -150,21 +150,31 @@ def test_rag_with_prompt_models(provider: ProviderName, init_kwargs: dict, url: 
 def test_poem_generation(provider: ProviderName, init_kwargs: dict, url: str, link_text: str, flagged: bool):
     """Test poem generation and editing"""
     ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
-    
-    class PoemModel(BaseModel):
-        poem_name: str
-        verses: list[str]
-    
+        
     # Test basic poem generation
     poem_config = FunctionConfig(
         name="return_poem",
         system_prompt="You are a poet. Write a poem based on the theme and style of the joke.",
-        input_parser=lambda input: str(input)
+        input_parser=lambda topic: str(topic)
     )
     return_poem = ai.function(poem_config)
-    poem = return_poem("How do I connect to tor?")
+    poem = return_poem(topic="Jews")
     assert isinstance(poem.content, str)
     
+    class PoemModel(BaseModel):
+        poem_name: str
+        author_name: str
+        verses: list[str]
+        topics: list[str]
+        """Topics discussed in the poem"""
+    
+        @property
+        def verse_count(self):
+            return len(self.verses)
+        
+        def poem_string(self):
+            return f"{self.poem_name}\n" + "\n".join(self.verses)
+
     # Test poem editing with FunctionConfig as input_parser
     edit_poem_config = FunctionConfig(
         name="edit_poem",
@@ -173,10 +183,11 @@ def test_poem_generation(provider: ProviderName, init_kwargs: dict, url: str, li
         output_parser=PoemModel
     )
     edit_poem = ai.function(edit_poem_config)
-    edited_poem = edit_poem("How do I connect to tor?")
-    assert isinstance(edited_poem.poem_name, str)
-    assert isinstance(edited_poem.verses, list)
-    assert all(isinstance(verse, str) for verse in edited_poem.verses)
+    poem_object = edit_poem("Dogs")
+    assert isinstance(poem_object.poem_name, str)
+    assert isinstance(poem_object.verses, list)
+    print(poem_object.poem_string())
+    assert all(isinstance(verse, str) for verse in poem_object.verses)
 
     # Test poem editing with Function as input_parser
     edit_poem_config = FunctionConfig(

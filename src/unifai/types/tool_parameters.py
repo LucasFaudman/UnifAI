@@ -41,7 +41,7 @@ class BooleanToolParameter(ToolParameter):
 class NullToolParameter(ToolParameter):
     type: Literal["null"] = "null"
 
-    def to_dict(self, exclude: Collection[Literal['description'] | Literal['enum'] | Literal['required'] | Literal['additionalProperties'] | Literal['defs'] | Literal['refs']] = EXCLUDE_NONE) -> dict:
+    def to_dict(self, exclude: Collection[ToolParameterExcludableKeys] = EXCLUDE_NONE) -> dict:
         return {"type": "null"}
 
 
