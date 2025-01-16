@@ -71,8 +71,7 @@ class BaseClient:
         
         # Update component configs
         if config.component_configs:
-            for component_config in config.component_configs:
-                self.register_component_config(component_config)
+            self.register_component_configs(*config.component_configs)
         
         # Update component types
         self.config = config
@@ -212,6 +211,26 @@ class BaseClient:
         if (components_of_type := self._components.get(component_type)) and (components_of_provider := components_of_type.get(provider)):
             return components_of_provider.get(component_name)
         return None
+    
+    def _get_init_kwargs(self, 
+                        can_get_components: bool,
+                        component_config: ComponentConfig, 
+                        provider_config: ProviderConfig,  
+                        init_kwargs: dict
+                        ) -> Any:
+
+        _init_kwargs: dict[str, Any] = {"config": component_config}
+        if api_key := provider_config.api_key:
+            _init_kwargs["api_key"] = api_key
+        if provider_config.init_kwargs:
+            _init_kwargs.update(provider_config.init_kwargs)
+        if component_config.init_kwargs:
+            _init_kwargs.update(component_config.init_kwargs)
+        if can_get_components:
+            # Some components need to get other components. (can_get_components: ClassVar = True)
+            _init_kwargs["_get_component"] = self._get_component            
+        _init_kwargs.update(init_kwargs)
+        return _init_kwargs
 
     def _init_component(self, 
                         component_type: ComponentType,
@@ -225,20 +244,11 @@ class BaseClient:
             component_class = import_component(component_type, provider)
             self.register_component(component_class)
 
-        component_kwargs: dict[str, Any] = {"config": component_config}        
-        if api_key := provider_config.api_key:
-            component_kwargs["api_key"] = api_key
-        if provider_config.init_kwargs:
-            component_kwargs.update(provider_config.init_kwargs)
-        if component_config.init_kwargs:
-            component_kwargs.update(component_config.init_kwargs)
-        if component_class.can_get_components:
-            # Some components need to get other components. (can_get_components: ClassVar = True)
-            component_kwargs["_get_component"] = self._get_component            
-        component_kwargs.update(init_kwargs)  
-
-        # Initialize component instance with the combined kwargs
-        component = component_class(**component_kwargs)
+        can_get_components = getattr(component_class, "can_get_components", False)
+        _init_kwargs = self._get_init_kwargs(can_get_components, component_config, provider_config, init_kwargs)
+        
+        # Initialize component instance with the combined kwargs        
+        component = component_class(**_init_kwargs)
 
         # Ensure there is a dict for the component_type and provider before adding the component
         if component_type not in self._components:
@@ -264,9 +274,18 @@ class BaseClient:
         else:
             component_config = config_or_name
             component_name = component_config.name
-        if existing_instance := self._get_existing_component_instance(component_type, provider, component_name):
-            return existing_instance
+
         provider_config = self.get_provider_config(provider)
+        
+        if existing_instance := self._get_existing_component_instance(component_type, provider, component_name):
+            # If the resolved init_kwargs are different from the existing instance's passed init_kwargs,
+            # create a new instance from the existing instance init_kwargs updated with the new init_kwargs
+            if ((_init_kwargs := self._get_init_kwargs(existing_instance.can_get_components, component_config, provider_config, init_kwargs))
+                != existing_instance._passed_init_kwargs):
+                return existing_instance.with_config(**_init_kwargs)
+            # If the resolved init_kwargs are the same as the existing instance's passed init_kwargs, use the existing instance
+            return existing_instance
+        # If no existing instance, create a new instance
         return self._init_component(component_type, provider, component_name, component_config, provider_config, init_kwargs)
         
 
