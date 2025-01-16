@@ -179,3 +179,12 @@ def test_ragpipe():
     
     rag_prompt2 = ragpipe2(query=question)
     print(rag_prompt2[:1000])
+
+    def upper_query(query: str, add_to_end: Optional[str]) -> str:
+        return query.upper() + (add_to_end or "")
+    
+    ragpipe2 = ragpipe2.set_query_modifier(upper_query)
+    assert ragpipe2.query_modifier == upper_query
+    print(ragpipe2.query_modifier(query=question, add_to_end="!" * 69))
+    rag_prompt3 = ragpipe2(query=question, add_to_end="!" * 69)
+    print(rag_prompt3[:1000])
