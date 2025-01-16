@@ -27,7 +27,7 @@ LLM_CONFIGS = [
     LLMConfig(provider='openai'),
     # LLMConfig(provider='ollama', init_kwargs={"host": "http://librem-2.local:11434"}),
     # LLMConfig(provider='cohere'),
-    LLMConfig(provider='nvidia')    
+    # LLMConfig(provider='nvidia')    
 ]
 
 DOCUMENT_CHUNKER_CONFIGS = [
