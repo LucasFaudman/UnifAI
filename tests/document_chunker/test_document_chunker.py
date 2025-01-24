@@ -52,6 +52,7 @@ def test_chunk_document_simple(provider, init_kwargs):
 unchunked_document = Document(id="doc1", text='\n\n'.join(f"Chunk me up! - {chunk_num}" * 100 for chunk_num in range(1000)))
 loader = TextFileDocumentLoader()
 manpages = loader.load_documents((RESOURCES_PATH / "manpages").glob("*"))
+call_manpages = loader((RESOURCES_PATH / "manpages").glob("*"))
 imanpages = loader.iload_documents((RESOURCES_PATH / "manpages").glob("*"))
 
 @pytest.mark.parametrize("unchunked_documents", [

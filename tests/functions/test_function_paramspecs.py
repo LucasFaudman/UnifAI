@@ -259,3 +259,6 @@ def test_poem_generation(provider: ProviderName, init_kwargs: dict, url: str, li
     print(poem.verses)
 
 
+    return_poem_topic_tone = return_poem.with_input_parser(lambda topic, tone: str(topic) + " " + str(tone))
+    poem = return_poem_topic_tone(topic="Cats", tone="sad")
+    print(poem.verses)
