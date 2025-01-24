@@ -25,7 +25,7 @@ DEFAULT_PROVIDERS = {
     "chat_db": "ephemeral",
     "document_chunker": "text_chunker",
     "document_db": "ephemeral",
-    "document_loader": "text_file_loader",
+    "document_loader": "default",
     "document_transformer": "default",
     "embedder": "openai",
     "executor": "default",
@@ -66,6 +66,7 @@ PROVIDERS = {
         "mongodb", # TODO bfg clean repo before merge
     ],
     "document_loader": [
+        "default",
         "csv_loader", # TODO bfg before merge
         "document_db_loader", # TODO bfg before merge
         "text_file_loader", 

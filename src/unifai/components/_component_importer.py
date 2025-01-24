@@ -27,6 +27,7 @@ class ComponentImporter:
             "sqlite": ".document_dbs.sqlite_document_db.SQLiteDocumentDB",
         },
         "document_loader": {
+            "default": ".document_loaders.default_loader.DocumentLoader",
             "document_db_loader": ".document_loaders.document_db_loader.DocumentDBLoader",
             "html_loader": ".document_loaders.html_loader.HTMLDocumentLoader",
             "json_loader": ".document_loaders.json_loader.JSONDocumentLoader",
