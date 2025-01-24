@@ -52,7 +52,6 @@ ai = UnifAI(
     ],
 )
 
-# Subclass of DocumentLoader to load manpages
 BinaryName = str
 def load_manpages(binaries: Iterable[BinaryName]) -> Iterable[Document]:
     for binary in binaries:
@@ -82,8 +81,7 @@ class ManpageRagPrompt(RAGPromptModel):
         "result": lambda result: "Relevant Manpages:\n" + "\n".join(f"{doc.id}\n{doc.text}" for doc in result) 
     }                                  
 
-
-# Now the ManpageDocumentLoader can be accessed by name inside UnifAIComponentConfig(s)
+# Configure the RAGPipe
 rag_config = RAGConfig(
     name="manpage_rag",
     document_loader=DocumentLoaderConfig(load_documents=load_manpages),
