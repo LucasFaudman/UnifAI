@@ -1,44 +1,105 @@
-from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, TypeVar, Union, Self, Iterable, Mapping, Generator, Generic
-
+from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, TypeVar, Union, Self, Iterable, Mapping, Generator, Generic, ParamSpec, cast, TextIO, Pattern
+from re import compile as re_compile
 from ._base_prompt_template import PromptTemplate
 
 
-from ...types.annotations import ComponentName, ModelName, ProviderName, ToolName, ToolInput
+from ...types.annotations import InputP, InputReturnT, OutputT, ReturnT, NewInputP, NewInputReturnT, NewOutputT, NewReturnT
 from ...types import Message, MessageChunk, Tool, ToolCall, ToolInput, ToolChoiceInput
 from ...type_conversions import tool_from_model
 from ...utils import stringify_content
 
 from ._base_chat import BaseChat
 from ..ragpipes import RAGPipe
+from ..input_parsers import InputParser
+from ..output_parsers import OutputParser
 from ..output_parsers.pydantic_output_parser import PydanticParser
 
 from ...configs.rag_config import RAGConfig
-from ...configs.function_config import FunctionConfig, InputT, OutputT, ReturnT
+from ...configs.function_config import _FunctionConfig, FunctionConfig, InputParserConfig, OutputParserConfig, InputP, InputReturnT, OutputT, ReturnT
 
 from pydantic import BaseModel, Field, ConfigDict
 
 FunctionConfigT = TypeVar('FunctionConfigT', bound=FunctionConfig)
 
-class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputT, OutputT, ReturnT]):
+
+class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, InputReturnT, OutputT, ReturnT]):
     component_type = "function"
     provider = "base"
     config_class: Type[FunctionConfigT]
+
+    def _setup(self) -> None:
+        super()._setup()
+        self._get_input_parser: Callable[..., InputParser[InputP, InputReturnT]] = self.init_kwargs.pop("_get_input_parser")
+        self._get_output_parser: Callable[..., OutputParser[OutputT, ReturnT]] = self.init_kwargs.pop("_get_output_parser")
+        self._get_ragpipe: Callable[..., RAGPipe[..., InputP]] = self.init_kwargs.pop("_get_ragpipe")
+        self._get_function: Callable[..., "BaseFunction[FunctionConfig[InputP, Any, Any, InputReturnT], InputP, Any, Any, InputReturnT]"] = self.init_kwargs.pop("_get_function")
+        self._set_input_parser(self.config.input_parser)
+
+    def _init_config_components(self) -> None:
+        super()._init_config_components()
+        self._set_output_parser(self.config.output_parser)        
 
     def reset(self) -> Self:
         self.clear_messages()
         # self._fully_initialized = False
         return self
 
-    def _init_config_components(self) -> None:
-        super()._init_config_components()
-        self.output_parser = self.config.output_parser
+    @property
+    def input_parser(self) -> Callable[InputP, InputReturnT | Callable[..., InputReturnT]]:
+        return self._input_parser
+    
+    @input_parser.setter
+    def input_parser(self, input_parser: Callable[NewInputP, NewInputReturnT | Callable[..., NewInputReturnT]] | 
+                    InputParserConfig[NewInputP, NewInputReturnT] | 
+                    RAGConfig[..., NewInputP] | 
+                    FunctionConfig[NewInputP, Any, Any, NewInputReturnT]) -> None:
+        self._set_input_parser(input_parser)
+
+    def _set_input_parser(self, input_parser: Callable[NewInputP, NewInputReturnT | Callable[..., NewInputReturnT]] | 
+                    InputParserConfig[NewInputP, NewInputReturnT] | 
+                    RAGConfig[..., NewInputP] | 
+                    _FunctionConfig[NewInputP, Any, Any, NewInputReturnT]) -> None:
+        
+        if callable(input_parser):
+            self._input_parser = input_parser
+        elif isinstance(input_parser, InputParserConfig):
+            self._input_parser = self._get_input_parser(input_parser)
+        elif isinstance(input_parser, RAGConfig):
+            self._input_parser = self._get_ragpipe(input_parser)
+        elif isinstance(input_parser, FunctionConfig):
+            self._input_parser = self._get_function(input_parser)
+        else:
+            raise ValueError(f"Invalid input_parser: {input_parser}")
+        return
+        
+    def set_input_parser(self, input_parser: Callable[NewInputP, NewInputReturnT | Callable[..., NewInputReturnT]] | 
+                    InputParserConfig[NewInputP, NewInputReturnT] | 
+                    RAGConfig[..., NewInputP] | 
+                    FunctionConfig[NewInputP, Any, Any, NewInputReturnT]):
+        self._set_input_parser(input_parser)
+        return cast("BaseFunction[FunctionConfig[NewInputP, NewInputReturnT, OutputT, ReturnT], NewInputP, NewInputReturnT, OutputT, ReturnT]", self)
 
     @property
     def output_parser(self) -> Callable[[OutputT], ReturnT]:
         return self._output_parser
-
+    
     @output_parser.setter
-    def output_parser(self, output_parser: Type[ReturnT] | Callable[[OutputT], ReturnT]):
+    def output_parser(self, output_parser: Type[NewReturnT] | 
+                     Callable[[NewOutputT], NewReturnT] | 
+                     OutputParserConfig[NewOutputT, NewReturnT] | 
+                     FunctionConfig[..., Any, Any, NewReturnT]) -> None:
+        self._set_output_parser(output_parser)
+        
+    def _set_output_parser(self, output_parser: Type[NewReturnT] | 
+                     Callable[[NewOutputT], NewReturnT] | 
+                     OutputParserConfig[NewOutputT, NewReturnT] | 
+                     _FunctionConfig[..., Any, Any, NewReturnT]) -> None:
+
+        if isinstance(output_parser, OutputParserConfig):
+            output_parser = self._get_output_parser(output_parser)
+        elif isinstance(output_parser, FunctionConfig):
+            output_parser = self._get_function(output_parser)
+
         if isinstance(output_parser, (Tool, PydanticParser)) or isinstance(output_parser, type) and issubclass(output_parser, BaseModel):  
             if isinstance(output_parser, Tool):
                 output_parser = PydanticParser.from_model(output_parser.callable)
@@ -59,31 +120,16 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputT, O
             self.return_on = output_tool.name
         
         self._output_parser = output_parser
-          
-    def _get_ragpipe(
-            self, 
-            provider_config_or_name: "ProviderName | RAGConfig | tuple[ProviderName, ComponentName]" = "default",
-            **init_kwargs
-            ) -> "RAGPipe":
-        return self._get_component("ragpipe", provider_config_or_name, **init_kwargs)
-        
-    @property
-    def ragpipe(self) -> "Optional[RAGPipe]":
-        if (ragpipe := getattr(self, "_ragpipe", None)) is not None:
-            return ragpipe
-        if self.config.rag_config:
-            self._ragpipe = self._get_ragpipe(self.config.rag_config)
-            return self._ragpipe
-        return None
-    
-    @ragpipe.setter
-    def ragpipe(self, value: "Optional[RAGPipe | ProviderName | RAGConfig | tuple[ProviderName, ComponentName]]"):
-        if value is None or isinstance(value, RAGPipe):
-            self._ragpipe = value
-        else:
-            self._ragpipe = self._get_ragpipe(value)
+        return
 
-    
+    def set_output_parser(self, output_parser: Type[NewReturnT] | 
+                     Callable[[NewOutputT], NewReturnT] | 
+                     OutputParserConfig[NewOutputT, NewReturnT] | 
+                     FunctionConfig[..., Any, Any, NewReturnT]):
+        
+        self._set_output_parser(output_parser)
+        return cast("BaseFunction[FunctionConfig[InputP, InputReturnT, NewOutputT, NewReturnT], InputP, InputReturnT, NewOutputT, NewReturnT]", self)
+              
     def handle_exception(self, exception: Exception) -> ReturnT:
         handlers = self.config.exception_handlers
         if not handlers:
@@ -95,40 +141,16 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputT, O
                     return handler(self, exception) 
         raise exception
         
-    def prepare_message(self, *input: InputT|str, **kwargs) -> Message:
-        if len(input) > 1:
-            raise ValueError("Only one input argument is allowed")
-        
-        input_str = None
-        if input:
-            _input = input[0]
-            if isinstance(_input, str):
-                input_str = _input
-            else:
-                parsed_input = self.config.input_parser(_input)
-                if isinstance(parsed_input, str):
-                    input_str = parsed_input
-                else:
-                    kwargs.update(parsed_input)
-        
-        prompt_template = self.config.prompt_template
-        if kwargs:
-            if input_str:
-                kwargs["input"] = input_str
-            if isinstance((prompt_template), (PromptTemplate, str)):
-                input_str = prompt_template.format(**kwargs)
-            else:
-                input_str = prompt_template(**kwargs)
-        elif input_str is None:
-                input_str = prompt_template if isinstance(prompt_template, str) else prompt_template()
-        
-        if self.ragpipe:
-            prompt = self.ragpipe.prompt(query=input_str)
-        else:
-            prompt = input_str
-                
-        return Message(role="user", content=prompt)
-    
+    def prepare_message(self, *args: InputP.args, **kwargs: InputP.kwargs) -> Message:
+        _input = self.input_parser(*args, **kwargs)
+        if callable(_input):
+            _input = _input(*args, **kwargs)
+        if isinstance(_input, Message):
+            return _input
+        if not isinstance(_input, str):
+            _input = stringify_content(_input)
+        return Message(role="user", content=_input)
+            
     def _get_output(self) -> OutputT:
         output_type = self.config.output_type
         if output_type is str:
@@ -146,16 +168,15 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputT, O
 
     def parse_output_stream(self) -> Generator[MessageChunk, None, ReturnT]:
         output = self._get_output()
-        for output_parser in self.output_parsers:
-            if isinstance(output_parser, Function):
-                output = yield from output_parser.stream(output)
-            else:
-                output = output_parser(output)
-        return output  
+        if isinstance(self.output_parser, BaseFunction):
+            output = yield from self.output_parser.stream(output)
+        else:
+            output = self.output_parser(output)
+        return output
 
-    def __call__(self, *input: InputT|str, **kwargs) -> ReturnT:
+    def __call__(self, *args: InputP.args, **kwargs: InputP.kwargs) -> ReturnT:
         try:
-            message = self.prepare_message(*input, **kwargs)
+            message = self.prepare_message(*args, **kwargs)
             self.send_message(message)
             return self.parse_output()
         except Exception as error:
@@ -164,9 +185,9 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputT, O
             if self.config.stateless:
                 self.reset()
 
-    def stream(self, *input: InputT|str, **kwargs) -> Generator[MessageChunk, None, ReturnT]:
+    def stream(self, *args: InputP.args, **kwargs: InputP.kwargs) -> Generator[MessageChunk, None, ReturnT]:
         try:
-            message = self.prepare_message(input=input, **kwargs)
+            message = self.prepare_message(*args, **kwargs)
             yield from self.send_message_stream(message)
             output = yield from self.parse_output_stream()
             return output
@@ -175,16 +196,55 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputT, O
         finally:
             if self.config.stateless:
                 self.reset()
-                    
+
+    def print_stream(
+            self, 
+            end: Optional[str] = "",
+            file: Optional[TextIO] = None,
+            flush: bool = True, 
+            replacements: Optional[dict[str|Pattern, str]] = None,
+            *args: InputP.args, 
+            **kwargs: InputP.kwargs
+            ) -> ReturnT:
+        
+        bufsize = 0
+        buffer = []
+        _replacements = {}
+        
+        if replacements:
+            for old, new in replacements.items():
+                if isinstance(old, str):
+                    old = re_compile(old)
+                _replacements[old] = new
+                bufsize = max(bufsize, len(old.pattern))
+
+        def _replace(joined: str) -> str:
+            if not _replacements:
+                return joined
+            for old, new in _replacements.items():
+                joined = old.sub(new, joined)    
+            return joined
             
+        stream_generator = self.stream(*args, **kwargs)
+        _current_bufsize = 0
+        try:            
+            while True:                
+                if (chunk := next(stream_generator)) and (content := chunk.content):
+                    buffer.append(content)
+                    _current_bufsize += len(content)
+                    if _current_bufsize >= bufsize:
+                        print(_replace(''.join(buffer)), end=end, file=file, flush=flush)
+                        buffer = []
+                        _current_bufsize = 0
+        except StopIteration as stop:
+            output = stop.value
+        if buffer:
+            print(_replace(''.join(buffer)), end=end, file=file, flush=flush)
+        return output
+            
+        
+                                
     # Aliases so func()==func.exec() and func.stream()==func.exec_stream()
     exec = __call__
     exec_stream = stream
     
-    # def __or__(self, other: Union['UnifAIFunction', Callable]) -> 'UnifAIFunction':
-    #     """Implements the | operator by appending to output_parsers"""
-    #     if other is self:
-    #         raise ValueError("Cannot pipe a function into itself")        
-    #     new_func = self.with_config()  # Create a copy
-    #     new_func.output_parsers.append(other)
-    #     return new_func

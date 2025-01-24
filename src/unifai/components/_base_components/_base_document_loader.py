@@ -1,10 +1,12 @@
-from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Iterable,  Callable, Iterator, Iterable, Generator, Self, IO
+from typing import TYPE_CHECKING, cast, Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Iterable,  Callable, Iterator, Iterable, Generator, Self, IO, ParamSpec
 from abc import abstractmethod
 
 from .__base_component import UnifAIComponent
 from ...utils import stringify_content, sha256_hash, clean_text, _next
-from ...types import Document, Documents
-from ...configs.document_loader_config import DocumentLoaderConfig
+from ...types.annotations import InputP
+from ...types.documents import Document, Documents
+from ...types.response_info import ResponseInfo
+from ...configs.document_loader_config import DocumentLoaderConfig, FileIODocumentLoaderConfig, iload_documents_mock
 
 from copy import deepcopy
 from itertools import zip_longest
@@ -15,10 +17,50 @@ T = TypeVar("T")
 SourceT = TypeVar("SourceT")
 LoadedSourceT = TypeVar("LoadedSourceT")
 
-class DocumentLoader(UnifAIComponent[DocumentLoaderConfig], Generic[SourceT, LoadedSourceT]):
+DocumentT = TypeVar("DocumentT", bound=Document)
+DocumentsT = TypeVar("DocumentsT", bound=Documents)
+DocumentLoaderConfigT = TypeVar("DocumentLoaderConfigT", bound=DocumentLoaderConfig)
+
+class BaseDocumentLoader(UnifAIComponent[DocumentLoaderConfigT], Generic[DocumentLoaderConfigT, InputP]):
     component_type = "document_loader"
     provider = "base"    
-    config_class = DocumentLoaderConfig
+    config_class: Type[DocumentLoaderConfigT]
+    
+    def _setup(self) -> None:
+        super()._setup()
+        if callable(self.config.load_documents) and self.config.load_documents != iload_documents_mock:
+            self._iload_documents = self.config.load_documents
+           
+    
+    # @abstractmethod
+    def _iload_documents(self, *args: InputP.args, **kwargs: InputP.kwargs) -> Iterable[Document] | Generator[Document, None, ResponseInfo | None]:
+        raise NotImplementedError
+    
+    # @copy_signature_from(_iload_documents)
+    def iload_documents(self, *args: InputP.args, **kwargs: InputP.kwargs) -> Generator[Document, None, ResponseInfo | None]:
+        return self._run_generator(self._iload_documents, *args, **kwargs)
+        
+    def load_documents(self, *args: InputP.args, **kwargs: InputP.kwargs) -> Documents:
+        return Documents.from_generator(self.iload_documents(*args, **kwargs))
+    
+    __call__ = iload_documents
+
+    def load_document(self, *args: InputP.args, **kwargs: InputP.kwargs) -> Document:
+        return _next(self.iload_documents(*args, **kwargs))
+    
+class DocumentLoader(BaseDocumentLoader[DocumentLoaderConfig[InputP], InputP], Generic[InputP]):
+    component_type = "document_loader"
+    provider = "default"    
+    config_class: Type[DocumentLoaderConfig[InputP]] = DocumentLoaderConfig
+    
+
+class FileIODocumentLoader(BaseDocumentLoader[FileIODocumentLoaderConfig[InputP, SourceT, LoadedSourceT], InputP], Generic[InputP, SourceT, LoadedSourceT]):
+    component_type = "document_loader"
+    provider = "base"    
+    config_class: Type[FileIODocumentLoaderConfig[InputP, SourceT, LoadedSourceT]] = FileIODocumentLoaderConfig
+
+    source_type: Type[SourceT]
+    loaded_source_type: Type[LoadedSourceT]
 
     @staticmethod
     def get_mimetype_with_builtin_mimetypes(uri: str) -> Optional[str]:
@@ -137,11 +179,11 @@ class DocumentLoader(UnifAIComponent[DocumentLoaderConfig], Generic[SourceT, Loa
 
         return Document(id=_id, text=final_text, metadata=processed_metadata)
     
-    def iload_documents(
+    def _iload_documents(
             self, 
             sources: Iterable[SourceT], 
-            *args, 
             metadatas: Optional[Iterable[SourceT|dict|None]] = None,  
+            *args,
             **kwargs
             ) -> Iterable[Document]:
         
@@ -155,21 +197,24 @@ class DocumentLoader(UnifAIComponent[DocumentLoaderConfig], Generic[SourceT, Loa
                 yield load_result # Yield the document
             else:
                 raise load_result # Raise the exception
+            
+    def iload_documents(
+            self, 
+            sources: Iterable[SourceT], 
+            metadatas: Optional[Iterable[SourceT|dict|None]] = None,  
+            *args,
+            **kwargs
+            ) -> Iterable[Document]:
+        return self._run_generator(self._iload_documents, sources, metadatas, *args, **kwargs)
+
 
     def load_documents(
             self, 
             sources: Iterable[SourceT], 
-            *args, 
             metadatas: Optional[Iterable[SourceT|dict|None]] = None,  
+            *args,
             **kwargs
-            ) -> list[Document]|Documents:
-        return list(self.iload_documents(sources, *args, metadatas=metadatas, **kwargs))
-
-    def load_document(
-            self, 
-            source: SourceT, 
-            *args, 
-            metadata: SourceT|dict|None = None,  
-            **kwargs
-            ) -> Document|None:
-        return _next(self.iload_documents([source], *args, metadatas=[metadata], **kwargs))
+            ) -> Documents:
+        return Documents.from_generator(self.iload_documents(sources, metadatas, *args, **kwargs))
+    
+    __call__ = iload_documents

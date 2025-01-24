@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 from ._base_llm import LLM
-from ._base_prompt_template import PromptTemplate
+from ._base_prompt_template import PromptModel
 from ._base_tokenizer import Tokenizer
 from ._base_tool_caller import ToolCaller
 from .__base_component import UnifAIComponent
@@ -105,7 +105,6 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         if not self._fully_initialized:
             self._init_config_components()
 
-
     def _get_llm_client(self, llm: "ProviderName | LLMConfig | tuple[ProviderName, ComponentName]") -> "LLM":
         return self._get_component("llm", llm)
     
@@ -170,14 +169,24 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         # string and nothing to format
         if (_is_str := isinstance(_system_prompt, str)) and not self.system_prompt_kwargs:
             return _system_prompt
-        # format string or PromptTemplate with system_prompt_kwargs
-        if _is_str or isinstance(_system_prompt, PromptTemplate):
+                
+        # format string or PromptModel instance with system_prompt_kwargs
+        if _is_str or isinstance(_system_prompt, PromptModel):
             return _system_prompt.format(**self.system_prompt_kwargs)
+        
+        # PromptModel class 
+        if isinstance(_system_prompt, type) and issubclass(_system_prompt, PromptModel):
+            _system_prompt = _system_prompt(**self.system_prompt_kwargs)   
+            return _system_prompt.format(**self.system_prompt_kwargs)  
+                
         # call system_prompt function with system_prompt_kwargs
-        return _system_prompt(**self.system_prompt_kwargs)
+        sys_prompt_output = _system_prompt(**self.system_prompt_kwargs)
+        if sys_prompt_output is None or isinstance(sys_prompt_output, str):
+            return sys_prompt_output
+        return stringify_content(sys_prompt_output)
         
     @system_prompt.setter
-    def system_prompt(self, system_prompt: Optional["str | PromptTemplate | Callable[..., str]"]) -> None:
+    def system_prompt(self, system_prompt: Optional["str | Callable[..., str] | PromptModel | Type[PromptModel]"]) -> None:
         self._system_prompt = system_prompt
 
     @property
@@ -336,7 +345,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
     
     def _check_tool_choice_obeyed(self, tool_choice: str, tool_calls: Optional[list["ToolCall"]]) -> bool:
         if tool_choice == "auto":
-            print("tool_choice='auto' OBEYED")
+            # print("tool_choice='auto' OBEYED")
             return True
         
         if tool_calls:
@@ -347,13 +356,13 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
                 # the correct tool was not called and tool choice is not "required" (required=any one or more tools must be called) 
                 or (tool_choice != 'required' and tool_choice not in tool_names)
                 ):
-                print(f"Tools called and tool_choice={tool_choice} NOT OBEYED")
+                # print(f"Tools called and tool_choice={tool_choice} NOT OBEYED")
                 return False
         elif tool_choice != 'none':
-            print(f"Tools NOT called and tool_choice={tool_choice} NOT OBEYED")
+            # print(f"Tools NOT called and tool_choice={tool_choice} NOT OBEYED")
             return False 
         
-        print(f"tool_choice={tool_choice} OBEYED")
+        # print(f"tool_choice={tool_choice} OBEYED")
         return True
     
     def _handle_tool_choice_obeyed(self, message: Message) -> None:
@@ -439,7 +448,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         chat_kwargs = dict(
                     messages=run_client_messages,                 
                     model=self.llm_model, 
-                    system_prompt=self.system_prompt,
+                    system_prompt=run_system_prompt,
                     tools=self._client_tools, 
                     tool_choice=self._client_tool_choice,
                     response_format=self._client_response_format,
@@ -452,6 +461,12 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
                     top_k=self.config.top_k,
                     top_p=self.config.top_p,                    
         )
+        # print(f"SYSTEM PROMPT: {run_system_prompt}\n")
+        # print(f"NUM MESSAGES: {len(run_client_messages)}")
+        # print(f"NUM TOOLS: {len(self.tools or [])}")
+        # print(f"TOOL NAMES: {list(self.tools or [])}")
+        # print(f"TOOL CHOICE: {self.tool_choice}")
+        # print(f"RESPONSE FORMAT: {self._client_response_format}")
         return combine_dicts(chat_kwargs, override_kwargs) if override_kwargs else chat_kwargs
     
     def _reset_run_counts(self) -> None:
@@ -462,7 +477,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         self._current_run_output_tokens = 0
     
     def _handle_chat_response(self, message: Message, client_message: dict[str, Any]) -> bool:
-        print(f"Assistant Response: {message}")
+        # print(f"Assistant Response: {message}")
         self._current_run_messages += 1
 
         # Update usage for entire chat and current run
@@ -484,7 +499,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
                 return True # continue to next iteration without updating messages (retry)
             else:
                 # TODO use UnifAIErrorType
-                print("Tool choice error retries exceeded")
+                # print("Tool choice error retries exceeded")
                 raise ValueError("Tool choice error retries exceeded")
             
         # Update messages with assistant message
@@ -493,7 +508,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         self._client_messages.append(client_message)
 
         if self.return_on == "message":
-            print("returning on message")
+            # print("returning on message")
             return False # break before processing tool_calls
 
         if tool_calls := message.tool_calls:

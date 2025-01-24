@@ -1,6 +1,7 @@
 import pytest
 from unifai import UnifAI, FunctionConfig, BaseModel
 from unifai.components.output_parsers.pydantic_output_parser import PydanticParser
+from unifai.components.prompt_templates import PromptTemplate
 from unifai.types import Message, Tool, ArrayToolParameter, ObjectToolParameter, BooleanToolParameter, StringToolParameter, NumberToolParameter
 from basetest import base_test_llms, API_KEYS
 from unifai.types.annotations import ProviderName
@@ -42,7 +43,7 @@ def test_evalutate_flagged_reason(
     url_eval_config = FunctionConfig(
         name="urlEval",
         system_prompt="You review URLs and HTML text to flag elements that may contain spam, misinformation, or other malicious items. Check the associated URLS for signs of typosquatting or spoofing. ",
-        prompt_template="URL:{url}\nLINK TEXT:{link_text}",
+        input_parser=PromptTemplate("URL:{url}\nLINK TEXT:{link_text}"),
         output_parser=FlaggedReason,
     )
 
@@ -204,7 +205,7 @@ def test_evalutate_contacts(
             system_prompt="You extract contact information from unstructued content.",
             output_parser=ContactsList,
     ))
-    contacts_list = extract_contacts(input)
+    contacts_list = extract_contacts(input=input)
     assert contacts_list
     assert isinstance(contacts_list, ContactsList)
     contacts_list.print_contacts()

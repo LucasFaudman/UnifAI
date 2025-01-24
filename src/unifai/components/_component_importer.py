@@ -11,7 +11,7 @@ class ComponentImporter:
 
     _COMPONENT_PATHS = {
         "chat": {
-            "default": ".chats.Chat",
+            "default": ".chats.default_chat.Chat",
         },
         "chat_db": {
         },
@@ -27,6 +27,7 @@ class ComponentImporter:
             "sqlite": ".document_dbs.sqlite_document_db.SQLiteDocumentDB",
         },
         "document_loader": {
+            "default": ".document_loaders.default_loader.DocumentLoader",
             "document_db_loader": ".document_loaders.document_db_loader.DocumentDBLoader",
             "html_loader": ".document_loaders.html_loader.HTMLDocumentLoader",
             "json_loader": ".document_loaders.json_loader.JSONDocumentLoader",
@@ -46,6 +47,9 @@ class ComponentImporter:
             "openai": ".embedders.openai_embedder.OpenAIEmbedder",
             "sentence_transformers": ".embedders.sentence_transformers_embedder.SentenceTransformersEmbedder",
         },
+        "function": {
+            "default": ".functions.default_function.Function",
+        },
         "llm": {
             "anthropic": ".llms.anhropic_llm.AnthropicLLM",
             "google": ".llms.google_llm.GoogleLLM",
@@ -58,7 +62,7 @@ class ComponentImporter:
             "pydantic_parser": ".output_parsers.pydantic_output_parser.PydanticParser",
         },
         "ragpipe": {
-            "default": ".ragpipes.RAGPipe",
+            "default": ".ragpipes.default_ragpipe.RAGPipe",
         },
         "reranker": {
             "cohere": ".rerankers.cohere_reranker.CohereReranker",

@@ -1,1 +1,3 @@
-from .._base_components._base_prompt_template import PromptTemplate
+from .prompt_model import PromptModel
+from .prompt_template import PromptTemplate
+from .rag_prompt_model import RAGPromptModel

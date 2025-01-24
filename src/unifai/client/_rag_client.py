@@ -15,17 +15,17 @@ from ._reranker_client import UnifAIRerankClient
 from ._document_chunker_client import UnifAIDocumentChunkerClient
 from ._document_loader_client import UnifAIDocumentLoaderClient
 
-from ..configs.rag_config import RAGConfig
+from ..configs.rag_config import RAGConfig, LoaderInputP, QueryInputP
 
 class UnifAIRAGClient(UnifAIVectorDBClient, UnifAIRerankClient, UnifAIDocumentChunkerClient, UnifAIDocumentLoaderClient):
     
     def ragpipe(
             self, 
-            provider_config_or_name: "ProviderName | RAGConfig | tuple[ProviderName, ComponentName]" = "default",
+            provider_config_or_name: "ProviderName | RAGConfig[LoaderInputP, QueryInputP] | tuple[ProviderName, ComponentName]" = "default",
             **init_kwargs
-            ) -> "RAGPipe":
+            ) -> "RAGPipe[LoaderInputP, QueryInputP]":
         return self._get_component("ragpipe", provider_config_or_name, init_kwargs)
-    
+
     def configure(
         self,
         config: Optional["UnifAIConfig|dict[str, Any]|str|Path"] = None,

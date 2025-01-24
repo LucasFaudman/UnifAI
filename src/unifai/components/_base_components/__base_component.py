@@ -1,6 +1,8 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Callable, Iterator, Iterable, Generator, Generic, Type
 from abc import ABC
+from copy import deepcopy
 
+from ...utils import combine_dicts
 from ...exceptions import UnifAIError, UnknownUnifAIError
 from ...configs._base_configs import ComponentConfig
 from ...types.annotations import ComponentType, ProviderName, ComponentName
@@ -71,6 +73,7 @@ class UnifAIComponent(AbstractBaseComponent, Generic[ConfigT]):
         # Args used to initialize the component. Processed first by __init__ and/or _setup, 
         # then passed through to the underlying object being initialized if applicable.
         self.init_kwargs = init_kwargs
+        self._passed_init_kwargs = init_kwargs.copy()
         
         # Exception handlers to allow components to handle exceptions and retry functions
         # Handler takes the following arguments:
@@ -105,7 +108,20 @@ class UnifAIComponent(AbstractBaseComponent, Generic[ConfigT]):
         if not self.__get_component:
             raise NotImplementedError(f"{self.__class__.__name__} does not support getting components")
         return self.__get_component(component_type, provider_config_or_name, init_kwargs)
-                        
+
+
+    def with_config(
+            self,
+            config: Optional[ConfigT] = None,
+            update: Optional[dict] = None,
+            deep: bool = True,
+            **init_kwargs
+    ):
+        _config = config or self.config.model_copy(update=update, deep=deep)
+        # _init_kwargs = init_kwargs or (deepcopy(self._passed_init_kwargs) if deep else self._passed_init_kwargs)
+        _init_kwargs = combine_dicts(self._passed_init_kwargs, init_kwargs)
+        return type(self)(_config, **_init_kwargs)
+
     # Convert Exceptions from Client Exception Types to UnifAI Exceptions for easier handling
     def _convert_exception(self, exception: Exception) -> UnifAIError:
         return self._default_exception(message=str(exception), original_exception=exception)
@@ -137,7 +153,7 @@ class UnifAIComponent(AbstractBaseComponent, Generic[ConfigT]):
         except Exception as e:
             return self._handle_exception(e, func, *args, **kwargs)
 
-    def _run_generator(self, func: Callable[..., Generator[YieldT, None, ReturnT]], *args, **kwargs) ->  Generator[YieldT, None, ReturnT]:
+    def _run_generator(self, func: Callable[..., Generator[YieldT, None, ReturnT] | Iterable[YieldT]], *args, **kwargs) ->  Generator[YieldT, None, ReturnT]:
         try:
             rval = yield from func(*args, **kwargs)
         except Exception as e:

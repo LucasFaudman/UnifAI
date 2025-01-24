@@ -1,7 +1,7 @@
 from ._base_configs import ProviderConfig
 from .document_chunker_config import DocumentChunkerConfig
 from .document_db_config import DocumentDBConfig, DocumentDBCollectionConfig
-from .document_loader_config import DocumentLoaderConfig
+from .document_loader_config import DocumentLoaderConfig, FileIODocumentLoaderConfig
 from .embedder_config import EmbedderConfig
 from .llm_config import LLMConfig
 from .output_parser_config import OutputParserConfig
@@ -20,7 +20,7 @@ COMPONENT_CONFIGS = {
     "document_chunker": DocumentChunkerConfig,
     "document_db": DocumentDBConfig,
     "document_db_collection": DocumentDBCollectionConfig,
-    "document_loader": DocumentLoaderConfig,
+    "document_loader": FileIODocumentLoaderConfig,
     "embedder": EmbedderConfig,
     "llm": LLMConfig,
     "output_parser": OutputParserConfig,

@@ -19,6 +19,17 @@ class Document(BaseModel):
     text: Optional[str] = None
     embedding: Optional[Embedding] = None
 
+    def __len__(self) -> int:
+        return self.length
+
+    @property
+    def length(self) -> int:
+        return len(self.text) if self.text else 0
+    
+    @property
+    def embedding_dimensions(self) -> int:
+        return len(self.embedding) if self.embedding else 0
+
 class RankedDocument(Document):
     """
     A ranked document with an id, rank, distance, and optional text, metadata, embeddings and query.

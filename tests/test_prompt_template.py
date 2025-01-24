@@ -49,22 +49,23 @@ def _test_prompt_template(template: str|Callable[..., str],
                          expected: str = ""
                          ):
     prompt = PromptTemplate(template, 
-                            nested_kwargs=init_nested_kwargs, 
+                            value_formatters=init_value_formatters,                            
                             template_getter_kwargs=init_template_getter_kwargs,
-                            value_formatters=init_value_formatters,
+                            default_nested_kwargs=init_nested_kwargs, 
                             **init_kwargs
                             )
     assert prompt.template == template
-    assert prompt.nested_kwargs == init_nested_kwargs
+    assert prompt.default_kwargs == init_kwargs
+    assert prompt.default_nested_kwargs == init_nested_kwargs
     assert prompt.template_getter_kwargs == init_template_getter_kwargs
-    assert prompt.kwargs == init_kwargs
+    assert prompt.value_formatters == init_value_formatters
 
     formatted = prompt.format(
         nested_kwargs=call_nested_kwargs,
         template_getter_kwargs=call_template_getter_kwargs,
         value_formatters=call_value_formatters,
         **call_kwargs
-        )     
+        )
     print(f"{formatted=}")
     assert formatted == expected
 

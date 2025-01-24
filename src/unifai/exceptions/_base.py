@@ -1,6 +1,6 @@
 from typing import Optional, Any
 
-TRACEBACK_MAX_LENGTH = None
+TRACEBACK_MAX_LENGTH = 1000
 
 class UnifAITracebackRecord:
     def __init__(self,
@@ -50,7 +50,7 @@ class UnifAIError(Exception):
         return "\n".join([str(record) for record in self.unifai_traceback])
 
     def __str__(self):
-        return f"{self.__class__.__name__}: Message: {self.message}\nOriginal Exception: {self.original_exception}\nUnifAI Traceback: {self.traceback_str()}"
+        return f"{self.__class__.__name__}: Message: {self.message}\nOriginal Exception: {repr(self.original_exception)}\nUnifAI Traceback: {self.traceback_str()}"
 
 class UnknownUnifAIError(UnifAIError):
     """Raised when an unknown error occurs in UnifAI"""
