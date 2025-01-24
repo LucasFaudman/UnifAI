@@ -36,7 +36,7 @@ class _FunctionConfig(BaseConfig, Generic[InputP, InputReturnT, OutputT, ReturnT
     provider: ClassVar[str] = "default" 
 
     stateless: bool = True
-    input_parser: Callable[InputP, InputReturnT] | Callable[InputP, Callable[..., InputReturnT]] | InputParserConfig[InputP, InputReturnT] | RAGConfig[InputP] | "_FunctionConfig[InputP, Any, Any, InputReturnT]  | _FunctionConfig"
+    input_parser: Callable[InputP, InputReturnT] | Callable[InputP, Callable[..., InputReturnT]] | InputParserConfig[InputP, InputReturnT] | RAGConfig[..., InputP] | "_FunctionConfig[InputP, Any, Any, InputReturnT]  | _FunctionConfig"
     output_parser: Type[ReturnT] | Callable[[OutputT], ReturnT] | OutputParserConfig[OutputT, ReturnT] | "_FunctionConfig[..., Any, Any, ReturnT] | _FunctionConfig" = Field(default=return_last_message)
     
     @property
@@ -62,6 +62,6 @@ class FunctionConfig(ChatConfig[InputP], _FunctionConfig[InputP, InputReturnT, O
     component_type: ClassVar = "function"
     provider: ClassVar[str] = "default"
 
-    input_parser: Callable[InputP, InputReturnT] | Callable[InputP, Callable[..., InputReturnT]] | InputParserConfig[InputP, InputReturnT] | RAGConfig[InputP] | _FunctionConfig[InputP, Any, Any, InputReturnT]  | _FunctionConfig = Field(default=convert_input_to_user_message)
+    input_parser: Callable[InputP, InputReturnT] | Callable[InputP, Callable[..., InputReturnT]] | InputParserConfig[InputP, InputReturnT] | RAGConfig[..., InputP] | _FunctionConfig[InputP, Any, Any, InputReturnT]  | _FunctionConfig = Field(default=convert_input_to_user_message)
     output_parser: Type[ReturnT] | Callable[[OutputT], ReturnT] | OutputParserConfig[OutputT, ReturnT] | _FunctionConfig[..., Any, Any, ReturnT] | _FunctionConfig = Field(default=return_last_message)
     exception_handlers: Optional[dict[Type[Exception], Callable[..., ReturnT]]] = None

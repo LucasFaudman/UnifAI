@@ -1,5 +1,5 @@
-from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, TypeVar, Union, Self, Iterable, Mapping, Generator, Generic, ParamSpec, cast
-
+from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, TypeVar, Union, Self, Iterable, Mapping, Generator, Generic, ParamSpec, cast, TextIO, Pattern
+from re import compile as re_compile
 from ._base_prompt_template import PromptTemplate
 
 
@@ -31,7 +31,7 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
         super()._setup()
         self._get_input_parser: Callable[..., InputParser[InputP, InputReturnT]] = self.init_kwargs.pop("_get_input_parser")
         self._get_output_parser: Callable[..., OutputParser[OutputT, ReturnT]] = self.init_kwargs.pop("_get_output_parser")
-        self._get_ragpipe: Callable[..., RAGPipe[InputP]] = self.init_kwargs.pop("_get_ragpipe")
+        self._get_ragpipe: Callable[..., RAGPipe[..., InputP]] = self.init_kwargs.pop("_get_ragpipe")
         self._get_function: Callable[..., "BaseFunction[FunctionConfig[InputP, Any, Any, InputReturnT], InputP, Any, Any, InputReturnT]"] = self.init_kwargs.pop("_get_function")
         self._set_input_parser(self.config.input_parser)
 
@@ -51,13 +51,13 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
     @input_parser.setter
     def input_parser(self, input_parser: Callable[NewInputP, NewInputReturnT | Callable[..., NewInputReturnT]] | 
                     InputParserConfig[NewInputP, NewInputReturnT] | 
-                    RAGConfig[NewInputP] | 
+                    RAGConfig[..., NewInputP] | 
                     FunctionConfig[NewInputP, Any, Any, NewInputReturnT]) -> None:
         self._set_input_parser(input_parser)
 
     def _set_input_parser(self, input_parser: Callable[NewInputP, NewInputReturnT | Callable[..., NewInputReturnT]] | 
                     InputParserConfig[NewInputP, NewInputReturnT] | 
-                    RAGConfig[NewInputP] | 
+                    RAGConfig[..., NewInputP] | 
                     _FunctionConfig[NewInputP, Any, Any, NewInputReturnT]) -> None:
         
         if callable(input_parser):
@@ -74,7 +74,7 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
         
     def set_input_parser(self, input_parser: Callable[NewInputP, NewInputReturnT | Callable[..., NewInputReturnT]] | 
                     InputParserConfig[NewInputP, NewInputReturnT] | 
-                    RAGConfig[NewInputP] | 
+                    RAGConfig[..., NewInputP] | 
                     FunctionConfig[NewInputP, Any, Any, NewInputReturnT]):
         self._set_input_parser(input_parser)
         return cast("BaseFunction[FunctionConfig[NewInputP, NewInputReturnT, OutputT, ReturnT], NewInputP, NewInputReturnT, OutputT, ReturnT]", self)
@@ -196,6 +196,53 @@ class BaseFunction(BaseChat[FunctionConfigT], Generic[FunctionConfigT, InputP, I
         finally:
             if self.config.stateless:
                 self.reset()
+
+    def print_stream(
+            self, 
+            end: Optional[str] = "",
+            file: Optional[TextIO] = None,
+            flush: bool = True, 
+            replacements: Optional[dict[str|Pattern, str]] = None,
+            *args: InputP.args, 
+            **kwargs: InputP.kwargs
+            ) -> ReturnT:
+        
+        bufsize = 0
+        buffer = []
+        _replacements = {}
+        
+        if replacements:
+            for old, new in replacements.items():
+                if isinstance(old, str):
+                    old = re_compile(old)
+                _replacements[old] = new
+                bufsize = max(bufsize, len(old.pattern))
+
+        def _replace(joined: str) -> str:
+            if not _replacements:
+                return joined
+            for old, new in _replacements.items():
+                joined = old.sub(new, joined)    
+            return joined
+            
+        stream_generator = self.stream(*args, **kwargs)
+        _current_bufsize = 0
+        try:            
+            while True:                
+                if (chunk := next(stream_generator)) and (content := chunk.content):
+                    buffer.append(content)
+                    _current_bufsize += len(content)
+                    if _current_bufsize >= bufsize:
+                        print(_replace(''.join(buffer)), end=end, file=file, flush=flush)
+                        buffer = []
+                        _current_bufsize = 0
+        except StopIteration as stop:
+            output = stop.value
+        if buffer:
+            print(_replace(''.join(buffer)), end=end, file=file, flush=flush)
+        return output
+            
+        
                                 
     # Aliases so func()==func.exec() and func.stream()==func.exec_stream()
     exec = __call__
