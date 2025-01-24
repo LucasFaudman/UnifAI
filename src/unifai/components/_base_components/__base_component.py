@@ -153,7 +153,7 @@ class UnifAIComponent(AbstractBaseComponent, Generic[ConfigT]):
         except Exception as e:
             return self._handle_exception(e, func, *args, **kwargs)
 
-    def _run_generator(self, func: Callable[..., Generator[YieldT, None, ReturnT]], *args, **kwargs) ->  Generator[YieldT, None, ReturnT]:
+    def _run_generator(self, func: Callable[..., Generator[YieldT, None, ReturnT] | Iterable[YieldT]], *args, **kwargs) ->  Generator[YieldT, None, ReturnT]:
         try:
             rval = yield from func(*args, **kwargs)
         except Exception as e:
