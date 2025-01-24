@@ -1,15 +1,16 @@
-from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Iterable,  Callable, Iterator, Iterable, Generator, Self, IO, Pattern 
+from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Iterable,  Callable, Iterator, Iterable, Generator, Self, IO, Concatenate 
 
 from .._base_components.__base_component import UnifAIComponent
 from ...types import Document, Documents
-from .._base_components._base_document_loader import DocumentLoader
+from .._base_components._base_document_loader import FileIODocumentLoader
 
 from pathlib import Path
 
 URIIOTuple = tuple[str, IO]
 URITextTuple = tuple[str, str]
 PathStrOrURIIOTuple = Union[Path, str, URIIOTuple]
-class TextFileDocumentLoader(DocumentLoader[PathStrOrURIIOTuple, URITextTuple]):
+
+class TextFileDocumentLoader(FileIODocumentLoader[Concatenate[Iterable[PathStrOrURIIOTuple], Optional[Iterable[PathStrOrURIIOTuple|dict|None]], ...], PathStrOrURIIOTuple, URITextTuple]):
     provider = "text_file_loader"
 
     def _load_source(self, source: PathStrOrURIIOTuple, *args, **kwargs) -> URITextTuple:
