@@ -25,7 +25,10 @@ def stringify_content(content: Any, separators: tuple[str, str]=(',', ':')) -> s
 
 def clean_text(
     text: str,
-    replacements: Optional[dict[str|Pattern, str]] = None,
+    replacements: Optional[dict[str|Pattern, str]] = {
+            r'.\x08': '', # Remove backspace formatting
+            r'[\x00-\x08\x0B-\x1F\x7F-\x9F]+': ' ', # Replace common control chars with space
+    },    
     strip_chars: Optional[str|Literal[False]] = None,
 ) -> str:
     if not text:
