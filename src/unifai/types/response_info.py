@@ -1,4 +1,4 @@
-from typing import Optional, Literal, Union, Self, Any, TypeVar, ClassVar, Generic, List, Generator, Type
+from typing import Optional, Literal, Union, Self, Any, TypeVar, ClassVar, Generic, List, Generator, Type, Iterable
 from ._base_model import BaseModel, RootModel, Field
 
 T = TypeVar('T')
@@ -109,13 +109,15 @@ class ListWithResponseInfo(RootModel[List[T]], Generic[T]):
             self.root.extend(other)    
 
     @classmethod
-    def from_generator(cls: Type[Self], generator: Generator[T, None, ResponseInfo]) -> Self:
+    def from_generator(cls: Type[Self], generator: Generator[T, None, ResponseInfo | None] | Iterable[T]) -> Self:
         """Create a ListWithResponseInfo from a generator"""
         root = list(generator)
         try:
             generator.send(None)
         except StopIteration as e:
-            response_info = e.value                
+            response_info = e.value # capture the ResponseInfo|None returned on StopIteration signal
+        except AttributeError:
+            response_info = None # generator was not a generator
         instance = cls(root)
         instance.response_info = response_info
         return instance
