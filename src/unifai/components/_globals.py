@@ -106,6 +106,7 @@ PROVIDERS = {
     ],
     "llm": [
         "anthropic", 
+        "deepseek",
         "cohere", 
         "google", 
         "ollama", 

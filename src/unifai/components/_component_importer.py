@@ -52,6 +52,7 @@ class ComponentImporter:
         },
         "llm": {
             "anthropic": ".llms.anhropic_llm.AnthropicLLM",
+            "deepseek": ".llms.deepseek_llm.DeepSeekLLM",
             "google": ".llms.google_llm.GoogleLLM",
             "nvidia": ".llms.nvidia_llm.NvidiaLLM",
             "ollama": ".llms.ollama_llm.OllamaLLM",
