@@ -1,3 +1,4 @@
+from typing import Optional
 from openai import OpenAI
 from openai import (
     OpenAIError,
@@ -39,10 +40,40 @@ from unifai.exceptions import (
 
 from .._base_components._base_adapter import UnifAIAdapter
 
+class TempBaseURL:
+    """
+    Temporarily change the base URL of the client to the provided base URL and then reset it after exiting the context
+
+    Nvidia API requires different base URLs for different models unlike OpenAI which uses the same base URL for all models and endpoints
+
+    Args:
+        client (OpenAI): The OpenAI client
+        base_url (Optional[str]): The new base URL to use
+        default_base_url (str): The default base URL to reset to after exiting the context 
+    """
+
+    def __init__(self, 
+                 client: OpenAI, 
+                 base_url: Optional[str], 
+                 default_base_url: str
+                 ):
+        self.client = client
+        self.base_url = base_url
+        self.default_base_url = default_base_url
+
+    def __enter__(self):
+        if self.base_url:
+            self.client.base_url = self.base_url
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.base_url:
+            self.client.base_url = self.default_base_url
+
 class OpenAIAdapter(UnifAIAdapter):
     provider = "openai"
     client: OpenAI
- 
+    default_base_url: Optional[str] = None
+    default_headers: Optional[dict[str, str]] = None
 
     def import_client(self):
         from openai import OpenAI
@@ -79,6 +110,17 @@ class OpenAIAdapter(UnifAIAdapter):
             original_exception=exception
         )
         
+    def init_client(self, **init_kwargs):
+        if self.default_headers and "default_headers" not in init_kwargs:
+            init_kwargs["default_headers"] = self.default_headers
+
+        if self.default_base_url and "base_url" not in init_kwargs:
+            # Add the Nvidia base URL if not provided since the default is OpenAI
+            self._client = super().init_client(**init_kwargs)
+            self._client.base_url = self.default_base_url
+        else:
+            self._client = super().init_client(**init_kwargs)
+        return self._client
 
     # List Models
     def _list_models(self) -> list[str]:

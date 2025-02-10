@@ -4,37 +4,7 @@ if TYPE_CHECKING:
     from typing import Optional
     from openai import OpenAI
 
-from .openai_adapter import OpenAIAdapter
-
-class TempBaseURL:
-    """
-    Temporarily change the base URL of the client to the provided base URL and then reset it after exiting the context
-
-    Nvidia API requires different base URLs for different models unlike OpenAI which uses the same base URL for all models and endpoints
-
-    Args:
-        client (OpenAI): The OpenAI client
-        base_url (Optional[str]): The new base URL to use
-        default_base_url (str): The default base URL to reset to after exiting the context 
-    """
-
-    def __init__(self, 
-                 client: OpenAI, 
-                 base_url: Optional[str], 
-                 default_base_url: str
-                 ):
-        self.client = client
-        self.base_url = base_url
-        self.default_base_url = default_base_url
-
-    def __enter__(self):
-        if self.base_url:
-            self.client.base_url = self.base_url
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.base_url:
-            self.client.base_url = self.default_base_url
-
+from .openai_adapter import OpenAIAdapter, TempBaseURL
 
 class NvidiaAdapter(OpenAIAdapter):
     provider = "nvidia"
@@ -61,11 +31,6 @@ class NvidiaAdapter(OpenAIAdapter):
         # "meta/llama-3.2-90b-vision-instruct": "https://ai.api.nvidia.com/v1/gr/meta/llama-3.2-90b-vision-instruct",
     } 
 
-    def init_client(self, **init_kwargs):
-        if "base_url" not in init_kwargs:
-            # Add the Nvidia base URL if not provided since the default is OpenAI
-            init_kwargs["base_url"] = self.default_base_url
-        return super().init_client(**init_kwargs)
   
     def _list_models(self) -> list[str]:
         return super()._list_models()
