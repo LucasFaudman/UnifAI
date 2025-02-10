@@ -84,7 +84,18 @@ class PromptModel(BaseModel):
         formatted_kwargs = self.format_values(value_formatters, **resolved_kwargs)        
         return template_str.format(**formatted_kwargs)
 
-    __call__ = format
+    def __call__(self, 
+               nested_kwargs: Optional[dict[str, Any]] = None,
+               value_formatters: Optional[dict[str|type, Callable[..., Any]]] = None,          
+               template_getter_kwargs: Optional[dict[str, Any]] = None,
+               **kwargs,               
+               ) -> str:
+        return self.format(
+            nested_kwargs=nested_kwargs, 
+            value_formatters=value_formatters,
+            template_getter_kwargs=template_getter_kwargs,
+            **kwargs
+        )
 
     def __str__(self) -> str:
         return self.format()
