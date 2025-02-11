@@ -242,12 +242,12 @@ class OpenAILLM(OpenAIAdapter, LLM):
         tool_calls = []
         last_tool_call_yielded = -1
         model = None
-        usage = None
+        usage = Usage()
         done_reason = None
         
         for chunk in response:
             if chunk.usage:
-                usage = self.parse_usage(chunk)
+                usage += self.parse_usage(chunk)
             if not chunk.choices:
                 continue
 

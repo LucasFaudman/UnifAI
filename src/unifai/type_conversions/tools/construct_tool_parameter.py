@@ -1,6 +1,6 @@
 from typing import Optional, Type, TypeVar, ClassVar, Any, Union, Collection, Sequence, Mapping, List, Tuple, Annotated, Callable, _SpecialForm, Literal, get_args, get_origin
 from types import UnionType
-from enum import Enum
+from enum import Enum, StrEnum, IntEnum
 from pydantic import BaseModel
 
 from ...types import (
@@ -29,19 +29,19 @@ def is_base_model(annotation: Any) -> bool:
     return isinstance(annotation, BaseModel) or is_type_and_subclass(annotation, BaseModel)
 
 def resolve_annotation(annotation: Optional[type]) -> dict:
+    # Check that annotation is NOT an Enum, StrEnum, or IntEnum 
+    # BEFORE checking if is a str/int subclass since StrEnum and IntEnum are subclasses of str and int.
+    # Same applies to class MyOldStyleStrEnum(str, Enum): / class MyOldStyleIntEnum(int, Enum): 
+    if not (is_enum := is_type_and_subclass(annotation, (Enum, StrEnum, IntEnum))):
+        if annotation is None or is_type_and_subclass(annotation, str):
+            return {"type": str} # reached a concrete type (str) or no annotation so default to str
+        elif is_type_and_subclass(annotation, (BaseModel, bool, int, float)):
+            return {"type": annotation} # reached a concrete type (BaseModel, bool, int, float)
 
-    if not annotation or is_type_and_subclass(annotation, str):
-        return {"type": str} # reached a concrete type (str) or no annotation so default to str
-    elif is_type_and_subclass(annotation, (BaseModel, bool, int, float)):
-        return {"type": annotation} # reached a concrete type (BaseModel, bool, int, float)
-
-    is_enum = False
-    if ((origin := get_origin(annotation)) is Literal
-        or (is_enum := is_type_and_subclass(annotation, Enum))
-        ):
+    if (is_enum or (origin := get_origin(annotation)) is Literal):
         # Get enum values from Enum and/or Literal annotations
         if is_enum:
-            enum = [member.value for member in annotation] # Enum
+            enum = [member.value for member in annotation] # Enum, StrEnum, IntEnum
         else:
             enum = get_args(annotation) # Literal
         anno_dict = resolve_annotation(type(enum[0])) # resolved type of first enum value
