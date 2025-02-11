@@ -23,7 +23,7 @@ EXT_MODULES = []
 
 setup(
     name="unifai",
-    version="0.0.2",
+    version="0.0.3",
     use_scm_version=True,
     setup_requires=["setuptools>=42", "setuptools_scm>=8", "wheel"],
     description="Unify AI clients into a single interface with enhanced Tool Calling support.",
