@@ -11,10 +11,12 @@ OPENAI_API_KEY = getenv("_OPENAI_API_KEY", "")
 PINECONE_API_KEY = getenv("_PINECONE_API_KEY", "")
 COHERE_API_KEY = getenv("_COHERE_API_KEY", "")
 NVIDIA_API_KEY = getenv("_NVIDIA_API_KEY", "")
+DEEPSEEK_API_KEY = getenv("_DEEPSEEK_API_KEY", "")
 
 API_KEYS = {
     "anthropic": ANTHROPIC_API_KEY,
     "google": GOOGLE_API_KEY,
+    "deepseek": DEEPSEEK_API_KEY,
     "openai": OPENAI_API_KEY,
     "pinecone": PINECONE_API_KEY,
     "cohere": COHERE_API_KEY,
@@ -25,6 +27,7 @@ LLM_CONFIGS = [
     LLMConfig(provider='anthropic'),
     LLMConfig(provider='google'),
     LLMConfig(provider='openai'),
+    LLMConfig(provider='deepseek'),
     # LLMConfig(provider='ollama', init_kwargs={"host": "http://librem-2.local:11434"}),
     # LLMConfig(provider='cohere'),
     # LLMConfig(provider='nvidia')    
