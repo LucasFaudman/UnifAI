@@ -1,8 +1,7 @@
 from typing import Any
 
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings as ChromaSettings
-from chromadb.db.base import UniqueConstraintError
-from chromadb.errors import ChromaError, InvalidCollectionException, InvalidDimensionException
+from chromadb.errors import ChromaError, InvalidCollectionException, InvalidDimensionException, UniqueConstraintError
 from chromadb.api import ClientAPI as ChromaClientAPI
 
 from ...exceptions import UnifAIError, STATUS_CODE_TO_EXCEPTION_MAP, UnknownAPIError, CollectionAlreadyExistsError, CollectionNotFoundError, EmbeddingDimensionsError

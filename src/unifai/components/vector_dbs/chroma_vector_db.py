@@ -194,7 +194,7 @@ class ChromaVectorDB(ChromaAdapter, VectorDB[ChromaVectorDBCollection, "ChromaCo
             limit: Optional[int] = None,
             offset: Optional[int] = None, # woop woop,
     ) -> list[str]:
-        return [collection.name for collection in self.client.list_collections(limit=limit, offset=offset)]
+        return [collection_name for collection_name in self.client.list_collections(limit=limit, offset=offset)]
     
     def _count_collections(self) -> int:
         return self.client.count_collections()
@@ -223,7 +223,6 @@ class ChromaVectorDB(ChromaAdapter, VectorDB[ChromaVectorDBCollection, "ChromaCo
         return self.client.get_collection(
             name=config.name, 
             embedding_function=None,
-            id=config.init_kwargs.get("id"),
             data_loader=config.init_kwargs.get("data_loader"),
         )
     
