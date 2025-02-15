@@ -1,11 +1,11 @@
-from typing import Optional, Union, Sequence, Any, Literal, Callable, Mapping, Collection, Generic
+from typing import Optional, Union, Sequence, Any, Literal, Callable, Generic, Collection
 from ._base_model import BaseModel
 
+from ..utils import clean_locals
 from .annotations import InputP, ReturnT
 from .tool_parameters import ToolParameter, ObjectToolParameter, ToolParameterExcludableKeys, EXCLUDE_NONE
 
 ToolExcludableKeys = ToolParameterExcludableKeys | Literal["strict"]
-EXCLUDE_STRICT: frozenset[ToolExcludableKeys] = frozenset(("strict",))
 
 class Tool(BaseModel, Generic[InputP, ReturnT]):
     type: str = "function"
@@ -19,46 +19,48 @@ class Tool(BaseModel, Generic[InputP, ReturnT]):
         name: str, 
         description: str, 
         *args: ToolParameter,
-        parameters: Optional[ObjectToolParameter | Mapping[str, ToolParameter] | Sequence[ToolParameter]] = None,
+        parameters: Optional[ObjectToolParameter | dict[str, ToolParameter] | Sequence[ToolParameter]] = None,
         type: str = "function",
         strict: bool = True,
         callable: Optional[Callable[InputP, ReturnT]] = None
     ):        
-        if args and parameters:
-            raise ValueError("Cannot specify both args and parameters")
-        elif args:
-            parameters = ObjectToolParameter(properties=list(args))
-        elif isinstance(parameters, (Mapping, Sequence)):
-            parameters = ObjectToolParameter(properties=parameters)
-            
-        BaseModel.__init__(self, name=name, type=type, description=description, parameters=parameters, strict=strict, callable=callable)
-
+        if bool(args) ^ bool(parameters):
+            raise ValueError(f"Must provide either parameters or args, not both or neither. Got: {args=}, {parameters=}")
+        if args:
+            parameters = ObjectToolParameter(properties=args)
+        elif not isinstance(parameters, (ObjectToolParameter)):
+            parameters = ObjectToolParameter(properties=parameters or ()) 
+        BaseModel.__init__(self, **clean_locals(locals()))
+        
 
     def __call__(self, *args: InputP.args, **kwargs: InputP.kwargs) -> ReturnT:
         if self.callable is None:
             raise ValueError(f"Callable not set for tool {self.name}")
         return self.callable(*args, **kwargs)
 
-
-    def to_dict(self, exclude: Collection[ToolExcludableKeys] = EXCLUDE_NONE):        
-        if include_strict := "strict" not in exclude:
-            exclude = set(exclude) - EXCLUDE_STRICT
-        return {
-            "type": self.type,
-            self.type: {
-                "name": self.name,
-                "description": self.description,
-                "parameters": self.parameters.to_dict(exclude), # type: ignore (this can never include "strict")
-                **({"strict": self.strict} if include_strict else {}),
-            },            
-        }
+    def to_dict(
+            self, 
+            exclude: Collection[ToolExcludableKeys] = EXCLUDE_NONE,
+            type: Optional[str] = None,
+            parameters_key: str = "parameters"
+        ) -> dict[str, Any]:
+        _def: dict[str, Any] = { "name": self.name }
+        if "description" not in exclude:
+            _def["description"] = self.description
+        if "strict" not in exclude:
+            _def["strict"] = self.strict
+        if parameters_key not in exclude:
+            _def[parameters_key] = self.parameters.to_dict(exclude)
+        _type = type or self.type
+        return { "type": _type, _type: _def }
+    
+    def to_json_schema(self, exclude: Collection[ToolExcludableKeys] = EXCLUDE_NONE) -> dict[str, Any]:
+        return self.to_dict(exclude, type="json_schema", parameters_key="json_schema")
 
 
 class ProviderTool(Tool):
-    def to_dict(self, exclude: Collection[ToolExcludableKeys] = EXCLUDE_STRICT) -> dict:
-        return {
-            "type": self.type,
-        }
+    def to_dict(self, exclude: Collection[ToolExcludableKeys] = EXCLUDE_NONE) -> dict:
+        return { "type": self.type }
 
 
 PROVIDER_TOOLS = {
