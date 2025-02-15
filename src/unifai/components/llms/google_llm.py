@@ -1,24 +1,9 @@
 from typing import Optional, Union, Sequence, Any, Literal, Mapping, Iterator, Generator
 
 import google.generativeai as genai
-from google.generativeai import (
-    configure as genai_configure,
-    embed_content as genai_embed_content,
-    list_models as genai_list_models,
-    get_model as genai_get_model,
-    ChatSession,
-    GenerationConfig,
-    GenerativeModel,
-)
-# from google.generativeai.types.content_types import (
-#     to_tool_config,
-#     to_content,
-#     to_contents,
-#     to_blob,
-#     to_part,
-# )
 from google.generativeai.types import (
     GenerateContentResponse,
+    GenerationConfig,
     ContentType,
     BlockedPromptException,
     StopCandidateException,
@@ -37,13 +22,13 @@ from google.generativeai.protos import (
     Part,
     Schema,
     Tool as GoogleTool,
-    ToolConfig,
+    ToolConfig as GoogleToolConfig,
     Candidate,
     Content,
 )
 from google.protobuf.struct_pb2 import Struct as GoogleProtobufStruct
 
-from unifai.types import (
+from ...types import (
     Message, 
     MessageChunk,
     Tool, 
@@ -66,6 +51,7 @@ from unifai.types import (
 from ..adapters.google_adapter import GoogleAdapter
 from .._base_components._base_llm import LLM
 from ...utils import generate_random_id
+from ...exceptions import ProviderUnsupportedFeatureError
 
 class GoogleLLM(GoogleAdapter, LLM):
     provider = "google"
@@ -106,7 +92,10 @@ class GoogleLLM(GoogleAdapter, LLM):
             temperature=temperature,
             top_k=top_k,
             top_p=top_p,
+            frequency_penalty=frequency_penalty,
+            presence_penalty=presence_penalty,
             response_mime_type=response_format, #text/plain or application/json
+            # response_schema=response_format, # TODO use for json_schema
         )
 
         gen_model = self.client.GenerativeModel(
@@ -117,7 +106,6 @@ class GoogleLLM(GoogleAdapter, LLM):
             tool_config=tool_choice,
             system_instruction=system_prompt,            
         )
-        # genai.GenerativeModel.generate_content
         return gen_model.generate_content(
             messages,
             stream=stream,
@@ -192,38 +180,37 @@ class GoogleLLM(GoogleAdapter, LLM):
             if isinstance(tool_parameter, (AnyOfToolParameter, RefToolParameter)):
                 raise ValueError(f"{tool_parameter.__class__.__name__} is not supported by GoogleAI")
 
-            items = None
-            properties = None
-            required = None           
+            schema_kwargs = {
+                "type": tool_parameter.type.upper(),
+                "description": tool_parameter.description,
+                "nullable": nullable, 
+            }
+            if tool_parameter.enum:
+                if not isinstance(tool_parameter, StringToolParameter):
+                    # TODO maybe handle non-string enums by converting to string before and back after
+                    raise ProviderUnsupportedFeatureError(f"Google LLM only supports enum when ToolParameter.type is string Got {tool_parameter.type} with enum: {tool_parameter.enum}")
+                else:
+                    schema_kwargs["enum"] = tool_parameter.enum
             if isinstance(tool_parameter, ObjectToolParameter):
-                properties = {}
-                required = []
-                for prop in tool_parameter.properties.values():
-                    properties[prop.name] = tool_parameter_to_schema(prop)
-                    required.append(prop.name)
+                schema_kwargs["properties"] = {
+                    param.name: tool_parameter_to_schema(param) 
+                    for param in tool_parameter.values()
+                }
+                schema_kwargs["required"] = tool_parameter.required
             elif isinstance(tool_parameter, ArrayToolParameter):
-                items = tool_parameter_to_schema(tool_parameter.items)                         
-
-            return Schema(
-                type=tool_parameter.type.upper(),
-                # format=tool_parameter.format,
-                description=tool_parameter.description,
-                nullable=nullable, 
-                enum=tool_parameter.enum,
-                # maxItems=tool_parameter.maxItems,
-                properties=properties,
-                required=required,
-                items=items
-            )
+                schema_kwargs["items"] = tool_parameter_to_schema(tool_parameter.items)
+            return Schema(**schema_kwargs)
         
-        function_declaration = FunctionDeclaration(
-            name=tool.name,
-            description=tool.description,
-            parameters=tool_parameter_to_schema(tool.parameters) if tool.parameters else None,
+        return GoogleTool(function_declarations=[
+            FunctionDeclaration(
+                name=tool.name,
+                description=tool.description,
+                parameters=tool_parameter_to_schema(tool.parameters) if tool.parameters else None,
+            )]
         )
-        return GoogleTool(function_declarations=[function_declaration])
-            
-    def format_tool_choice(self, tool_choice: str) -> ToolConfig:
+    
+        # Tool Choice            
+    def format_tool_choice(self, tool_choice: str) -> GoogleToolConfig:
         if tool_choice in ("auto", "required", "none"):
             mode = tool_choice.upper() if tool_choice != "required" else "ANY"
             allowed_function_names = []
@@ -231,7 +218,7 @@ class GoogleLLM(GoogleAdapter, LLM):
             mode = "ANY"
             allowed_function_names = [tool_choice,]
         
-        return ToolConfig(
+        return GoogleToolConfig(
             function_calling_config={
                 "mode": mode,
                 "allowed_function_names": allowed_function_names
@@ -252,12 +239,12 @@ class GoogleLLM(GoogleAdapter, LLM):
         raise NotImplementedError("This method must be implemented by the subclass")
 
         # Tool Calls
-    def parse_tool_call(self, response_tool_call: FunctionCall, **kwargs) -> ToolCall:
+    def parse_tool_call(self, response_tool_call: dict, **kwargs) -> ToolCall:
             return ToolCall(
-                id=f'call_{generate_random_id(24)}',
-                tool_name=response_tool_call.name,
-                arguments=dict(response_tool_call.args)
-        )
+                id=response_tool_call['id'] or f'call_{generate_random_id(24)}',
+                tool_name=response_tool_call['name'],
+                arguments=response_tool_call['args']
+        )    
     
 
         # Response Info (Model, Usage, Done Reason, etc.)
@@ -278,7 +265,8 @@ class GoogleLLM(GoogleAdapter, LLM):
         if response_obj.usage_metadata:
             return Usage(
                 input_tokens=response_obj.usage_metadata.prompt_token_count,
-                output_tokens=response_obj.usage_metadata.cached_content_token_count,
+                output_tokens=response_obj.usage_metadata.candidates_token_count,
+                cached_content_tokens=response_obj.usage_metadata.cached_content_token_count
             )
 
     def parse_response_info(self, response: GenerateContentResponse, **kwargs) -> ResponseInfo:        
@@ -290,43 +278,91 @@ class GoogleLLM(GoogleAdapter, LLM):
         )
 
         # Assistant Messages (Content, Images, Tool Calls, Response Info)
-    def _extract_parts(self, parts: Sequence[Part]) -> tuple[str|None, list[ToolCall]|None, list[Image]|None]:   
+    def _response_to_dict(self, response: GenerateContentResponse) -> dict:
+        _result = response._result
+        return type(_result).to_dict(_result, use_integers_for_enums=False) # type: ignore (proto.MessageMeta.to_dict is incorrectly typed as returning a Message instead of a dict)
+
+    def _extract_parts(self, response: GenerateContentResponse, candidate: int = 0) -> tuple[str|None, list[ToolCall]|None, list[Image]|None]:           
+        """Extracts content, tool calls, and images from a Google GenerateContentResponse.
+        Converts response to dict to avoid issues with Pydantic's handling of protobuf objects.
+
+        This conversion is necessary to allow Pydantic to validate the protobuf objects,
+        for example, attempting to convert a FunctionCall.args to a dict and then calling
+        creating a BaseModel instance from it:
+        ```
+        response: GenerateContentResponse = ...
+        function_call: FunctionCall = response.candidates[0].content.parts[0].function_call
+        function_call_args = dict(function_call.args) # Values are still protobuf objects
+        ```
+        The problem arises when trying to instantiate a Pydantic model from a dict, contiaining
+        protobuf objects, which will fail with:
+        ```
+        my_model_from_args = MyModel(**function_call_args) # Fails
+        my_model_from_args = MyModel.model_validate(function_call_args) # Fails
+        ```
+        `TypeError: Repeated.__init__() missing 1 required keyword-only argument: 'marshal'`
+
+        This occurs because only the top level is a true python dict, while nested elements remain as
+        protobuf objects, which Pydantic cannot handle properly if the original protobuf object 
+        has been garbage collected.
+        
+        Args:
+            response (GenerateContentResponse): The response from Google's GenerateContent API
+            candidate (int, optional): The candidate response to parse. Defaults to 0.
+        Returns:
+            tuple[str|None, list[ToolCall]|None, list[Image]|None]: A tuple containing:
+                - content (str|None): The extracted text content, or None if empty
+                - tool_calls (list[ToolCall]|None): List of parsed tool calls, or None if none present
+                - images (list[Image]|None): List of parsed images, or None if none present
+        Raises:
+            NotImplementedError: If response contains unsupported part types beyond text, 
+                               function_call, or inline_data
+        """        
+        response_dict = self._response_to_dict(response)
+        dict_parts = response_dict["candidates"][candidate]["content"]["parts"]
+
         content = None
         tool_calls = None
         images = None
-        for part in parts:
-            if part.text:
+        for part_dict in dict_parts:
+            if part_text := part_dict.get("text"):
                 if content is None:
                     content = ""
-                content += part.text
-            if part.function_call:
+                content += part_text
+            elif part_function_call := part_dict.get("function_call"):
                 if tool_calls is None:
                     tool_calls = []
-                tool_calls.append(self.parse_tool_call(part.function_call))
-            if part.inline_data:
+                tool_calls.append(self.parse_tool_call(part_function_call))
+            elif part_inline_data := part_dict.get("inline_data"):
                 if images is None:
                     images = []
-                images.append(self.parse_image(part.inline_data))
-            if part.file_data or part.executable_code or part.code_execution_result:
-                raise NotImplementedError("file_data, executable_code, and code_execution_result are not yet supported by UnifAI")
+                images.append(self.parse_image(part_inline_data))
+            else:
+                part_type = list(part_dict.keys())[0]
+                raise NotImplementedError(
+                    f"Google ProtoBuf Parts of type {part_type} are not yet supported by UnifAI. Only text, function_call, and inline_data are currently supported."
+                )
 
         # Empty values (which can happen during streaming) should be returned as None
         return content, tool_calls, images
 
     def _is_non_empty_part(self, part: Part) -> bool:
-        return bool(part.text 
-                    or part.inline_data or part.file_data 
-                    or part.function_call or part.function_response 
-                    or part.executable_code or part.code_execution_result
-                    )
+        return bool(
+            part.text 
+            or part.function_call or part.function_response 
+            or part.inline_data or part.file_data 
+            or part.executable_code or part.code_execution_result
+        )
 
     def parse_message(self, response: GenerateContentResponse, **kwargs) -> tuple[Message, Content]:
         client_message = response.candidates[0].content
-        content, tool_calls, images = self._extract_parts(client_message.parts)
-
-        # Skip empty text contents at the end of ToolCall messages (role='model' with function_call parts)
-        # to avoid 400 Unable to submit request because it has an empty text parameter. Add a value to the parameter and try again. Learn more: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/gemini
-        client_message.parts = [part for part in client_message.parts if self._is_non_empty_part(part)]
+        # Skip empty text contents at the end of ToolCall messages (role='model' with function_call parts) to prevent error:
+        # "400 Unable to submit request because it has an empty text parameter. Add a value to the parameter and try again. 
+        # Learn more: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/gemini"
+        client_message.parts = list(filter(self._is_non_empty_part, client_message.parts))
+        
+        # Extract content, tool calls, and images from the response AFTER converting to dict (see _extract_parts)
+        content, tool_calls, images = self._extract_parts(response)
 
         response_info = self.parse_response_info(response, tools_called=bool(tool_calls), **kwargs)
         unifai_message = Message(
@@ -342,7 +378,7 @@ class GoogleLLM(GoogleAdapter, LLM):
         parts = [] # To reassemble the final message after streaming
         for chunk in response:
             parts.extend(chunk.parts)
-            content, tool_calls, images = self._extract_parts(chunk.parts)
+            content, tool_calls, images = self._extract_parts(chunk)
             
             if not content and not tool_calls and not images:
                 continue
