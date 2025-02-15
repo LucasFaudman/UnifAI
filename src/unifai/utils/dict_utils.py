@@ -7,9 +7,11 @@ def combine_dicts(*dicts: Optional[dict]) -> dict:
             combined.update(d)
     return combined
 
-def update_kwargs_with_locals(_kwargs: dict, _locals: dict, kwargs_key="kwargs", exclude=("self", "cls")):
-    _exclude = exclude + (kwargs_key,)
-    _kwargs.update({k: v for k, v in _locals.items() if k not in _exclude})
+def clean_locals(_locals: dict, exclude: Collection={"self", "cls"}, kwargs_key="kwargs") -> dict:
+    return {k: v for k, v in _locals.items() if k != kwargs_key and k not in exclude}
+
+def update_kwargs_with_locals(_kwargs: dict, _locals: dict, exclude: Collection={"self", "cls"}, kwargs_key="kwargs") -> dict:
+    _kwargs.update(clean_locals(_locals, exclude, kwargs_key))
     return _kwargs
 
 def recursive_clear(d: dict) -> dict:
