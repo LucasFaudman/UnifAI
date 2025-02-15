@@ -1,6 +1,7 @@
-from typing import Optional, Any
+from typing import TYPE_CHECKING, Optional, Any
 from ._base import UnifAIError
-
+if TYPE_CHECKING:
+    from ..types import Tool, ToolCall, ToolChoice, ToolName, ToolInput
 
 class ToolError(UnifAIError):
     """Raised when an error occurs with a tool or tool call"""
@@ -9,7 +10,7 @@ class ToolValidationError(ToolError):
     """Raised when a tool parameter is invalid"""
     def __init__(self, 
                  message: str, 
-                 tool_input: Any, # TODO type as ToolInput
+                 tool_input: "ToolInput",
                  original_exception: Optional[Exception] = None
                  ):
         self.tool_input = tool_input
@@ -19,7 +20,7 @@ class ToolNotFoundError(ToolError):
     """Raised when a tool is not found"""
     def __init__(self, 
                  message: str, 
-                 tool_name: str,
+                 tool_name: "ToolName",
                  original_exception: Optional[Exception] = None
                  ):
         self.tool_name = tool_name
@@ -29,12 +30,14 @@ class ToolCallError(ToolError):
     """Raised when an error occurs during a tool call"""
     def __init__(self, 
                  message: str, 
-                 tool_call: Any, # TODO type as ToolCall
-                #  tool: Any, # TODO type as Tool
+                 tool_call: Optional["ToolCall"] = None,
+                 tool_calls: Optional[list["ToolCall"]] = None,
+                 tool: Optional["Tool"] = None,
                  original_exception: Optional[Exception] = None
                  ):
         self.tool_call = tool_call
-        # self.tool = tool
+        self.tool_calls = tool_calls
+        self.tool = tool
         super().__init__(message, original_exception)
 
 class ToolCallArgumentValidationError(ToolCallError):
@@ -50,13 +53,14 @@ class ToolChoiceError(ToolCallError):
     """Raised when a tool parameter choice is not obeyed"""
     def __init__(self, 
                  message: str, 
-                 tool_call: Any, # TODO type as ToolCall
-                #  tool: Any, # TODO type as Tool
-                 tool_choice: Any, # TODO type as ToolChoice
+                 tool_call: Optional["ToolCall"] = None,
+                 tool_calls: Optional[list["ToolCall"]] = None,
+                 tool: Optional["Tool"] = None,
+                 tool_choice: Optional["ToolName"] = None,
                  original_exception: Optional[Exception] = None
                  ):
         self.tool_choice = tool_choice
-        super().__init__(message, tool_call, original_exception)
+        super().__init__(message, tool_call, tool_calls, tool, original_exception)
 
 class ToolChoiceErrorRetriesExceeded(ToolChoiceError):
     """Raised when the maximum number of tool choice errors is exceeded"""
