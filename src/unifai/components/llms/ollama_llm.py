@@ -6,15 +6,16 @@ from ollama._types import (
     ChatResponse as OllamaChatResponse,
     Message as OllamaMessage,
     Tool as OllamaTool, 
-    ToolFunction as OllamaToolFunction,
-    ToolCallFunction as OllamaToolCallFunction,
-    ToolCall as OllamaToolCall, 
-    Parameters as OllamaParameters, 
-    Property as OllamaProperty,
     Options as OllamaOptions,
 )
 
+OllamaToolFunction = OllamaTool.Function
+OllamaParameters = OllamaToolFunction.Parameters
+OllamaProperty = OllamaParameters.Property
+OllamaToolCall = OllamaMessage.ToolCall
+OllamaToolCallFunction = OllamaToolCall.Function
 
+from ...exceptions import ProviderUnsupportedFeatureError
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, Usage, ResponseInfo
 from ...utils import stringify_content, generate_random_id
 from ..adapters.ollama_adapter import OllamaAdapter
@@ -40,7 +41,7 @@ class OllamaLLM(OllamaAdapter, LLM):
             system_prompt: Optional[str] = None,                   
             tools: Optional[list[OllamaTool]] = None,
             tool_choice: Optional[str] = None,
-            response_format: Optional[str] = '',
+            response_format: Optional[Literal["", "json"]] = '',
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
             presence_penalty: Optional[float] = None,
@@ -98,7 +99,6 @@ class OllamaLLM(OllamaAdapter, LLM):
             if last_user_content_modified:
                 user_messages[-1]["content"] = last_user_content
 
-            # ollama-python is incorrectly typed as Mapping[str, Any] instead of OllamaChatResponse
             return response
 
 
@@ -150,26 +150,36 @@ class OllamaLLM(OllamaAdapter, LLM):
 
         # Tools
     def format_tool(self, tool: Tool) -> OllamaTool:
-        tool_dict = tool.to_dict()
-        tool_type = tool_dict['type']
-        tool_def = tool_dict[tool_type]
-        tool_name = tool_def['name']
-        tool_description = tool_def['description']
-        tool_parameters = tool_def['parameters']        
-        parameters_type = tool_parameters['type']
-        parameters_required = tool_parameters['required']
+        if tool.type != "function":
+            raise ValueError("Only function tools are supported by Ollama")
 
         properties = {}
-        for prop_name, prop_def in tool_parameters['properties'].items():
+        for i, parameter in enumerate(tool.parameters.values()):
             # TODO test if Ollama supports this being recursive ie nested properties
-            prop_type = prop_def['type']
-            prop_description = prop_def.get('description', None)
-            prop_enum = prop_def.get('enum', None)
-            properties[prop_name] = OllamaProperty(type=prop_type, description=prop_description, enum=prop_enum)
-        
-        parameters = OllamaParameters(type=parameters_type, required=parameters_required, properties=properties)
-        tool_function = OllamaToolFunction(name=tool_name, description=tool_description, parameters=parameters)
-        return OllamaTool(type=tool_type, function=tool_function)
+            if parameter.name is None:
+                raise ValueError(f"All Ollama tool parameters must have a name. Tool '{tool.name}' parameter {i} is missing a name")
+            if parameter.enum is not None:
+                raise ProviderUnsupportedFeatureError(
+                    f"Ollama no longer supports enum properties. Tool '{tool.name}' parameter {i} '{parameter.name}' has an enum value of {parameter.enum}"
+                )
+            if parameter.type in ("object", "array", "ref", "anyOf"):
+                raise ProviderUnsupportedFeatureError(
+                    f"Ollama does not yet support {parameter.type} properties. Tool '{tool.name}' parameter {i} '{parameter.name}' has a type of {parameter.type}"
+                )            
+            properties[parameter.name] = OllamaProperty(type=parameter.type, description=parameter.description)
+
+        return OllamaTool(
+            type=tool.type, 
+            function=OllamaToolFunction(
+                name=tool.name, 
+                description=tool.description, 
+                parameters=OllamaParameters(
+                    type='object',
+                    properties=properties,
+                    required=tool.parameters.required,
+                )
+            )
+        )    
 
     def format_tool_choice(self, tool_choice: str) -> str:
         return tool_choice

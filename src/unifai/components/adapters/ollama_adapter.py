@@ -37,7 +37,6 @@ class OllamaAdapter(UnifAIAdapter):
 
     def import_client(self):
         from ollama import Client as OllamaClient
-        from ollama._types import Tool, ToolFunction, Parameters, Property, Message
         return OllamaClient
 
 
