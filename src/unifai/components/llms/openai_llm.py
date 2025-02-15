@@ -160,18 +160,23 @@ class OpenAILLM(OpenAIAdapter, LLM):
         # Response Format
     def format_response_format(self, response_format: Union[str, dict]) -> Union[str, dict]:
 
-        if isinstance(response_format, dict) and (response_type := response_format.get("type")):
-            if response_type == "json_schema" and (schema := response_format.get("json_schema")):
+        if (isinstance(response_format, dict) 
+            and (response_type := response_format.get("type")) == "json_schema"):
+            if schema := response_format.get("json_schema"):
                 # TODO handle json_schema
                 # schema = handle_json_schema(schema)
                 return {"type": response_type, response_type: schema}
+            # else:
+                # raise ValueError(f"Invalid response_format: {response_format}. When type is '{response_type}', a key named '{response_type}' must be present and contain a valid schema.")
         else:
-            response_type = response_format    
+            response_type = response_format
         
-        if response_type in ("json", "json_object", "text"):
-            return {"type": response_type}
-        
-        raise ValueError(f"Invalid response_format: {response_format}")
+        if response_type == "text":
+            return {"type": "text"}
+        elif response_type == "json" or response_type == "json_object":
+            return {"type": "json_object"}
+        else:
+            raise ValueError(f"Invalid response_format: {response_format}")
         
     
     # Convert Objects from AI Provider to UnifAI format    
