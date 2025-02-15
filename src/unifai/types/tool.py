@@ -1,27 +1,28 @@
-from typing import Optional, Union, Sequence, Any, Literal, Callable, Mapping, Collection
+from typing import Optional, Union, Sequence, Any, Literal, Callable, Mapping, Collection, Generic
 from ._base_model import BaseModel
 
+from .annotations import InputP, ReturnT
 from .tool_parameters import ToolParameter, ObjectToolParameter, ToolParameterExcludableKeys, EXCLUDE_NONE
 
 ToolExcludableKeys = ToolParameterExcludableKeys | Literal["strict"]
 EXCLUDE_STRICT: frozenset[ToolExcludableKeys] = frozenset(("strict",))
 
-class Tool(BaseModel):
+class Tool(BaseModel, Generic[InputP, ReturnT]):
     type: str = "function"
     name: str
     description: str
     parameters: ObjectToolParameter
     strict: bool = True
-    callable: Optional[Callable] = None
+    callable: Optional[Callable[InputP, ReturnT]] = None
 
     def __init__(self, 
         name: str, 
         description: str, 
         *args: ToolParameter,
-        parameters: Optional[ObjectToolParameter|Mapping[str, ToolParameter]|Sequence[ToolParameter]] = None,
+        parameters: Optional[ObjectToolParameter | Mapping[str, ToolParameter] | Sequence[ToolParameter]] = None,
         type: str = "function",
         strict: bool = True,
-        callable: Optional[Callable] = None
+        callable: Optional[Callable[InputP, ReturnT]] = None
     ):        
         if args and parameters:
             raise ValueError("Cannot specify both args and parameters")
@@ -33,7 +34,7 @@ class Tool(BaseModel):
         BaseModel.__init__(self, name=name, type=type, description=description, parameters=parameters, strict=strict, callable=callable)
 
 
-    def __call__(self, *args, **kwargs) -> Any:
+    def __call__(self, *args: InputP.args, **kwargs: InputP.kwargs) -> ReturnT:
         if self.callable is None:
             raise ValueError(f"Callable not set for tool {self.name}")
         return self.callable(*args, **kwargs)
