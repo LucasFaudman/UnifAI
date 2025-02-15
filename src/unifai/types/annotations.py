@@ -1,8 +1,5 @@
 from typing import Any, ParamSpec, Literal, Union, Sequence, Dict, Collection, Callable, TypeAlias, TypeVar, Type
 from .message import Message
-from .tool import Tool
-
-from pydantic import BaseModel
 
 # Input parameters of input_parser/query_modifier/etc callable used to type __call__ of Function, RAGPipe, etc.
 InputP = ParamSpec('InputP') 
@@ -11,6 +8,7 @@ InputReturnT = TypeVar('InputReturnT', Message, str, Message | str)
 # Output type of LLM to be passed to the output_parser callable. 
 # str->last_message.content, Message->last_message, ToolCall->last_tool_call, or pass the Chat/Function object (self) to the output_parser callable
 OutputT = TypeVar('OutputT')
+# OutputT = TypeVar('OutputT', Message, str, ToolCall)
 # Return type of the output_parser callable which is the return type of the __call__ method of Function, RAGPipe, etc.
 ReturnT = TypeVar('ReturnT')
 
@@ -21,6 +19,9 @@ NewInputP = ParamSpec('NewInputP')
 NewInputReturnT = TypeVar('NewInputReturnT', Message, str, Message | str)
 NewOutputT = TypeVar('NewOutputT')
 NewReturnT = TypeVar('NewReturnT')
+
+# Type of default value
+DefaultT = TypeVar("DefaultT") 
 
 # Aliases for me so its easy for me to read str purposes debugging and such
 ComponentType: TypeAlias = str # "function", "reranker", "vector_db", "tokenizer", etc
@@ -33,6 +34,8 @@ ToolName: TypeAlias = str # Name of a Tool ie "get_current_weather", "return_Wea
 # Valid input types that can be converted to a Message object
 MessageInput: TypeAlias = Message|str|dict
 
+from .tool import Tool
+from pydantic import BaseModel
 # Valid input types that can be converted to a Tool object
 ToolInput: TypeAlias = Tool|Type[BaseModel]|Callable|dict[str, Any]|ToolName
 
