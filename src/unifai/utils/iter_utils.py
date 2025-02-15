@@ -5,14 +5,6 @@ T = TypeVar("T")
 U = TypeVar("U")
 V = TypeVar("V")
 
-# def chunk_iterable(iterable: Iterable[T], chunk_size: Optional[int]) -> Iterable[Iterable[T]]:
-#     if chunk_size is None:
-#         yield iterable
-#         return
-#     iterator = iter(iterable)
-#     while chunk := list(islice(iterator, chunk_size)):
-#         yield chunk
-
 def chunk_iterable(iterable: Iterable[T], chunk_size: Optional[int]) -> Iterable[tuple[T, ...]]:
     iterator = iter(iterable)
     while chunk := tuple(islice(iterator, chunk_size)):

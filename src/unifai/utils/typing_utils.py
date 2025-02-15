@@ -34,10 +34,10 @@ def concat_signature_from(
         return cast(Callable[Concatenate[T, P], T2], target)    
     return decorator
 
-def signature_from_config(
-    _config_type: Callable[P, Any],
-    _return_type: Type[T]
-) -> Callable[[Callable[..., Any]], Callable[P, T]]:
-    def decorator(target: Callable[..., Any]) -> Callable[P, T]:
-        return cast(Callable[P, T], target)    
-    return decorator
+# def copy_paramspec_from(
+#     _origin: Callable[P, Any],
+#     _return: Type[T] | Callable[..., T]
+# ) -> Callable[[Callable[..., Any]], Callable[P, T]]:
+#     def decorator(target: Callable[..., Any]) -> Callable[P, T]:
+#         return cast(Callable[P, T], target)
+#     return decorator
