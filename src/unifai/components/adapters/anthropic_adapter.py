@@ -47,6 +47,11 @@ class AnthropicAdapter(UnifAIAdapter):
                 status_code = 504
             elif isinstance(exception, AnthropicAPIConnectionError):
                 status_code = 502
+            elif "overloaded_error" in message:
+                # Overloaded error can have status code 200 when a stream started successfully,
+                # but then the server becomes overloaded before the stream is consumed.
+                # Should be treated as 503 ServerOverloadedError
+                status_code = 503 
             else:
                 status_code = getattr(exception, "status_code", -1)
         else:
