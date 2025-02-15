@@ -3,6 +3,7 @@ from types import UnionType
 from enum import Enum, StrEnum, IntEnum
 from pydantic import BaseModel
 
+from ...utils.typing_utils import is_type_and_subclass
 from ...types import (
     ToolParameter,
     StringToolParameter,
@@ -19,14 +20,6 @@ from ...types import (
     PROVIDER_TOOLS,
     
 )
-
-
-def is_type_and_subclass(annotation: Any, _class_or_tuple: type|Tuple[type,...]) -> bool:
-    """Prevents raising TypeError: issubclass() arg 1 must be a class"""
-    return isinstance(annotation, type) and issubclass(annotation, _class_or_tuple)
-
-def is_base_model(annotation: Any) -> bool:
-    return isinstance(annotation, BaseModel) or is_type_and_subclass(annotation, BaseModel)
 
 def resolve_annotation(annotation: Optional[type]) -> dict:
     # Check that annotation is NOT an Enum, StrEnum, or IntEnum 
