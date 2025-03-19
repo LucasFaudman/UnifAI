@@ -10,6 +10,7 @@ from ..types import (
     ResponseFormatInput,
 )
 from .tools import tool_from_dict, tool_from_func, tool_from_pydantic
+from ..utils.typing_utils import is_base_model
 
 T = TypeVar("T")
 
@@ -31,7 +32,7 @@ def standardize_messages(messages: Iterable[MessageInput]) -> list[Message]:
 def standardize_tool(tool: ToolInput, tool_dict: Optional[dict[str, Tool]] = None) -> Tool:
     if isinstance(tool, Tool):
         return tool
-    elif isinstance(tool, BaseModel):
+    elif is_base_model(tool):
         return tool_from_pydantic(tool)
     elif callable(tool):
         return tool_from_func(tool)
@@ -61,12 +62,13 @@ def standardize_tool_choice(tool_choice: ToolChoice) -> str:
     raise ValueError(f"Invalid tool_choice type: {type(tool_choice)}")
 
 # ResponseFormat
-def standardize_response_format(response_format: ResponseFormatInput) -> str:
+def standardize_response_format(response_format: ResponseFormatInput) -> Literal["text", "json"] | Tool:
     if isinstance(response_format, str):
+        if response_format not in ("text", "json"):
+            raise ValueError(f"Invalid response_format string: {response_format}. It must be 'text' or 'json' or an input that can be converted to a Tool")
         return response_format
-    if isinstance(response_format, dict):
-        return response_format['json_schema']
-    raise ValueError(f"Invalid response_format type: {type(response_format)}")
+    else:
+        return standardize_tool(response_format)
 
 # Configs
 def standardize_config(config: T|dict, config_type: Type[T]) -> T:

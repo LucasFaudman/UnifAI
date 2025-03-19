@@ -4,7 +4,12 @@ from ..types.annotations import ComponentName, ModelName, ProviderName, InputP a
 from ..types.db_results import QueryResult
 from ..types.documents import Document, Documents
 from ..components.prompt_templates.rag_prompt_model import RAGPromptModel
-
+from ..components._base_components._base_document_loader import DocumentLoader
+from ..components._base_components._base_document_db import DocumentDB
+from ..components._base_components._base_document_chunker import DocumentChunker
+from ..components._base_components._base_vector_db import VectorDB, VectorDBCollection
+from ..components._base_components._base_reranker import Reranker
+from ..components._base_components._base_tokenizer import Tokenizer
 
 from ._base_configs import ComponentConfig
 from .document_loader_config import DocumentLoaderConfig, LoaderInputP
@@ -25,14 +30,17 @@ class RAGConfig(ComponentConfig, Generic[LoaderInputP, QueryInputP]):
     component_type: ClassVar = "ragpipe"
     provider: ClassVar[str] = "default"
 
-    # document_loader: Optional[DocumentLoaderConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
     document_loader: Callable[LoaderInputP, Iterable[Document]] | DocumentLoaderConfig[LoaderInputP] | ProviderName | tuple[ProviderName, ComponentName] = Field(default=load_documents_as_is)
+    document_chunker: Optional[DocumentChunker | DocumentChunkerConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
 
-    document_chunker: Optional[DocumentChunkerConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
-    # document_db: Optional[DocumentDBConfig | ProviderName | tuple[ProviderName, ConfigName]] = None
-    vector_db: Optional[VectorDBCollectionConfig | VectorDBConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
-    reranker: Optional[RerankerConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
-    tokenizer: Optional[TokenizerConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
+    vector_db: Optional[VectorDB | VectorDBConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
+    vector_db_collection: Optional[VectorDBCollection | VectorDBCollectionConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
+
+    reranker: Optional[Reranker | RerankerConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
+    reranker_model: Optional[ModelName] = None
+
+    tokenizer: Optional[Tokenizer | TokenizerConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
+    tokenizer_model: Optional[ModelName] = None
 
     query_modifier: Callable[QueryInputP, str|Callable[..., str]] = Field(default=leave_query_as_is)
     prompt_template: Callable[Concatenate[QueryResult, QueryInputP], str|Callable[..., str]] | Callable[..., str|Callable[..., str]]= Field(default=RAGPromptModel)   
@@ -42,9 +50,6 @@ class RAGConfig(ComponentConfig, Generic[LoaderInputP, QueryInputP]):
     where: Optional[dict] = None
     where_document: Optional[dict] = None   
     
-    reranker_model: Optional[ModelName] = None
-    tokenizer_model: Optional[ModelName] = None
-
     max_distance: Optional[float] = None
     min_similarity: Optional[float] = None
     max_result_tokens: Optional[int] = None
@@ -52,3 +57,7 @@ class RAGConfig(ComponentConfig, Generic[LoaderInputP, QueryInputP]):
     use_remaining_documents_to_fill: bool = True
 
     extra_kwargs: Optional[dict[Literal["load", "chunk", "embed", "upsert", "query", "rerank", "count_tokens"], dict[str, Any]]] = None
+
+RAGConfig(
+    
+)

@@ -4,6 +4,7 @@ from .document_db_config import DocumentDBConfig, DocumentDBCollectionConfig
 from .document_loader_config import DocumentLoaderConfig, FileIODocumentLoaderConfig
 from .embedder_config import EmbedderConfig
 from .llm_config import LLMConfig
+from .input_parser_config import InputParserConfig
 from .output_parser_config import OutputParserConfig
 from .reranker_config import RerankerConfig
 from .tokenizer_config import TokenizerConfig
@@ -23,6 +24,7 @@ COMPONENT_CONFIGS = {
     "document_loader": FileIODocumentLoaderConfig,
     "embedder": EmbedderConfig,
     "llm": LLMConfig,
+    "input_parser": InputParserConfig,
     "output_parser": OutputParserConfig,
     "reranker": RerankerConfig,
     "tokenizer": TokenizerConfig,

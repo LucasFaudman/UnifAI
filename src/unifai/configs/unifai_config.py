@@ -12,7 +12,7 @@ from .tool_caller_config import ToolCallerConfig
 class UnifAIConfig(BaseModel):
     api_keys: Optional[dict[ProviderName, str]] = None
     provider_configs: Optional[list[ProviderConfig]] = None
-    default_providers: Optional[dict[ComponentType, ProviderName]] =None
+    default_providers: Optional[dict[ComponentType, ProviderName]] = None
     component_configs: Optional[list[ComponentConfig]] = None
     chat_configs: Optional[list[ChatConfig]] = None
     function_configs: Optional[list[FunctionConfig]] = None

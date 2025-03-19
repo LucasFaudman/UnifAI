@@ -25,6 +25,12 @@ def copy_paramspec_from(_origin: Callable[P, Any]) -> Callable[[Callable[..., T]
         return cast(Callable[P, T], target)    
     return decorator
 
+self = Any
+def copy_init_from(_origin: Callable[Concatenate[self, P], Any]) -> Callable[[Callable[..., T]], Callable[Concatenate[self, P], T]]:
+    def decorator(target: Callable[..., T]) -> Callable[Concatenate[self, P], T]:
+        return cast(Callable[Concatenate[self, P], T], target)
+    return decorator
+
 def concat_signature_from(
     _origin: Callable[P, Any],
     _prepend: Type[T],
@@ -33,11 +39,3 @@ def concat_signature_from(
     def decorator(target: Callable[..., Any]) -> Callable[Concatenate[T, P], T2]:
         return cast(Callable[Concatenate[T, P], T2], target)    
     return decorator
-
-# def copy_paramspec_from(
-#     _origin: Callable[P, Any],
-#     _return: Type[T] | Callable[..., T]
-# ) -> Callable[[Callable[..., Any]], Callable[P, T]]:
-#     def decorator(target: Callable[..., Any]) -> Callable[P, T]:
-#         return cast(Callable[P, T], target)
-#     return decorator

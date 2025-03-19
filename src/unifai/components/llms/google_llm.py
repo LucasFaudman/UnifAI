@@ -53,6 +53,36 @@ from .._base_components._base_llm import LLM
 from ...utils import generate_random_id
 from ...exceptions import ProviderUnsupportedFeatureError
 
+def tool_parameter_to_schema(tool_parameter: ToolParameter) -> Schema:        
+    if isinstance(tool_parameter, OptionalToolParameter):
+        tool_parameter = tool_parameter.anyOf[0]
+        nullable = True
+    else:
+        nullable = False            
+    if isinstance(tool_parameter, (AnyOfToolParameter, RefToolParameter)):
+        raise ValueError(f"{tool_parameter.__class__.__name__} is not supported by GoogleAI")
+
+    schema_kwargs = {
+        "type": tool_parameter.type.upper(),
+        "description": tool_parameter.description,
+        "nullable": nullable, 
+    }
+    if tool_parameter.enum:
+        if not isinstance(tool_parameter, StringToolParameter):
+            # TODO maybe handle non-string enums by converting to string before and back after
+            raise ProviderUnsupportedFeatureError(f"Google LLM only supports enum when ToolParameter.type is string Got {tool_parameter.type} with enum: {tool_parameter.enum}")
+        else:
+            schema_kwargs["enum"] = tool_parameter.enum
+    if isinstance(tool_parameter, ObjectToolParameter):
+        schema_kwargs["properties"] = {
+            param.name: tool_parameter_to_schema(param) 
+            for param in tool_parameter.values()
+        }
+        schema_kwargs["required"] = tool_parameter.required
+    elif isinstance(tool_parameter, ArrayToolParameter):
+        schema_kwargs["items"] = tool_parameter_to_schema(tool_parameter.items)
+    return Schema(**schema_kwargs)
+
 class GoogleLLM(GoogleAdapter, LLM):
     provider = "google"
     default_llm_model = "gemini-2.0-flash-exp"
@@ -72,7 +102,7 @@ class GoogleLLM(GoogleAdapter, LLM):
             system_prompt: Optional[str] = None,                   
             tools: Optional[list[Any]] = None,
             tool_choice: Optional[Union[Tool, str, dict, Literal["auto", "required", "none"]]] = None,            
-            response_format: Optional[Union[str, dict[str, str]]] = None,
+            response_format: Optional[dict[str, Any]] = None,
             max_tokens: Optional[int] = None,
             frequency_penalty: Optional[float] = None,
             presence_penalty: Optional[float] = None,
@@ -94,7 +124,8 @@ class GoogleLLM(GoogleAdapter, LLM):
             top_p=top_p,
             frequency_penalty=frequency_penalty,
             presence_penalty=presence_penalty,
-            response_mime_type=response_format, #text/plain or application/json
+            **(response_format or {})
+            # response_mime_type=response_format, #text/plain or application/json
             # response_schema=response_format, # TODO use for json_schema
         )
 
@@ -170,37 +201,7 @@ class GoogleLLM(GoogleAdapter, LLM):
         return Blob(data=image.raw_bytes, mime_type=image.mime_type)
     
         # Tools
-    def format_tool(self, tool: Tool) -> GoogleTool:
-        def tool_parameter_to_schema(tool_parameter: ToolParameter) -> Schema:        
-            if isinstance(tool_parameter, OptionalToolParameter):
-                tool_parameter = tool_parameter.anyOf[0]
-                nullable = True
-            else:
-                nullable = False            
-            if isinstance(tool_parameter, (AnyOfToolParameter, RefToolParameter)):
-                raise ValueError(f"{tool_parameter.__class__.__name__} is not supported by GoogleAI")
-
-            schema_kwargs = {
-                "type": tool_parameter.type.upper(),
-                "description": tool_parameter.description,
-                "nullable": nullable, 
-            }
-            if tool_parameter.enum:
-                if not isinstance(tool_parameter, StringToolParameter):
-                    # TODO maybe handle non-string enums by converting to string before and back after
-                    raise ProviderUnsupportedFeatureError(f"Google LLM only supports enum when ToolParameter.type is string Got {tool_parameter.type} with enum: {tool_parameter.enum}")
-                else:
-                    schema_kwargs["enum"] = tool_parameter.enum
-            if isinstance(tool_parameter, ObjectToolParameter):
-                schema_kwargs["properties"] = {
-                    param.name: tool_parameter_to_schema(param) 
-                    for param in tool_parameter.values()
-                }
-                schema_kwargs["required"] = tool_parameter.required
-            elif isinstance(tool_parameter, ArrayToolParameter):
-                schema_kwargs["items"] = tool_parameter_to_schema(tool_parameter.items)
-            return Schema(**schema_kwargs)
-        
+    def format_tool(self, tool: Tool) -> GoogleTool:        
         return GoogleTool(function_declarations=[
             FunctionDeclaration(
                 name=tool.name,
@@ -226,12 +227,15 @@ class GoogleLLM(GoogleAdapter, LLM):
         )
 
         # Response Format
-    def format_response_format(self, response_format: str) -> str:
-        if 'json' in response_format:
-            return "application/json"
-        elif 'text' in response_format:
-            return "text/plain"
-        return response_format
+    def format_response_format(self, response_format: Optional[Literal["text", "json"] | Tool]) -> dict[str, Any]:
+        _response_format_kwargs = {}
+        if not response_format or response_format == "text":
+            _response_format_kwargs["response_mime_type"] = "text/plain"
+        else:
+            _response_format_kwargs["response_mime_type"] = "application/json"
+            if isinstance(response_format, Tool):
+                _response_format_kwargs["response_schema"] = tool_parameter_to_schema(response_format.parameters)
+        return _response_format_kwargs
 
     # Convert Objects from AI Provider to UnifAI format    
         # Images

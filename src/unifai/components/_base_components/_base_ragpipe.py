@@ -25,7 +25,7 @@ from ...types import Document, Documents, ResponseInfo, QueryResult
 from ...types.annotations import InputP as QueryInputP, NewInputP
 
 
-from ...utils import chunk_iterable, combine_dicts
+from ...utils import chunk_iterable, combine_dicts, copy_paramspec_from
 
 from .__base_component import UnifAIComponent
 
@@ -437,4 +437,6 @@ class BaseRAGPipe(UnifAIComponent[RAGConfigT], Generic[RAGConfigT, LoaderInputP,
         query_result = self.query(top_k, top_n, where, where_document, max_distance, min_similarity, query_kwargs, reranker_model, rerank_kwargs, *args, **kwargs)
         return self.construct_rag_prompt(query_result, *args, **kwargs)
     
-    __call__ = prompt
+    @copy_paramspec_from(prompt)
+    def __call__(self, *args, **kwargs):
+        return self.prompt(*args, **kwargs)

@@ -18,7 +18,7 @@ RESOURCES_PATH = Path(__file__).parent / "resources"
 @base_test_document_loaders
 def test_init_document_loader_clients(provider, init_kwargs):
     ai = UnifAI(api_keys=API_KEYS)
-    loader = ai.document_loader(provider)
+    loader = ai.document_loader_from_config(provider)
     assert isinstance(loader, BaseDocumentLoader)
     assert loader.provider == provider
     
@@ -33,7 +33,7 @@ def test_init_document_loader_clients(provider, init_kwargs):
 def test_text_file_loader(paths, metadatas, kwargs):
     ai = UnifAI(api_keys=API_KEYS)
     
-    loader = ai.document_loader("text_file_loader")
+    loader = ai.document_loader_from_config("text_file_loader")
     assert isinstance(loader, TextFileDocumentLoader)
     paths = list(paths)
 
@@ -89,15 +89,15 @@ def test_paramspec_loader(paths, metadatas, kwargs):
             metadata.update({"some_other_param": some_other_param, "another_param": another_param})
             yield Document(id=str(path), text=text, metadata=metadata)
 
-    loader = ai.document_loader(
+    loader = ai.document_loader_from_config(
         # DocumentLoaderConfig(
-        #     load_documents=load_documents,
+        #     load_func=load_documents,
         # )     
         # 
-        # FileIODocumentLoaderConfig(
-        #     provider="text_file_loader",
-        #     # load_documents=load_documents,
-        # )
+        FileIODocumentLoaderConfig(
+            provider="text_file_loader",
+            # load_documents=load_documents,
+        )
 
         #    
         # "default"        
@@ -140,15 +140,30 @@ def test_paramspec_loader(paths, metadatas, kwargs):
     ragpipe = ai.ragpipe(rag_config)
     ragpipe.ingest_all(paths=paths, some_other_param="test", another_param=True)
     print(ragpipe.prompt(query="test query"))
-    load_documents2 = lambda file_PATHS: load_documents(paths, some_other_param="test", another_param=True)
 
+
+    def load_documents2(
+            PATHS: Iterable[Path], 
+            metadatas: Optional[Iterable[dict|None]] = None,            
+    ):
+        return load_documents(paths=PATHS, metadatas=metadatas, some_other_param="test", another_param=True)
+
+    def add_question_mark(question: str, end="?", **kwargs):
+        return question.strip() + end
+    
+    def make_prompt(result, question, tone, **kwargs):
+        prompt = f"Question: {question}\nRespond In Tone:{tone}\nManpage Excerpts:\n"
+        for doc in result:
+            prompt += f"{doc.id}\n{doc.text}\n"
+        prompt += "Answer:"
+        return prompt
 
     ragpipe = (ragpipe
         .set_document_loader(load_documents2) \
-        .set_query_modifier(lambda question, end="?": question.strip() + end)
-        .set_prompt_template(lambda result, question, tone: f"Question: {question}\nRespond In Tone:{tone}\nManpage Excerpts:\n{result}\nAnswer:")
+        .set_query_modifier(add_question_mark) \
+        .set_prompt_template(make_prompt) \
     )
     
-    ragpipe.ingest_all(file_PATHS=paths)
-    print(ragpipe.prompt(question="test query", tone="stupid"))
+    ragpipe.ingest_all(PATHS=paths)
+    print(ragpipe.prompt(question="test query", end="!", tone="priate"))
 

@@ -1,7 +1,7 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator, overload, AbstractSet, IO, Pattern, Self, ClassVar
-from ._base_configs import ComponentWithModelConfig
+from ._base_configs import ComponentConfigWithDefaultModel
 
-class EmbedderConfig(ComponentWithModelConfig):
+class EmbedderConfig(ComponentConfigWithDefaultModel):
     component_type: ClassVar = "embedder"
     default_dimensions: Optional[int] = None
     # default_task_type: Optional[Literal[

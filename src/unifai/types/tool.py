@@ -1,7 +1,7 @@
 from typing import Optional, Union, Sequence, Any, Literal, Callable, Generic, Collection
 from ._base_model import BaseModel
 
-from ..utils import clean_locals
+from ..utils import clean_locals, is_base_model
 from .annotations import InputP, ReturnT
 from .tool_parameters import ToolParameter, ObjectToolParameter, ToolParameterExcludableKeys, EXCLUDE_NONE
 
@@ -24,7 +24,7 @@ class Tool(BaseModel, Generic[InputP, ReturnT]):
         strict: bool = True,
         callable: Optional[Callable[InputP, ReturnT]] = None
     ):        
-        if bool(args) ^ bool(parameters):
+        if bool(args) == parameters is not None:
             raise ValueError(f"Must provide either parameters or args, not both or neither. Got: {args=}, {parameters=}")
         if args:
             parameters = ObjectToolParameter(properties=args)
@@ -55,7 +55,7 @@ class Tool(BaseModel, Generic[InputP, ReturnT]):
         return { "type": _type, _type: _def }
     
     def to_json_schema(self, exclude: Collection[ToolExcludableKeys] = EXCLUDE_NONE) -> dict[str, Any]:
-        return self.to_dict(exclude, type="json_schema", parameters_key="json_schema")
+        return self.to_dict(exclude, type="json_schema", parameters_key="schema")
 
 
 class ProviderTool(Tool):

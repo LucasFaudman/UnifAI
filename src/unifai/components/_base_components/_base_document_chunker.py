@@ -1,7 +1,7 @@
 from typing import Optional, List, Union, Literal, Iterable, Iterator, Any, Callable
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, ClassVar, Collection, Callable, Iterator, Iterable, Generator, Self, Dict
 
-from ...utils import clean_text, combine_dicts
+from ...utils import clean_text, combine_dicts, copy_paramspec_from
 from ...types import Document
 from ...types.annotations import ComponentName, ModelName, ProviderName, CollectionName
 
@@ -47,18 +47,12 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
 
     def _setup(self) -> None:
         super()._setup()
-        self.tokenizer = None
+        self._tokenizer = None
+        self._size_function = len
         self.size_function_kwargs = self.config.extra_kwargs.get("size_function", {}) if self.config.extra_kwargs else {}
-        if (config_size_function := self.config.size_function) == "tokens":
-            self.tokenizer = self._get_tokenizer(self.config.tokenizer)
-            self.size_function_kwargs["model"] = self.config.tokenizer_model
-            self.size_function: Callable[..., int] = self.tokenizer.count_tokens
-        elif config_size_function == "characters":
-            self.size_function = len
-        elif config_size_function == "words":
-            self.size_function = lambda text, **kwargs: len(text.split())
-        else:
-            self.size_function = config_size_function
+
+        self.tokenizer = self.config.tokenizer
+        self.size_function = self.config.size_function
         
         self.chunk_size = self.config.chunk_size
         if isinstance((config_chunk_overlap := self.config.chunk_overlap), int):
@@ -76,8 +70,53 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
         self.add_to_metadata = self.config.add_to_metadata
         self.default_base_id = self.config.default_base_id
                 
-    def _get_tokenizer(self, tokenizer: ProviderName | TokenizerConfig | tuple[ProviderName, ComponentName]) -> Tokenizer:
-        return self._get_component("tokenizer", tokenizer)
+    def _set_tokenizer(self, tokenizer: Optional["Tokenizer | TokenizerConfig | ProviderName | tuple[ProviderName, ComponentName]"]) -> Optional[Tokenizer]:
+        update_size_function = self._tokenizer and self.size_function is self._tokenizer.count_tokens
+        if tokenizer is None or isinstance(tokenizer, Tokenizer):
+            self._tokenizer = tokenizer        
+        else:
+            self._tokenizer = self._get_component("tokenizer", tokenizer)
+        
+        if self._tokenizer:
+            self.size_function_kwargs["model"] = self.config.tokenizer_model
+            if update_size_function:
+                self.size_function = self._tokenizer.count_tokens
+        else:
+            self.size_function_kwargs.pop("model", None)
+
+    @property
+    def tokenizer(self) -> Optional[Tokenizer]:
+        if self._tokenizer is None and self.config.tokenizer:
+            self._set_tokenizer(self.config.tokenizer)
+        return self._tokenizer
+    
+    @tokenizer.setter
+    def tokenizer(self, tokenizer: Optional["Tokenizer | TokenizerConfig | ProviderName | tuple[ProviderName, ComponentName]"]) -> None:
+        self._set_tokenizer(tokenizer)
+
+    def _set_size_function(self, size_function: Callable[..., int] | Literal["tokens", "characters", "words"]) -> None:
+        if size_function == "tokens":
+            if not self.tokenizer:
+                raise ValueError("Tokenizer must be set to use 'tokens' as size function")
+            self._size_function = self.tokenizer.count_tokens
+        elif size_function == "characters":
+            self._size_function = lambda text, **kwargs: len(text)
+        elif size_function == "words":
+            self._size_function = lambda text, **kwargs: len(text.split())
+        elif callable(size_function):
+            self._size_function = size_function
+        else:
+            raise ValueError("Invalid size function: must be 'tokens', 'characters', 'words', or a callable that takes a string and returns an int")
+
+    @property
+    def size_function(self) -> Callable[..., int]:
+        if self._size_function is None and self.config.size_function:
+            self._set_size_function(self.config.size_function)
+        return self._size_function
+    
+    @size_function.setter
+    def size_function(self, size_function: Callable[..., int] | Literal["tokens", "characters", "words"]) -> None:
+        self._set_size_function(size_function)
 
     def get_overlap_from_percentage(self, chunk_size: int, chunk_overlap: int|float) -> int:
         """
@@ -416,6 +455,10 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
             deepcopy_metadata, add_to_metadata, **kwargs
         )
 
+    @copy_paramspec_from(ichunk_texts)
+    def chunk_texts(self, *args, **kwargs):
+        return list(self.ichunk_texts(*args, **kwargs))
+
     def ichunk_documents(
             self,
             documents: Iterable[Document],
@@ -433,6 +476,10 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
             deepcopy_metadata, add_to_metadata, **kwargs
         )
     
+    @copy_paramspec_from(ichunk_documents)
+    def chunk_documents(self, *args, **kwargs):
+        return list(self.ichunk_documents(*args, **kwargs))
+    
     def ichunk_document(
             self,
             document: Document,
@@ -448,61 +495,8 @@ class DocumentChunker(UnifAIComponent[DocumentChunkerConfig]):
         return self._create_documents_from_texts_metadatas_ids(
             _txt_md_id_iterable, chunk_size, chunk_overlap, strip_chars, keep_separator, 
             deepcopy_metadata, add_to_metadata, **kwargs
-        )        
+        )
 
-    def chunk_texts(
-            self,
-            texts: Iterable[str],
-            metadatas: Optional[Iterable[Dict[str, Any]]] = None,
-            ids: Optional[Iterable[str]] = None,
-            chunk_size: Optional[int] = None,
-            chunk_overlap: Optional[int|float] = None,
-            strip_chars: Optional[str|Literal[False]] = None,
-            keep_separator: Optional[Literal["start", "end", False]] = None,
-            deepcopy_metadata: Optional[bool] = None,
-            add_to_metadata: Optional[Collection[Literal["source", "chunk_size", "start_index", "end_index"]]] = None,      
-            **kwargs
-            ) -> list[Document]:
-       
-        return list(self.ichunk_texts(
-            texts, metadatas, ids, chunk_size, chunk_overlap, strip_chars, keep_separator,
-            deepcopy_metadata, add_to_metadata,
-            **kwargs
-        ))
-
-    def chunk_documents(
-            self,
-            documents: Iterable[Document],
-            chunk_size: Optional[int] = None,
-            chunk_overlap: Optional[int|float] = None,
-            strip_chars: Optional[str|Literal[False]] = None,
-            keep_separator: Optional[Literal["start", "end", False]] = None,
-            deepcopy_metadata: Optional[bool] = None,
-            add_to_metadata: Optional[Collection[Literal["source", "chunk_size", "start_index", "end_index"]]] = None,      
-            **kwargs
-            ) -> list[Document]:
-        return list(self.ichunk_documents(
-            documents, chunk_size, chunk_overlap, strip_chars, keep_separator, 
-            deepcopy_metadata, add_to_metadata,
-            **kwargs
-        ) )
-    
-    def chunk_document(
-            self,
-            document: Document,
-            chunk_size: Optional[int] = None,
-            chunk_overlap: Optional[int|float] = None,
-            strip_chars: Optional[str|Literal[False]] = None,
-            keep_separator: Optional[Literal["start", "end", False]] = None,
-            deepcopy_metadata: Optional[bool] = None,
-            add_to_metadata: Optional[Collection[Literal["source", "chunk_size", "start_index", "end_index"]]] = None,      
-            **kwargs
-            ) -> list[Document]:
-        return list(self.ichunk_document(
-            document, chunk_size, chunk_overlap, strip_chars, keep_separator, 
-            deepcopy_metadata, add_to_metadata,
-            **kwargs
-        ) )
-
-
-
+    @copy_paramspec_from(ichunk_document)
+    def chunk_document(self, *args, **kwargs):
+        return list(self.ichunk_document(*args, **kwargs))

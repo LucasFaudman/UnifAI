@@ -73,7 +73,7 @@ def load_manpages(binaries: Iterable[BinaryName]) -> Iterable[Document]:
 # Now the ManpageDocumentLoader can be accessed by name inside UnifAIComponentConfig(s)
 rag_config = RAGConfig(
     name="manpage_rag",
-    document_loader=DocumentLoaderConfig(load_documents=load_manpages),
+    document_loader=DocumentLoaderConfig(load_func=load_manpages),
     document_chunker=DocumentChunkerConfig(
         # chunk_size=1000,
         separators=["\n\n", "\n"], 
@@ -145,7 +145,7 @@ class ManpageRagPrompt(RAGPromptModel):
         "result": lambda result: "Relevant Manpages:\n" + "\n".join(f"{doc.id}\n{doc.text}" for doc in result) 
     }
 
-mansplain_query = ai.function(FunctionConfig(
+mansplain_query = ai.function_from_config(FunctionConfig(
     name="mansplain_query",
     system_prompt=ManspainSystemPrompt,
     input_parser=ragpipe.with_prompt_template(ManpageRagPrompt),
@@ -181,7 +181,7 @@ class BinarySuggestions(BaseModel):
     def __str__(self):
         return "Suggestions:\n" + "\n".join(f"\n{suggestion}" for suggestion in self.suggestions) + f"\nPros and Cons:\n{self.pros_and_cons}"
 
-get_binary_suggestions = ai.function(FunctionConfig(
+get_binary_suggestions = ai.function_from_config(FunctionConfig(
     name="get_binary_suggestions",
     system_prompt=ManspainSystemPrompt,
     input_parser=SuggestBinariesPrompt,
@@ -227,7 +227,7 @@ class CommandPipeline(BaseModel):
     def __str__(self):
         return f"{self.explanation}\nCommands:\n" + "\n".join(f"\n{command}" for command in self.commands) + f"\nFull Command String:\n{self.full_command_string_to_run}"
 
-get_command_suggestion = ai.function(FunctionConfig(
+get_command_suggestion = ai.function_from_config(FunctionConfig(
     name="get_command_suggestion",
     system_prompt=ManspainSystemPrompt,
     input_parser=ragpipe.with_prompt_template(CommandSuggestionPrompt),
@@ -257,7 +257,7 @@ class FixedCommand(BaseModel):
     def __str__(self):
         return f"{self.fix_explanation}\nOriginal Command:\n{self.original_command}\nFixed Command:\n{self.fixed_command}"
 
-fix_command = ai.function(FunctionConfig(
+fix_command = ai.function_from_config(FunctionConfig(
     name="fix_command",
     system_prompt=ManspainSystemPrompt,
     input_parser=ragpipe.with_prompt_template(CommandFixPrompt),

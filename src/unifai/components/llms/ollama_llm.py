@@ -186,10 +186,15 @@ class OllamaLLM(OllamaAdapter, LLM):
 
 
         # Response Format
-    def format_response_format(self, response_format: Literal["text", "json", "json_schema"]) -> Literal["", "json"]:
-        if "json" in response_format:
+    def format_response_format(self, response_format: Optional[Literal["text", "json"] | Tool]) -> Literal["", "json"] | dict[str, Any]:
+        if not response_format or response_format == "text":
+            return ""
+        elif response_format == "json" or response_format == "json_object":
             return "json"
-        return ""
+        # elif isinstance(response_format, Tool):
+        #     return response_format.to_json_schema()        
+        else:
+            raise ValueError(f"Invalid response_format: {response_format}")
 
 
     # Convert Objects from AI Provider to UnifAI format    

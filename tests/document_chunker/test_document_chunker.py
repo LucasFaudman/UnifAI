@@ -21,16 +21,19 @@ RESOURCES_PATH = Path(__file__).parent.parent / "document_loader" / "resources"
 @base_test_document_chunkers
 def test_init_document_chunker_clients(provider, init_kwargs):
     ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
-    chunker = ai.document_chunker(provider)
-    
+    chunker = ai.document_chunker_from_config(provider)
     assert isinstance(chunker, DocumentChunker)
     assert chunker.provider == provider
+
+    chunker = ai.document_chunker(provider=provider)
+    assert isinstance(chunker, DocumentChunker)
+    assert chunker.provider == provider    
     
 
 @base_test_document_chunkers
 def test_chunk_document_simple(provider, init_kwargs):
     ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
-    chunker = ai.document_chunker(DocumentChunkerConfig(
+    chunker = ai.document_chunker_from_config(DocumentChunkerConfig(
         provider=provider, 
         separators=["\n\n"], 
         chunk_size=1000,
@@ -79,7 +82,7 @@ imanpages = loader.iload_documents((RESOURCES_PATH / "manpages").glob("*"))
 @base_test_document_chunkers
 def test_size_function_chunkers(provider, init_kwargs, unchunked_documents, chunk_size, chunk_overlap):
     ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
-    chunker = ai.document_chunker(provider)
+    chunker = ai.document_chunker_from_config(provider)
     size_function = chunker.size_function
     # for unchunked_document in unchunked_documents:
 

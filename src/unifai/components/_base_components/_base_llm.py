@@ -7,7 +7,7 @@ from .__base_component import convert_exceptions, convert_exceptions_generator
 
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Embeddings, Usage
 from ...exceptions import UnifAIError, ProviderUnsupportedFeatureError
-from ...utils import update_kwargs_with_locals, combine_dicts
+from ...utils import update_kwargs_with_locals, combine_dicts, copy_paramspec_from
 
 from ...configs import LLMConfig
 
@@ -87,7 +87,7 @@ class LLM(UnifAIAdapter[LLMConfig]):
 
         # Response Format
     @abstractmethod        
-    def format_response_format(self, response_format: Union[str, dict]) -> Any:
+    def format_response_format(self, response_format: Optional[Literal["text", "json"] | Tool]) -> Any:
         ...
 
 
@@ -132,52 +132,16 @@ class LLM(UnifAIAdapter[LLMConfig]):
     @property
     def default_model(self) -> str:
         return self.config.default_model or self.default_llm_model
-
-    def chat(
-            self,
-            messages: list[T],     
-            model: Optional[str] = None,
-            system_prompt: Optional[str] = None,  
-            tools: Optional[list[dict]] = None,
-            tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
-            response_format: Optional[str] = None,            
-            max_tokens: Optional[int] = None,
-            frequency_penalty: Optional[float] = None,
-            presence_penalty: Optional[float] = None,
-            seed: Optional[int] = None,
-            stop_sequences: Optional[list[str]] = None, 
-            temperature: Optional[float] = None,
-            top_k: Optional[int] = None,
-            top_p: Optional[float] = None, 
-            **kwargs
-            ) -> tuple[Message, T]:
-        kwargs["stream"] = False
-        update_kwargs_with_locals(kwargs, locals())
-        response = self._run_func(self._get_chat_response, **kwargs)
+    
+    @copy_paramspec_from(_get_chat_response)
+    def chat(self, *args, messages: list[T], **kwargs) -> tuple[Message, T]:
+        response = self._run_func(self._get_chat_response, *args, messages=messages, stream=False, **kwargs)
         unifai_message, client_message = self.parse_message(response, **kwargs)
         return unifai_message, client_message
     
-    def chat_stream(
-            self,
-            messages: list[T],     
-            model: Optional[str] = None,
-            system_prompt: Optional[str] = None,  
-            tools: Optional[list[dict]] = None,
-            tool_choice: Optional[Union[Literal["auto", "required", "none"], dict]] = None,
-            response_format: Optional[str] = None,            
-            max_tokens: Optional[int] = None,
-            frequency_penalty: Optional[float] = None,
-            presence_penalty: Optional[float] = None,
-            seed: Optional[int] = None,
-            stop_sequences: Optional[list[str]] = None, 
-            temperature: Optional[float] = None,
-            top_k: Optional[int] = None,
-            top_p: Optional[float] = None, 
-            **kwargs
-            ) -> Generator[MessageChunk, None, tuple[Message, T]]:
-        kwargs["stream"] = True        
-        update_kwargs_with_locals(kwargs, locals())
-        response = self._run_func(self._get_chat_response, **kwargs)
+    @copy_paramspec_from(_get_chat_response)
+    def chat_stream(self, *args, messages: list[T], **kwargs) -> Generator[MessageChunk, None, tuple[Message, T]]:
+        response = self._run_func(self._get_chat_response, *args, messages=messages, stream=True, **kwargs)
         unifai_message, client_message = yield from self._run_generator(self.parse_stream, response, **kwargs)
         return unifai_message, client_message
 

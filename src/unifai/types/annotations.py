@@ -55,7 +55,7 @@ ToolChoiceInput: TypeAlias = ToolChoice|list[ToolChoice]
 # text: return the response as a string
 # json: return the response as a json object
 # json_schema: return the response as a json object that matches the schema dict, BaseModel, or Tool
-ResponseFormatInput: TypeAlias = Literal["text", "json"] | dict[Literal["json_schema"], dict[str, str] | Type[BaseModel] | Tool]
+ResponseFormatInput: TypeAlias = Literal["text", "json"] | dict[str, Any] | Type[BaseModel] | Tool
 
 # Valid input types for return_on. (When the chat run loop should return and pass output to the OutputParser
 # content: return on any Message with content

@@ -38,7 +38,7 @@ def test_basic_function_template(provider: ProviderName, init_kwargs: dict, url:
         output_parser=FlaggedReason,
     )
     
-    url_eval = ai.function(config)
+    url_eval = ai.function_from_config(config)
     result = url_eval(url=url, link_text=link_text)
     
     assert result.flagged == flagged
@@ -63,7 +63,7 @@ def test_prompt_model(provider: ProviderName, init_kwargs: dict, url: str, link_
         output_parser=FlaggedReason,
     )
     
-    url_eval = ai.function(config)
+    url_eval = ai.function_from_config(config)
     result = url_eval(url=url, link_text=link_text)
     
     assert result.flagged == flagged
@@ -93,11 +93,12 @@ def test_rag_with_prompt_template(provider: ProviderName, init_kwargs: dict, url
                 metadata={"url": url, "link_text": link_text})
     ]))
     
-    fn_with_rag = ai.function(FunctionConfig(
+    fn_with_rag_config = FunctionConfig(
         name="urlEvalWithRag",
         input_parser=prompter_config,
         output_parser=FlaggedReason,
-    ))
+    )
+    fn_with_rag = ai.function_from_config(fn_with_rag_config)
     
     result = fn_with_rag(url=url, link_text=link_text)
     assert result.flagged == flagged
@@ -134,7 +135,7 @@ def test_rag_with_prompt_models(provider: ProviderName, init_kwargs: dict, url: 
                 metadata={"url": url, "link_text": link_text})
     ]))
     
-    fn_with_rag = ai.function(FunctionConfig(
+    fn_with_rag = ai.function_from_config(FunctionConfig(
         name="urlEvalWithRag",
         input_parser=prompter_config,
         output_parser=FlaggedReason,
@@ -157,7 +158,7 @@ def test_poem_generation(provider: ProviderName, init_kwargs: dict, url: str, li
         system_prompt="You are a poet. Write a poem based on the theme and style of the joke.",
         input_parser=lambda topic: str(topic)
     )
-    return_poem = ai.function(poem_config)
+    return_poem = ai.function_from_config(poem_config)
     poem = return_poem(topic="Jews")
     assert isinstance(poem.content, str)
     
@@ -182,7 +183,7 @@ def test_poem_generation(provider: ProviderName, init_kwargs: dict, url: str, li
         input_parser=poem_config,
         output_parser=PoemModel
     )
-    edit_poem = ai.function(edit_poem_config)
+    edit_poem = ai.function_from_config(edit_poem_config)
     poem_object = edit_poem("Dogs")
     assert isinstance(poem_object.poem_name, str)
     assert isinstance(poem_object.verses, list)
@@ -196,7 +197,7 @@ def test_poem_generation(provider: ProviderName, init_kwargs: dict, url: str, li
         input_parser=return_poem,
         output_parser=PoemModel
     )
-    edit_poem = ai.function(edit_poem_config)
+    edit_poem = ai.function_from_config(edit_poem_config)
     edited_poem = edit_poem("How do I connect to tor?")
     assert isinstance(edited_poem.poem_name, str)
     assert isinstance(edited_poem.verses, list)
@@ -216,7 +217,7 @@ def test_poem_generation(provider: ProviderName, init_kwargs: dict, url: str, li
         input_parser=lambda input: str(input),
         output_parser=edit_poem_config
     )
-    return_edited_poem = ai.function(poem_config)
+    return_edited_poem = ai.function_from_config(poem_config)
     edited_poem = return_edited_poem("How do I connect to tor?")
     print(edited_poem)
     assert isinstance(edited_poem.poem_name, str)
@@ -226,14 +227,14 @@ def test_poem_generation(provider: ProviderName, init_kwargs: dict, url: str, li
 
 
     # Test poem editing with Function as output_parser
-    edit_poem = ai.function(edit_poem_config)
+    edit_poem = ai.function_from_config(edit_poem_config)
     poem_config = FunctionConfig(
         name="return_poem",
         system_prompt="You are a poet. Write a poem based on the theme and style of the joke.",
         input_parser=lambda input: str(input),
         output_parser=edit_poem
     )
-    return_edited_poem = ai.function(poem_config)
+    return_edited_poem = ai.function_from_config(poem_config)
     edited_poem = return_edited_poem("How do I connect to tor?")
     assert isinstance(edited_poem.poem_name, str)
     assert isinstance(edited_poem.verses, list)
@@ -245,7 +246,7 @@ def test_poem_generation(provider: ProviderName, init_kwargs: dict, url: str, li
         name="return_poem_no_input",
         system_prompt="Write a poem about: ",
     )
-    return_poem = ai.function(return_poem_no_input)
+    return_poem = ai.function_from_config(return_poem_no_input)
     poem = return_poem(input="Dogs")
     print(poem)
 
@@ -259,6 +260,6 @@ def test_poem_generation(provider: ProviderName, init_kwargs: dict, url: str, li
     print(poem.verses)
 
 
-    return_poem_topic_tone = return_poem.with_input_parser(lambda topic, tone: str(topic) + " " + str(tone))
+    return_poem_topic_tone = return_poem.set_input_parser(lambda topic, tone: str(topic) + " " + str(tone))
     poem = return_poem_topic_tone(topic="Cats", tone="sad")
     print(poem.verses)

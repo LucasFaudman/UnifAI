@@ -14,7 +14,7 @@ from chromadb.errors import InvalidCollectionException
 def test_init_document_db_clients(provider, init_kwargs):
     ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
-    db = ai.document_db(provider)
+    db = ai.document_db_from_config(provider)
     assert isinstance(db, DocumentDB)
     
 
@@ -22,7 +22,7 @@ def test_init_document_db_clients(provider, init_kwargs):
 def test_get_set_documents(provider, init_kwargs):
     ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
-    db = ai.document_db()
+    db = ai.document_db_from_config()
     db.upsert(
         collection="default_collection", 
         ids=["test_id"], 
@@ -59,7 +59,7 @@ def test_get_set_documents(provider, init_kwargs):
 def test_many_documents(provider, init_kwargs, num_documents):
     ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
-    db = ai.document_db(provider)        
+    db = ai.document_db_from_config(provider)        
     assert isinstance(db, DocumentDB)
     documents = {f"test_id_{i}": Document(id=f"test_id_{i}", text=f"test_document_{i}") for i in range(num_documents)}
     

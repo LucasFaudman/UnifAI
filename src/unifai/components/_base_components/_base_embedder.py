@@ -5,7 +5,7 @@ from ._base_adapter import UnifAIAdapter
 
 from ...types import Message, MessageChunk, Tool, ToolCall, Image, ResponseInfo, Usage, Embeddings, EmbeddingTaskTypeInput, Document, Documents
 from ...exceptions import UnifAIError, ProviderUnsupportedFeatureError, EmbeddingDimensionsError
-from ...utils import chunk_iterable
+from ...utils import chunk_iterable, copy_paramspec_from
 from ...configs.embedder_config import EmbedderConfig
 
 T = TypeVar("T")
@@ -115,7 +115,7 @@ class Embedder(UnifAIAdapter[EmbedderConfig]):
             raise ProviderUnsupportedFeatureError(
                 f"Embedding Task Type {task_type} is not supported by {provider_title}. "
                 f"If you require embeddings optimized for {task_type}, use Google or Cohere embedding models which support this directly. "
-                f"Use 'use_closest_supported' to use the closest supported task type instead with {provider_title}. "
+                f"Use use_closest_supported=True to use the closest supported task type instead with {provider_title}. "
             )
         return task_type
         
@@ -171,11 +171,8 @@ class Embedder(UnifAIAdapter[EmbedderConfig]):
         if self.config.extra_kwargs and (extra_kwargs := self.config.extra_kwargs.get("embed")):
             kwargs.update(extra_kwargs)
 
-        response = self._run_func(
-            func=self._get_embed_response,
-            **kwargs
-        )
-        embeddings = self._extract_embeddings(response, **kwargs)
+        response = self._run_func(self._get_embed_response, **kwargs)
+        embeddings = self._run_func(self._extract_embeddings, response, **kwargs)
         if dimensions and dimensions < embeddings.dimensions:
             embeddings.reduce_dimensions(dimensions)
         return embeddings
@@ -213,27 +210,6 @@ class Embedder(UnifAIAdapter[EmbedderConfig]):
                 yield document
         return response_info
     
-    def embed_documents(
-            self,
-            documents: Iterable[Document],
-            model: Optional[str] = None,
-            dimensions: Optional[int] = None,
-            task_type: Optional[Literal[
-                "retrieval_document", 
-                "retrieval_query", 
-                "semantic_similarity", 
-                "classification", 
-                "clustering", 
-                "question_answering", 
-                "fact_verification", 
-                "code_retrieval_query", 
-                "image"]] = None,
-            truncate: Literal[False, "end", "start"] = False,
-            reduce_dimensions: bool = False,
-            use_closest_supported_task_type: bool = True,  
-            batch_size: Optional[int] = None,           
-            **kwargs
-            ) -> Documents:
-        return Documents.from_generator(self.iembed_documents(
-            documents, model, dimensions, task_type, truncate, reduce_dimensions, use_closest_supported_task_type, batch_size, **kwargs
-        ))
+    @copy_paramspec_from(iembed_documents)
+    def embed_documents(self, *args, **kwargs) -> Documents:
+        return Documents.from_generator(self.iembed_documents(*args, **kwargs))

@@ -15,12 +15,12 @@ from time import sleep
 def test_init_vector_db_init_dbs(provider, init_kwargs):
     ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
 
-    db = ai.vector_db(provider)
+    db = ai.vector_db_from_config(provider)
 
     assert db
     assert ai._components["vector_db"][provider]["default"] is db
-    assert ai.vector_db() is db 
-    assert ai.vector_db(provider) is db 
+    assert ai.vector_db_from_config() is db
+    assert ai.vector_db_from_config(provider) is db 
 
 
 
@@ -106,7 +106,7 @@ def test_vector_db_create_collection(provider: ProviderName,
     # name = f"{name}_{provider}_{embedding_provider}_{embedding_model}_{dimensions}_{distance_metric}"
 
     ai = UnifAI(api_keys=API_KEYS)
-    db = ai.vector_db(provider)
+    db = ai.vector_db_from_config(provider)
     assert db
     assert isinstance(db, VectorDB)
     db.delete_all_collections() # Reset for each test
@@ -198,7 +198,7 @@ def test_vector_db_add(provider: ProviderName,
                                 ):
 
     ai = UnifAI(api_keys=API_KEYS)
-    db = ai.vector_db(provider)
+    db = ai.vector_db_from_config(provider)
     assert db
     assert isinstance(db, VectorDB)
     db.delete_all_collections() # Reset for each test
@@ -394,7 +394,7 @@ def test_vector_db_query_simple(provider: ProviderName,
                                 ):
 
     ai = UnifAI(api_keys=API_KEYS)
-    db = ai.vector_db(provider)
+    db = ai.vector_db_from_config(provider)
     assert db
     assert isinstance(db, VectorDB)
     db.delete_all_collections() # Reset for each test
