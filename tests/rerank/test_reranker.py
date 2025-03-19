@@ -16,7 +16,7 @@ def test_init_rerankers(
         init_kwargs: dict,
     ):
     ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])
-    reranker = ai.reranker(provider)
+    reranker = ai.reranker_from_config(provider)
     assert isinstance(reranker, Reranker)
     assert reranker.provider == provider
 
@@ -36,7 +36,7 @@ def test_rerank_simple(
         }
     )
 
-    reranker = ai.reranker(provider)
+    reranker = ai.reranker_from_config(provider)
     assert isinstance(reranker, Reranker)
     assert reranker.provider == provider
 
@@ -58,7 +58,7 @@ def test_rerank_simple(
     #     embedding_provider="openai",
     #     embedding_model="text-embedding-3-large",
     # )
-    vector_db = ai.vector_db("chroma")
+    vector_db = ai.vector_db_from_config("chroma")
     vector_db.delete_all_collections() # Clear any existing collections before testing in case previous tests failed to clean up
 
     collection = vector_db.get_or_create_collection(

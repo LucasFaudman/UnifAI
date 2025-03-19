@@ -5,7 +5,8 @@ if TYPE_CHECKING:
     from ...types.annotations import (
         ComponentName, ModelName, ProviderName, ToolName, 
         MessageInput, ToolInput, ToolChoice, ToolChoiceInput, 
-        BaseModel
+        ResponseFormatInput,
+        DefaultT, BaseModel
     )
 
     from ...configs.llm_config import LLMConfig
@@ -30,8 +31,10 @@ from ...types import (
 )
 from ...type_conversions import standardize_tool, standardize_tools, standardize_messages, standardize_message, standardize_tool_choice, standardize_response_format
 from ...utils import combine_dicts, stringify_content
+from ...exceptions import ToolChoiceError, ToolChoiceErrorRetriesExceeded
 
 ChatConfigT = TypeVar("ChatConfigT", bound=ChatConfig)
+
 
 class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
     component_type = "chat"
@@ -93,7 +96,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         self.tool_callables = self.config.tool_callables 
         self.tool_caller = self.config.tool_caller
         self.tool_choice = self.config.tool_choice
-        self.tool_choice_error_retries = self.config.tool_choice_error_retries
+        self.tool_choice_error_retries = self.config.error_retries.get(ToolChoiceError, 0)
         self.enforce_tool_choice = self.config.enforce_tool_choice
 
         self.response_format = self.config.response_format
@@ -104,30 +107,24 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
     def _init_if_needed(self) -> None:
         if not self._fully_initialized:
             self._init_config_components()
-
-    def _get_llm_client(self, llm: "ProviderName | LLMConfig | tuple[ProviderName, ComponentName]") -> "LLM":
-        return self._get_component("llm", llm)
     
-    def _get_tokenizer(self, tokenizer: "ProviderName | TokenizerConfig | tuple[ProviderName, ComponentName]") -> "Tokenizer":
-        return self._get_component("tokenizer", tokenizer)    
-
-    def _get_tool_caller(self, tool_caller: "ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]") -> "ToolCaller":
-        return self._get_component("tool_caller", tool_caller)
-
     @property
     def llm(self) -> "LLM":
         if self._llm is None:
-            self._llm = self._get_llm_client(self.config.llm)
+            if isinstance(self.config.llm, LLM):
+                self._llm = self.config.llm
+            else:
+                self._llm = self._get_component("llm", self.config.llm)
         return self._llm
     
     @llm.setter
-    def llm(self, llm: "LLM | ProviderName | LLMConfig | tuple[ProviderName, ComponentName]") -> None:
+    def llm(self, llm: "LLM |  LLMConfig | ProviderName | tuple[ProviderName, ComponentName]") -> None:
         self._llm_model = None # reset model when llm changes
         _old_llm_provider = self._llm.provider if self._llm else None
         if isinstance(llm, LLM):
             self._llm = llm
         else:
-            self._llm = self._get_llm_client(llm)
+            self._llm = self._get_component("llm", llm)
         if _old_llm_provider and _old_llm_provider != self._llm.provider:
             self.reformat_client_inputs()
 
@@ -136,7 +133,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
             self._client_messages.clear()
             self._client_messages.extend(self.llm.format_messages(self._unifai_messages))            
         if self._unifai_tools:
-            self._client_tools = list(map(self.llm.format_tool, self._unifai_tools.values()))
+            self._client_tools = {tool_name: self.llm.format_tool(tool) for tool_name, tool in self._unifai_tools.items()}
         if self._unifai_tool_choice:
             self._client_tool_choice = self.llm.format_tool_choice(self._unifai_tool_choice)
         if self._unifai_response_format:
@@ -256,7 +253,7 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
     
     def pop_message(self, index: int = -1) -> Message:
         self._client_messages.pop(index)
-        unifai_message = self._unifai_messages.pop()
+        unifai_message = self._unifai_messages.pop(index)
         self.deleted_messages.append(unifai_message)
         return unifai_message
 
@@ -271,20 +268,31 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
 
     @tools.setter
     def tools(self, tools: Optional["list[ToolInput] | dict[ToolName, Tool]"]):
-        if tools:
-            self._unifai_tools = standardize_tools(tools, self.tool_registry) if not isinstance(tools, dict) else tools
-            self._client_tools = list(map(self.llm.format_tool, self._unifai_tools.values()))
-        else:
+        if not tools:
             self._unifai_tools = self._client_tools = None
+            return
+
+        self._unifai_tools = standardize_tools(tools, self.tool_registry) if not isinstance(tools, dict) else tools
+        self._client_tools = {tool_name: self.llm.format_tool(tool) for tool_name, tool in self._unifai_tools.items()}
 
     def add_tool(self, tool: "ToolInput") -> None:
         tool = standardize_tool(tool, self.tool_registry)
         if self._unifai_tools is None:
             self._unifai_tools = {}
         if self._client_tools is None:
-            self._client_tools = []                        
+            self._client_tools = {}                     
         self._unifai_tools[tool.name] = tool
-        self._client_tools.append(self.llm.format_tool(tool))
+        self._client_tools[tool.name] = self.llm.format_tool(tool)
+
+    def pop_tool(self, tool_or_name: "Tool | ToolName", default: "DefaultT" = None) -> "Tool | DefaultT":
+        if self._unifai_tools is None or self._client_tools is None:
+            return default
+        tool_name = tool_or_name.name if isinstance(tool_or_name, Tool) else tool_or_name
+        # Remove from tool_choice from queue if it exists
+        if self._tool_choice_queue and tool_name in self._tool_choice_queue:
+            self.remove_tool_choice(tool_name)            
+        self._client_tools.pop(tool_name, None)
+        return self._unifai_tools.pop(tool_name, default)
         
     @property
     def tool_callables(self) -> Optional[dict[str, Callable]]:
@@ -309,36 +317,80 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
 
     @property
     def tool_caller(self) -> Optional["ToolCaller"]:
+        if self._tool_caller is None and self.config.tool_caller:
+            if isinstance(self.config.tool_caller, ToolCaller):
+                self._tool_caller = self.config.tool_caller
+            else:
+                self._tool_caller = self._get_component("tool_caller", self.config.tool_caller)
         return self._tool_caller
 
     @tool_caller.setter
     def tool_caller(
             self, 
-            tool_caller: Optional["ToolCaller | ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]"]
+            tool_caller: Optional["ToolCaller | ToolCallerConfig | ProviderName | tuple[ProviderName, ComponentName]"]
     ) -> None:
 
         if tool_caller is None or isinstance(tool_caller, ToolCaller):
             self._tool_caller = tool_caller
         else:
-            self._tool_caller = self._get_tool_caller(tool_caller)
+            self._tool_caller = self._get_component("tool_caller", tool_caller)
             self._tool_caller.set_tool_callables(self._resolve_tool_callables())
 
     @property
-    def tool_choice(self) -> Optional["ToolChoice"]:
+    def tool_choice(self) -> Optional["ToolName" | Literal["auto", "required", "none"]]:
         return self._unifai_tool_choice
     
     @tool_choice.setter
     def tool_choice(self, tool_choice: Optional["ToolChoiceInput"]):
         self._tool_choice_index = 0
         if tool_choice:
-            if isinstance(tool_choice, str):
+            if not isinstance(tool_choice, list):
                 tool_choice = [tool_choice]
-
             self._tool_choice_queue = list(map(standardize_tool_choice, tool_choice))            
             self._unifai_tool_choice = self._tool_choice_queue[self._tool_choice_index]
             self._client_tool_choice = self.llm.format_tool_choice(self._unifai_tool_choice)
         else:
             self._unifai_tool_choice = self._client_tool_choice = self._tool_choice_queue = None
+
+    def append_tool_choice(self, tool_choice: "ToolChoice") -> None:
+        if self._tool_choice_queue:            
+            self._tool_choice_queue.append(standardize_tool_choice(tool_choice))
+        else:
+            self.tool_choice = tool_choice            
+
+    def pop_tool_choice(self, index: int = -1, default: "DefaultT" = None) -> "ToolChoice | DefaultT":
+        if not self._tool_choice_queue or index >= len(self._tool_choice_queue):
+            return default        
+        tool_choice = self._tool_choice_queue.pop(index)
+        if self._tool_choice_index >= len(self._tool_choice_queue):
+            self._tool_choice_index = max(0, len(self._tool_choice_queue) - 1)
+        self._unifai_tool_choice = self._tool_choice_queue[self._tool_choice_index] if self._tool_choice_queue else None
+        self._client_tool_choice = self.llm.format_tool_choice(self._unifai_tool_choice) if self._unifai_tool_choice else None
+        return tool_choice            
+
+    def remove_tool_choice(self, tool_choice: "ToolChoice") -> None:
+        if not self._tool_choice_queue: return
+        removals_before = 0
+        new_queue = []
+        for i, tc in enumerate(self._tool_choice_queue):
+            if tc != tool_choice:
+                new_queue.append(tc)
+            elif i < self._tool_choice_index:
+                removals_before += 1
+
+        if new_queue:
+            self._tool_choice_queue = new_queue
+            self._tool_choice_index = max(0, min(self._tool_choice_index - removals_before, len(self._tool_choice_queue) - 1))
+            self._unifai_tool_choice = self._tool_choice_queue[self._tool_choice_index]
+            self._client_tool_choice = self.llm.format_tool_choice(self._unifai_tool_choice)
+        else:
+            self._tool_choice_queue = None
+            self._tool_choice_index = 0
+            self._unifai_tool_choice = self._client_tool_choice = None
+    
+        # removals_before = sum(1 for tc in self._tool_choice_queue[:self._tool_choice_index] if tc == tool_name)
+        # self._tool_choice_queue = [tc for tc in self._tool_choice_queue if tc != tool_name]            
+        # self._tool_choice_index = max(0, min(self._tool_choice_index - removals_before, len(self._tool_choice_queue) - 1))     
 
     def enforce_tool_choice_needed(self) -> bool:
         return self.config.enforce_tool_choice and self._unifai_tool_choice != 'auto' and self._unifai_tool_choice is not None    
@@ -365,9 +417,12 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         # print(f"tool_choice={tool_choice} OBEYED")
         return True
     
+    def _tool_choice_error_retries_from_config(self) -> int:
+        return self.config.error_retries.get(ToolChoiceError, 0)
+    
     def _handle_tool_choice_obeyed(self, message: Message) -> None:
         # reset retries
-        self.tool_choice_error_retries = self.config.tool_choice_error_retries
+        self.tool_choice_error_retries = self._tool_choice_error_retries_from_config()
         if self._tool_choice_queue and self._unifai_tools:
             if self._tool_choice_index + 1 < len(self._tool_choice_queue):
                 # increment tool_choice_index to next choice in queue
@@ -386,6 +441,14 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
     def _handle_tool_choice_not_obeyed(self, message: Message) -> None:
         self.tool_choice_error_retries -= 1
         self.deleted_messages.append(message) # keep for calculating usage and debugging
+        if self.tool_choice_error_retries < 0:
+            raise ToolChoiceErrorRetriesExceeded(
+                message=f"Tool choice '{self.tool_choice}' not obeyed after {self._tool_choice_error_retries_from_config()} retries",
+                tool_call=message.tool_calls[0] if message.tool_calls else None,
+                tool_calls=message.tool_calls,
+                tool=self.tools.get(self.tool_choice) if (self.tools and self.tool_choice) else None,
+                tool_choice=self.tool_choice,                
+                )
 
     @property
     def return_on(self) -> 'Literal["content", "tool_call", "message"] | ToolName | list[ToolName]':
@@ -425,11 +488,11 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         return any(tool_call.tool_name == _return_on for tool_call in tool_calls)
 
     @property
-    def response_format(self) -> Optional[str]:
+    def response_format(self) -> Optional[Literal["text", "json"] | Tool]:
         return self._unifai_response_format
 
     @response_format.setter
-    def response_format(self, response_format: Optional['Literal["text", "json"] | dict[Literal["json_schema"], dict[str, str] | Type[BaseModel] | Tool]']) -> None:
+    def response_format(self, response_format: Optional['ResponseFormatInput']) -> None:
         if response_format:
             self._unifai_response_format = standardize_response_format(response_format)
             self._client_response_format = self.llm.format_response_format(self._unifai_response_format)
@@ -444,12 +507,13 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         if self._client_examples:
             run_client_messages.extend(self._client_examples)
         run_client_messages.extend(self._client_messages)
+        run_client_tools = list(self._client_tools.values()) if self._client_tools else None
 
         chat_kwargs = dict(
                     messages=run_client_messages,                 
                     model=self.llm_model, 
                     system_prompt=run_system_prompt,
-                    tools=self._client_tools, 
+                    tools=run_client_tools,
                     tool_choice=self._client_tool_choice,
                     response_format=self._client_response_format,
                     max_tokens=self.config.max_tokens_per_run, # TODO 
@@ -477,6 +541,8 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         self._current_run_output_tokens = 0
     
     def _handle_chat_response(self, message: Message, client_message: dict[str, Any]) -> bool:
+        # Always update history with assistant message
+        self.history.append(message)
         # print(f"Assistant Response: {message}")
         self._current_run_messages += 1
 
@@ -494,16 +560,11 @@ class BaseChat(UnifAIComponent[ChatConfigT], Generic[ChatConfigT]):
         if self.enforce_tool_choice and self._unifai_tool_choice is not None:
             if self._check_tool_choice_obeyed(self._unifai_tool_choice, message.tool_calls):
                 self._handle_tool_choice_obeyed(message) # Increment tool_choice_index to next choice in queue
-            elif self.tool_choice_error_retries > 0:
-                self._handle_tool_choice_not_obeyed(message)                
-                return True # continue to next iteration without updating messages (retry)
             else:
-                # TODO use UnifAIErrorType
-                # print("Tool choice error retries exceeded")
-                raise ValueError("Tool choice error retries exceeded")
+                self._handle_tool_choice_not_obeyed(message) # Delete message and raise ToolChoiceErrorRetriesExceeded if retries exceeded         
+                return True # continue to next iteration without updating messages (retry) unless error is raised
             
         # Update messages with assistant message
-        self.history.append(message)
         self._unifai_messages.append(message)
         self._client_messages.append(client_message)
 

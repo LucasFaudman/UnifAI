@@ -60,6 +60,13 @@ class UnifAIComponent(AbstractBaseComponent, Generic[ConfigT]):
     )
     _default_exception: Type[UnifAIError] = UnknownUnifAIError
 
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: Any
+    ):
+        # Proxy to allow pydantic use a component's config to get the schema
+        # which allow the component to be used as a field type of other component configs
+        return cls.config_class.__get_pydantic_core_schema__(source_type, handler)
 
     def __init__(
             self, 
@@ -102,13 +109,22 @@ class UnifAIComponent(AbstractBaseComponent, Generic[ConfigT]):
     def _get_component(
         self,
         component_type: ComponentType,
-        provider_config_or_name: ProviderName | ComponentConfig | tuple[ProviderName, ComponentName],
+        config_or_name: ProviderName | ComponentConfig | tuple[ProviderName, ComponentName],
         **init_kwargs: dict,
     ) -> Any:
         if not self.__get_component:
             raise NotImplementedError(f"{self.__class__.__name__} does not support getting components")
-        return self.__get_component(component_type, provider_config_or_name, init_kwargs)
-
+        return self.__get_component(component_type, config_or_name, init_kwargs)
+    
+    def _get_component_with_config(
+        self,
+        config: ComponentConfig,
+        valid_component_types: Sequence[ComponentType] | Literal["all"] = "all",
+        **init_kwargs: dict,
+    ) -> Any:
+        if valid_component_types != "all" and config.component_type not in valid_component_types:
+            raise ValueError(f"Invalid component type {config.component_type}. Must be one of {valid_component_types}")
+        return self._get_component(config.component_type, config, **init_kwargs)
 
     def with_config(
             self,
@@ -118,7 +134,6 @@ class UnifAIComponent(AbstractBaseComponent, Generic[ConfigT]):
             **init_kwargs
     ):
         _config = config or self.config.model_copy(update=update, deep=deep)
-        # _init_kwargs = init_kwargs or (deepcopy(self._passed_init_kwargs) if deep else self._passed_init_kwargs)
         _init_kwargs = combine_dicts(self._passed_init_kwargs, init_kwargs)
         return type(self)(_config, **_init_kwargs)
 

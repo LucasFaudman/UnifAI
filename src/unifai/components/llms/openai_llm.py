@@ -99,7 +99,7 @@ class OpenAILLM(OpenAIAdapter, LLM):
         return message_dict
     
     def format_assistant_message(self, message: Message) -> dict:
-        message_dict = {"role": "assistant", "content": message.content or ""}
+        message_dict: dict[str, Any] = {"role": "assistant", "content": message.content or ""}
         if message.tool_calls:
             message_dict["tool_calls"] = [
                 {
@@ -158,20 +158,17 @@ class OpenAILLM(OpenAIAdapter, LLM):
 
 
         # Response Format
-    def format_response_format(self, response_format: Union[str, dict]) -> Union[str, dict]:
-
-        if isinstance(response_format, dict) and (response_type := response_format.get("type")):
-            if response_type == "json_schema" and (schema := response_format.get("json_schema")):
-                # TODO handle json_schema
-                # schema = handle_json_schema(schema)
-                return {"type": response_type, response_type: schema}
+    def format_response_format(self, response_format: Optional[Literal["text", "json"] | Tool]) -> Optional[dict]:
+        if not response_format:
+            return None
+        if isinstance(response_format, Tool):
+            return response_format.to_json_schema()
+        if response_format == "text":
+            return {"type": "text"}
+        elif response_format == "json" or response_format == "json_object":
+            return {"type": "json_object"}
         else:
-            response_type = response_format    
-        
-        if response_type in ("json", "json_object", "text"):
-            return {"type": response_type}
-        
-        raise ValueError(f"Invalid response_format: {response_format}")
+            raise ValueError(f"Invalid response_format: {response_format}")
         
     
     # Convert Objects from AI Provider to UnifAI format    

@@ -47,6 +47,13 @@ class ComponentImporter:
             "openai": ".embedders.openai_embedder.OpenAIEmbedder",
             "sentence_transformers": ".embedders.sentence_transformers_embedder.SentenceTransformersEmbedder",
         },
+        "http_client": {
+            "httpx": ".http_clients.httpx_client.HTTPXClient",
+            "requests": ".http_clients.requests_client.RequestsClient",
+        },
+        "input_parser": {
+            "default": ".input_parsers.default_input_parser.InputParser",
+        },
         "function": {
             "default": ".functions.default_function.Function",
         },
@@ -59,6 +66,7 @@ class ComponentImporter:
             "openai": ".llms.openai_llm.OpenAILLM",
         },
         "output_parser": {
+            "default": ".output_parsers.default_output_parser.OutputParser",
             "json_parser": ".output_parsers.json_output_parser.JSONParser",
             "pydantic_parser": ".output_parsers.pydantic_output_parser.PydanticParser",
         },

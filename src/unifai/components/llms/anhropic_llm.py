@@ -208,11 +208,8 @@ class AnthropicLLM(AnthropicAdapter, LLM):
 
 
         # Response Format
-    def format_response_format(self, response_format: Union[str, dict]) -> None:
-        # Warn: response_format is not used by the Anthropic client
-        if response_format: print("Warning: response_format is not used by the Anthropic client")
-        return None
-
+    def format_response_format(self, response_format: Optional[Literal["text", "json"] | Tool]) -> None:
+        raise ProviderUnsupportedFeatureError("Anthropic does not support response_format")
 
     # Convert Objects from AI Provider to UnifAI format    
         # Images

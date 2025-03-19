@@ -1,8 +1,8 @@
 from typing import Callable, Type, Optional, Union, overload, Any
 from pydantic import BaseModel
 
+from ...utils.typing_utils import is_base_model
 from ...types.tool import Tool
-from .construct_tool_parameter import construct_tool_parameter, is_type_and_subclass
 from .tool_from_pydantic import tool_from_pydantic
 from .tool_from_func import tool_from_func
 
@@ -32,7 +32,7 @@ def tool(
     ) -> Tool|Callable[[Callable|Type[BaseModel]], Tool]:
     
     def decorator(func_or_model: Union[Callable[..., Any], Type[BaseModel]]) -> Tool:
-        if is_type_and_subclass(func_or_model, BaseModel):
+        if is_base_model(func_or_model):
             return tool_from_pydantic(
                 model=func_or_model,
                 name=name,

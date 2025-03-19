@@ -84,7 +84,7 @@ class ManpageRagPrompt(RAGPromptModel):
 # Configure the RAGPipe
 rag_config = RAGConfig(
     name="manpage_rag",
-    document_loader=DocumentLoaderConfig(load_documents=load_manpages),
+    document_loader=DocumentLoaderConfig(load_func=load_manpages),
     document_chunker=DocumentChunkerConfig(
         separators=["\n\n", "\n"], 
         keep_separator="start", 
@@ -176,7 +176,7 @@ class BinarySuggestions(BaseModel):
     def __str__(self):
         return "Suggestions:\n" + "\n".join(f"\n{suggestion}" for suggestion in self.suggestions) + f"\nPros and Cons:\n{self.pros_and_cons}"
 
-get_binary_suggestions = ai.function(FunctionConfig(
+get_binary_suggestions = ai.function_from_config(FunctionConfig(
     name="get_binary_suggestions",
     system_prompt=ManspainSystemPrompt(formatting_instructions=None),
     input_parser=BinarySuggestionsPrompt,
@@ -244,7 +244,7 @@ class FixedCommand(BaseModel):
         return f"{self.fix_explanation}\nOriginal Command:\n{self.original_command}\nFixed Command:\n{self.fixed_command}"
 
 
-mansplain_chat_function = ai.function(FunctionConfig(
+mansplain_chat_function = ai.function_from_config(FunctionConfig(
     name="mansplain_chat_function",
     stateless=False,
     system_prompt=ManspainSystemPrompt,

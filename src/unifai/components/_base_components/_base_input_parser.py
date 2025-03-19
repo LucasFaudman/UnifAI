@@ -15,21 +15,30 @@ class InputParser(UnifAIComponent[InputParserConfig[InputP, InputReturnT]], Gene
     config_class = InputParserConfig
     can_get_components = False
 
-    def __init__(self, config: InputParserConfig[InputP, InputReturnT], **init_kwargs) -> None:
-        super().__init__(config, **init_kwargs)
-        self.input_parser = config.input_parser
+    def _setup(self) -> None:
+        super()._setup()
+        if not self.config.callable and self._parse_input is InputParser._parse_input:
+            raise ValueError("A callable must be passed in the InputParserConfig or the _parse_input method must be overridden in a subclass")
+        self._callable = self.config.callable
+        self.return_type = self.config.return_type
 
     def _convert_exception(self, exception: Exception) -> UnifAIError:
         return OutputParserError(f"Error parsing input: {exception}", original_exception=exception)        
 
-    @abstractmethod
     def _parse_input(self, *args: InputP.args, **kwargs: InputP.kwargs) -> InputReturnT:
-        ...
+        if not self._callable:
+            # Should never happen, but just in case
+            raise ValueError("A callable must be passed in the InputParserConfig or the _parse_input method must be overridden in a subclass")
+        if callable(_parsed := self._callable(*args, **kwargs)):
+            return _parsed(*args, **kwargs)
+        return _parsed
 
     def parse_input(self, *args: InputP.args, **kwargs: InputP.kwargs) -> InputReturnT:
-        return self._run_func(self._parse_input, input)
+        return self._run_func(self._parse_input, *args, **kwargs)
     
     def __call__(self, *args: InputP.args, **kwargs: InputP.kwargs) -> InputReturnT:
         return self.parse_input(*args, **kwargs)
     
-
+    @classmethod
+    def from_callable(cls, func: Callable[InputP, InputReturnT]) -> "InputParser[InputP, InputReturnT]":
+        return cls(config=cls.config_class(callable=func))

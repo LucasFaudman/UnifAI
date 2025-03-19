@@ -8,21 +8,34 @@ from ...utils import combine_dicts, as_lists, limit_offset_slice
 from ...configs.document_db_config import DocumentDBConfig, DocumentDBCollectionConfig
 from ...types.annotations import CollectionName
 
-from sqlite3 import connect as sqlite_connect, Error as SQLiteError
+from sqlite3 import connect as sqlite_connect, Error as SQLiteError, Connection
 
-class SQLiteDocumentDBCollection(DocumentDBCollection):
+class ConnectionContextManager:
+    def __init__(self, db: "SQLiteDocumentDB"):
+        self.db = db
+
+    def __enter__(self) -> Connection:
+        return self.db.connection
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.db.db_path != ":memory:":  # Don't close in-memory databases
+            self.db.close()
+
+WrappedConnectionContextManager = Callable[[], ConnectionContextManager]
+
+class SQLiteDocumentDBCollection(DocumentDBCollection[WrappedConnectionContextManager]):
     provider = "sqlite"
 
     def _setup(self):
         super()._setup()
-        self.connection_context_manager = self.wrapped
-        self.table_name = self.init_kwargs.pop("table_name", self.name)
-        self.table_created = self.init_kwargs.pop("table_created", False)
-        if not self.table_created and self.init_kwargs.pop("create_table_on_init", True):
-            self.create_document_table()        
+        self.get_connection = self.wrapped
+        self.table_name = self.name
+        self.table_created = self.config.init_kwargs.get("table_created", False)
+        if not self.table_created and self.config.init_kwargs.get("create_table_on_init", True):
+            self.create_document_table()
 
     def create_document_table(self):
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(f"CREATE TABLE IF NOT EXISTS {self.table_name} (id TEXT PRIMARY KEY, text TEXT, metadata TEXT)")
             conn.commit()
@@ -118,7 +131,7 @@ class SQLiteDocumentDBCollection(DocumentDBCollection):
 
     def _count(self, **kwargs) -> int:
         """Count total number of documents in the collection."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             query = f"SELECT COUNT(*) FROM {self.table_name}"
             
@@ -134,7 +147,7 @@ class SQLiteDocumentDBCollection(DocumentDBCollection):
 
     def _list_ids(self, **kwargs) -> list[str]:
         """List all document IDs in the collection."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             query = f"SELECT id FROM {self.table_name}"
             
@@ -162,7 +175,7 @@ class SQLiteDocumentDBCollection(DocumentDBCollection):
             **kwargs
             ) -> Self:
         """Add documents to the collection."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             ids, metadatas, texts = as_lists(ids, metadatas, texts)
             
@@ -187,7 +200,7 @@ class SQLiteDocumentDBCollection(DocumentDBCollection):
             **kwargs
             ) -> Self:
         """Add documents to the collection."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             
             for document in documents:
@@ -213,7 +226,7 @@ class SQLiteDocumentDBCollection(DocumentDBCollection):
             **kwargs
                 ) -> Self:
         """Update existing documents in the collection."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             ids, metadatas, texts = as_lists(ids, metadatas, texts)
             
@@ -249,7 +262,7 @@ class SQLiteDocumentDBCollection(DocumentDBCollection):
             **kwargs
                 ) -> Self:
         """Update existing documents in the collection."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             
             for document in documents:
@@ -275,7 +288,7 @@ class SQLiteDocumentDBCollection(DocumentDBCollection):
             **kwargs
                 ) -> Self:
         """Upsert documents in the collection."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             ids, metadatas, texts = as_lists(ids, metadatas, texts)
             
@@ -295,7 +308,7 @@ class SQLiteDocumentDBCollection(DocumentDBCollection):
             **kwargs
                 ) -> Self:
         """Upsert documents in the collection."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             
             for document in documents:
@@ -316,7 +329,7 @@ class SQLiteDocumentDBCollection(DocumentDBCollection):
             **kwargs
                ) -> Self:
         """Delete documents from the collection."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             
             # If specific IDs are provided, delete those
@@ -342,7 +355,7 @@ class SQLiteDocumentDBCollection(DocumentDBCollection):
         if not documents:
             return self._delete(where=where, where_document=where_document)
         
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             
             for document in documents:
@@ -374,7 +387,7 @@ class SQLiteDocumentDBCollection(DocumentDBCollection):
         **kwargs
         ) -> GetResult:
         """Retrieve documents from the collection based on optional filters."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             
             # Base query
@@ -423,29 +436,28 @@ class SQLiteDocumentDBCollection(DocumentDBCollection):
             )    
         
 
-class SQLiteDocumentDB(DocumentDB):
+class SQLiteDocumentDB(DocumentDB[SQLiteDocumentDBCollection, WrappedConnectionContextManager]):
     provider = "sqlite"
     collection_class = SQLiteDocumentDBCollection
     
     def _setup(self):
         super()._setup()
         self.db_path = self.init_kwargs.pop("database", None) or self.init_kwargs.pop("db_path", ":memory:")            
-        self.table_name = self.init_kwargs.pop("table_name", "collections")
-        self.table_created = self.init_kwargs.pop("table_created", False)
-        self.connection_kwargs = self.init_kwargs.pop("connection_kwargs", {})                
+        self.connection_kwargs = self.init_kwargs.pop("connection_kwargs", {})
         if self.init_kwargs.pop("connect_on_init", True):
             self.connect()
 
-    def connect(self, **connection_kwargs):
+    def connect(self, **connection_kwargs) -> Connection:
         try:
             self._connection = sqlite_connect(self.db_path, **combine_dicts(self.connection_kwargs, connection_kwargs))
+            return self._connection
         except SQLiteError as e:
             raise DBAPIError(f"Error connecting to SQLite database at '{self.db_path}'", original_exception=e)
 
     @property
-    def connection(self):
+    def connection(self) -> Connection:
         if not hasattr(self, "_connection") or not self._connection:
-            self.connect()
+            return self.connect()
         return self._connection
 
     def close(self):
@@ -458,20 +470,42 @@ class SQLiteDocumentDB(DocumentDB):
     def __del__(self):
         self.close()
     
-    def connection_context_manager(self):
-        class ConnectionContextManager:
-            def __init__(self, db: SQLiteDocumentDB):
-                self.db = db
-
-            def __enter__(self):
-                return self.db.connection
-
-            def __exit__(self, exc_type, exc_value, traceback):
-                if self.db.db_path != ":memory:":  # Don't close in-memory databases
-                    self.db.close()
-                                
+    def get_connection(self) -> ConnectionContextManager:
         return ConnectionContextManager(self)
     
+    def _create_wrapped_collection(
+            self,
+            config: DocumentDBCollectionConfig,
+            **init_kwargs
+    ) -> WrappedConnectionContextManager:
+        """Create a new collection based on the provided configuration."""
+        # Check if collection already exists
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (config.name,))
+            if cursor.fetchone():
+                raise CollectionAlreadyExistsError(f"Collection {config.name} already exists")
+        
+        config.init_kwargs['create_table_on_init'] = True        
+        return self.get_connection
+
+    def _get_wrapped_collection(
+            self,
+            config: DocumentDBCollectionConfig,
+            **init_kwargs
+    ) -> WrappedConnectionContextManager:
+        """Retrieve an existing collection based on the provided configuration."""
+                
+        # Check if collection exists
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (config.name,))
+            if not cursor.fetchone():
+                raise CollectionNotFoundError(f"Collection {config.name} not found")
+
+        config.init_kwargs['create_table_on_init'] = False
+        return self.get_connection
+
     def _list_collections(
             self,
             limit: Optional[int] = None,
@@ -479,7 +513,7 @@ class SQLiteDocumentDB(DocumentDB):
             **kwargs
     ) -> list[str]:
         """List all collections in the database."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = [row[0] for row in cursor.fetchall()]
@@ -492,61 +526,17 @@ class SQLiteDocumentDB(DocumentDB):
 
     def _count_collections(self, **kwargs) -> int:
         """Count the number of collections (tables) in the database."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(name) FROM sqlite_master WHERE type='table'")
             return cursor.fetchone()[0]
 
     def _delete_collection(self, name: CollectionName, **kwargs) -> None:
         """Delete a specific collection (table) from the database."""
-        with self.connection_context_manager() as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             try:
                 cursor.execute(f"DROP TABLE IF EXISTS {name}")
                 conn.commit()
             except SQLiteError as e:
                 raise CollectionNotFoundError(f"Error deleting collection {name}: {e}")
-
-    def _create_collection_from_config(
-            self,
-            config: DocumentDBCollectionConfig,
-            **collection_kwargs
-    ) -> SQLiteDocumentDBCollection:
-        """Create a new collection based on the provided configuration."""
-        collection_name = config.name
-        
-        # Check if collection already exists
-        with self.connection_context_manager() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (collection_name,))
-            if cursor.fetchone():
-                raise CollectionAlreadyExistsError(f"Collection {collection_name} already exists")
-        
-        # Prepare collection kwargs
-        collection_kwargs['wrapped'] = self.connection_context_manager
-        collection_kwargs['table_name'] = collection_name
-        collection_kwargs['create_table_on_init'] = True
-        
-        return self.init_collection_from_wrapped(config, **collection_kwargs)
-
-    def _get_collection_from_config(
-            self,
-            config: DocumentDBCollectionConfig,
-            **collection_kwargs
-    ) -> SQLiteDocumentDBCollection:
-        """Retrieve an existing collection based on the provided configuration."""
-        collection_name = config.name
-        
-        # Check if collection exists
-        with self.connection_context_manager() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (collection_name,))
-            if not cursor.fetchone():
-                raise CollectionNotFoundError(f"Collection {collection_name} not found")
-        
-        # Prepare collection kwargs
-        collection_kwargs['wrapped'] = self.connection_context_manager
-        collection_kwargs['table_name'] = collection_name
-        collection_kwargs['create_table_on_init'] = False
-        
-        return self.init_collection_from_wrapped(config, **collection_kwargs)    

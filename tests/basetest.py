@@ -27,8 +27,8 @@ LLM_CONFIGS = [
     LLMConfig(provider='anthropic'),
     LLMConfig(provider='google'),
     LLMConfig(provider='openai'),
-    LLMConfig(provider='deepseek'),
-    # LLMConfig(provider='ollama', init_kwargs={"host": "http://librem-2.local:11434"}),
+    # LLMConfig(provider='deepseek'),
+    LLMConfig(provider='ollama', init_kwargs={"host": "http://librem-2.local:11434"}),
     # LLMConfig(provider='cohere'),
     # LLMConfig(provider='nvidia')    
 ]
@@ -59,12 +59,12 @@ DOCUMENT_LOADER_CONFIGS = [
 EMBEDDER_CONFIGS = [
     EmbedderConfig(provider='google'),
     EmbedderConfig(provider='openai'),
-    # EmbedderConfig(provider='ollama', init_kwargs={"host": "http://librem-2.local:11434"}),
+    EmbedderConfig(provider='ollama', init_kwargs={"host": "http://librem-2.local:11434"}),
     # EmbedderConfig(provider='chroma'),
     # EmbedderConfig(provider='pinecone'),
     EmbedderConfig(provider='cohere'),
     EmbedderConfig(provider='sentence_transformers'),
-    EmbedderConfig(provider='nvidia')
+    # EmbedderConfig(provider='nvidia')
 ]
 
 FUNCTIONS_CONFIGS = [
@@ -81,7 +81,7 @@ RERANKER_CONFIGS = [
     RerankerConfig(provider='cohere'),
     RerankerConfig(provider='rank_bm25'),
     RerankerConfig(provider='sentence_transformers'),
-    RerankerConfig(provider='nvidia')
+    # RerankerConfig(provider='nvidia')
 ]
 
 TOKENIZER_CONFIGS = [

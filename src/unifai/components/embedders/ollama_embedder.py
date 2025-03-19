@@ -1,6 +1,6 @@
 from typing import Optional, Union, Sequence, Any, Literal, Mapping,  Iterator, Iterable, Generator, Collection
 
-from ollama._types import Options as OllamaOptions
+from ollama._types import Options as OllamaOptions, EmbedResponse
 from ...types import Embeddings, ResponseInfo, Usage
 from ..adapters.ollama_adapter import OllamaAdapter
 from .._base_components._base_embedder import Embedder
@@ -19,7 +19,7 @@ class OllamaEmbedder(OllamaAdapter, Embedder):
             task_type: Optional[str] = None,
             truncate: Literal[False, "end", "start"] = False,
             **kwargs
-            )-> Mapping:
+            )-> EmbedResponse:
         return self.client.embed(
             input=input,
             model=model,
@@ -31,7 +31,7 @@ class OllamaEmbedder(OllamaAdapter, Embedder):
 
     def _extract_embeddings(
             self,            
-            response: Any,
+            response: EmbedResponse,
             model: str,
             **kwargs
             ) -> Embeddings:

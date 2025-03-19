@@ -19,12 +19,19 @@ from ..configs.rag_config import RAGConfig, LoaderInputP, QueryInputP
 
 class UnifAIRAGClient(UnifAIVectorDBClient, UnifAIRerankClient, UnifAIDocumentChunkerClient, UnifAIDocumentLoaderClient):
     
-    def ragpipe(
+    def _get_ragpipe(
             self, 
-            provider_config_or_name: "ProviderName | RAGConfig[LoaderInputP, QueryInputP] | tuple[ProviderName, ComponentName]" = "default",
+            config_or_name: "ProviderName | RAGConfig[LoaderInputP, QueryInputP] | tuple[ProviderName, ComponentName]" = "default",
             **init_kwargs
             ) -> "RAGPipe[LoaderInputP, QueryInputP]":
-        return self._get_component("ragpipe", provider_config_or_name, init_kwargs)
+        return self._get_component("ragpipe", config_or_name, init_kwargs)
+
+    def ragpipe(
+            self, 
+            config_or_name: "ProviderName | RAGConfig[LoaderInputP, QueryInputP] | tuple[ProviderName, ComponentName]" = "default",
+            **init_kwargs
+            ) -> "RAGPipe[LoaderInputP, QueryInputP]":
+        return self._get_component("ragpipe", config_or_name, init_kwargs)
 
     def configure(
         self,

@@ -17,20 +17,24 @@ from unifai.types import (
     RefToolParameter,
     AnyOfToolParameter,
     Tool,
-    PROVIDER_TOOLS
+    PROVIDER_TOOLS,
+    BaseModel,
+    Field
 )
 from basetest import base_test_llms, API_KEYS
 
-from pydantic import BaseModel, Field, ConfigDict
-from enum import Enum
+from pprint import pprint
+from enum import Enum, StrEnum, IntEnum
 from typing import Literal, get_args, get_origin, Any, Optional, Union, TypeVar, ClassVar, TypeAlias, Sequence, Collection, Mapping, List, Annotated, Union
 
 from unifai.type_conversions.tools.tool_from_pydantic import tool_from_pydantic, construct_tool_parameter
 
-
+class Simple(BaseModel):
+    name: str
+    age: int
+    is_student: bool
 
 class Contact(BaseModel):
-    model_config = ConfigDict(use_attribute_docstrings=True)
 
     name: str
     """Name of the contact."""
@@ -65,7 +69,6 @@ class Status(Enum):
 
 
 class Address(BaseModel):
-    model_config = ConfigDict(use_attribute_docstrings=True)
     street: str
     """Street name and number."""
     city: str
@@ -75,7 +78,6 @@ class Address(BaseModel):
 
 
 class User(BaseModel):
-    model_config = ConfigDict(use_attribute_docstrings=True)
         
     name: str
     """The user's full name."""
@@ -110,7 +112,6 @@ class AnnotatedStringEnum(Enum):
     C = 'c'
 
 class ModelWithAllDescriptions(BaseModel):
-    model_config = ConfigDict(use_attribute_docstrings=True)
     string_fd: str = Field(description="String field")
     string_il: str = "String field"
     """String field"""
@@ -159,7 +160,6 @@ class ModelWithAllDescriptions(BaseModel):
     """Optional list of string enum field"""
 
 class SubModel(BaseModel):
-    model_config = ConfigDict(use_attribute_docstrings=True)
     string: str
     integer: int
     number: float
@@ -177,8 +177,7 @@ ListFloatAlias = list[float]|bytes
 ListBoolAlias = list[bool]|bytes
 ListSubModelAlias = list[SubModel]|bytes
 
-class ModelWithAllAnnoCombos(BaseModel):
-    model_config = ConfigDict(use_attribute_docstrings=True)
+class ModelWithAllAnnoCombos1(BaseModel):
 
     string: str
     integer: int
@@ -234,6 +233,9 @@ class ModelWithAllAnnoCombos(BaseModel):
     op_anno_boolean: Optional[Annotated[bool, Field(description="Optional annotated boolean field")]]
     op_anno_submodel: Optional[Annotated[SubModel, Field(description="Optional annotated submodel field")]]
 
+class ModelWithAllAnnoCombos2(BaseModel):
+    "Split to avoid 100 param limit"
+
     string_alias: StringAlias
     integer_alias: IntAlias
     number_alias: FloatAlias
@@ -268,16 +270,8 @@ class ModelWithAllAnnoCombos(BaseModel):
     list_list_literal_integer: list[list[Literal[1, 2, 3]]]
     list_list_literal_boolean: list[list[Literal[True, False]]]
 
-    enum_string: StringEnum
-    op_enum_string: Optional[StringEnum]
-    list_enum_string: list[StringEnum]
-    op_list_enum_string: Optional[list[StringEnum]]
-    list_list_enum_string: list[list[StringEnum]]
-    op_list_list_enum_string: Optional[list[list[StringEnum]]]
-
 
 class ModelSequenceCollections(BaseModel):
-    model_config = ConfigDict(use_attribute_docstrings=True)
     seq_str: Sequence[str]
     seq_int: Sequence[int]
     seq_float: Sequence[float]
@@ -354,14 +348,73 @@ class ModelSequenceCollections(BaseModel):
     # list_list_list_bool_alias: list[list[ListBoolAlias]]
     # list_list_list_submodel_alias: list[list[ListSubModelAlias]]
 
+class MyStrEnum(StrEnum):
+    A = 'a'
+    B = 'b'
+    C = 'c'
+
+class MyIntEnum(IntEnum):
+    A = 1
+    B = 2
+    C = 3
+
+class ModelAllEnumCombos(BaseModel):
+    enum_string: StringEnum
+    op_enum_string: Optional[StringEnum]
+    list_enum_string: list[StringEnum]
+    op_list_enum_string: Optional[list[StringEnum]]
+    list_list_enum_string: list[list[StringEnum]]
+    op_list_list_enum_string: Optional[list[list[StringEnum]]]
+
+    string_enum: StringEnum
+    string_enum_anno: AnnotatedStringEnum
+    op_string_enum: Optional[StringEnum]
+    op_string_enum_anno: Optional[AnnotatedStringEnum]
+    list_string_enum: list[StringEnum]
+    list_string_enum_anno: list[AnnotatedStringEnum]
+    op_list_string_enum: Optional[list[StringEnum]]
+    op_list_string_enum_anno: Optional[list[AnnotatedStringEnum]]
+    list_list_string_enum: list[list[StringEnum]]
+    list_list_string_enum_anno: list[list[AnnotatedStringEnum]]
+    op_list_list_string_enum: Optional[list[list[StringEnum]]]
+    op_list_list_string_enum_anno: Optional[list[list[AnnotatedStringEnum]]]
+    seq_string_enum: Sequence[StringEnum]
+    seq_string_enum_anno: Sequence[AnnotatedStringEnum]
+    op_seq_string_enum: Optional[Sequence[StringEnum]]
+    op_seq_string_enum_anno: Optional[Sequence[AnnotatedStringEnum]]
+    seq_seq_string_enum: Sequence[Sequence[StringEnum]]
+    seq_seq_string_enum_anno: Sequence[Sequence[AnnotatedStringEnum]]
+    op_seq_seq_string_enum: Optional[Sequence[Sequence[StringEnum]]]
+    op_seq_seq_string_enum_anno: Optional[Sequence[Sequence[AnnotatedStringEnum]]]
+
+    my_int_enum: MyIntEnum
+    my_int_enum_anno: Annotated[MyIntEnum, Field(description="Annotated integer enum field")]
+    op_my_int_enum: Optional[MyIntEnum]
+    op_my_int_enum_anno: Optional[Annotated[MyIntEnum, Field(description="Optional annotated integer enum field")]]
+    list_my_int_enum: list[MyIntEnum]
+    list_my_int_enum_anno: list[Annotated[MyIntEnum, Field(description="List of annotated integer enum field")]]
+    op_list_my_int_enum: Optional[list[MyIntEnum]]
+    
+    my_str_enum: MyStrEnum
+    my_str_enum_anno: Annotated[MyStrEnum, Field(description="Annotated string enum field")]
+    op_my_str_enum: Optional[MyStrEnum]
+    op_my_str_enum_anno: Optional[Annotated[MyStrEnum, Field(description="Optional annotated string enum field")]]
+    list_my_str_enum: list[MyStrEnum]
+    list_my_str_enum_anno: list[Annotated[MyStrEnum, Field(description="List of annotated string enum field")]]
+    op_list_my_str_enum: Optional[list[MyStrEnum]]
+    
+
 @base_test_llms
 @pytest.mark.parametrize("bmodel", [
+    Simple,
     User, 
     Address, 
     Contact, 
     ModelWithAllDescriptions, 
-    ModelWithAllAnnoCombos,
-    ModelSequenceCollections
+    ModelWithAllAnnoCombos1,
+    ModelWithAllAnnoCombos2,
+    ModelSequenceCollections,
+    ModelAllEnumCombos,
 ])
 def test_tool_from_base_model(
     provider: ProviderName,
@@ -381,17 +434,43 @@ def test_tool_from_base_model(
     assert all(field_name in param_names for field_name in model_fields)
 
     ai = UnifAI(api_keys=API_KEYS, provider_configs=[{"provider": provider, "init_kwargs": init_kwargs}])    
-    get_model = ai.function(FunctionConfig(output_parser=bmodel))
-            # tools=[return_tool],
-            # tool_choice=return_tool,
-            # return_on='message', 
-            # output_parser=bmodel
 
-    model = get_model("Fill out the model to test the tool input types.")
-    assert model
-    assert isinstance(model, bmodel)
-    assert isinstance(model, BaseModel)
-    print(model)
+    for mode in ("tool_call", "json_schema"):
+        if provider == "anthropic" and mode == "json_schema":
+            continue
+        if provider == "ollama":
+            continue
+        get_model = ai.function(name=f"test_function_{mode}", output_parser=bmodel, structured_outputs_mode=mode)
+
+        model = get_model("Fill out the model to test the tool input types.")
+        assert model
+        assert isinstance(model, bmodel)
+        assert isinstance(model, BaseModel)
+        pprint(model.model_dump())
+        print(f"Passed {provider=} {mode=}")
+
+    # ip = ai.input_parser(
+    #     callable=lambda x: Message(content=x),
+    # )
+    # op = ai.output_parser(
+    #     name='json_any',
+    #     provider="json_parser",
+    #     output_type=Message,
+    #     # return_type=list,
+    # )
+    # fn = ai.function(
+    #     name="test_function",
+    #     input_parser=ip,
+    #     output_parser=op,
+
+    #     response_format="json",
+        
+    # )
+
+
+    # json_output = fn("return a valid json list of something. Return only parseable json. NO other text before or after the json.")
+    # print(json_output)
+    # model = fn("Fill out the model to test the tool input types.")    
 
 # for field_name, field_info in ModelWithAllAnnoCombos.model_fields.items():
 #     # print(field_name, field_info)

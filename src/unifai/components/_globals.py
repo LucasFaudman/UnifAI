@@ -9,6 +9,7 @@ COMPONENT_TYPES = [
     "executor",
     "function",
     "http_client",
+    "input_parser",
     "llm",
     "output_parser",
     "prompt_template",
@@ -103,6 +104,9 @@ PROVIDERS = {
         "selenium",
         "souperscraper",
         "playwright",
+    ],
+    "input_parser": [
+        "default",
     ],
     "llm": [
         "anthropic", 

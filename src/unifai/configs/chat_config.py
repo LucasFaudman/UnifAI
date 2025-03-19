@@ -1,36 +1,41 @@
 from typing import Any, Callable, Collection, Literal, Optional, Sequence, Type, Union, Iterable, Generator, overload, AbstractSet, IO, Pattern, Self, ClassVar, Generic
 
-from ..types.annotations import ComponentName, ModelName, ProviderName, ToolName, ToolInput, BaseModel, InputP
+from ..types.annotations import ComponentName, ModelName, ProviderName, ToolName, ToolInput, BaseModel, InputP, MessageInput
 from ..types import (
     Message,
     Tool,
 )
-from ..components.prompt_templates import PromptModel
-from ._base_configs import ComponentConfig
+from ..exceptions import UnifAIError, ToolChoiceError
+from ..components._base_components._base_prompt_template import PromptModel
+from ..components._base_components._base_tool_caller import ToolCaller
+from ..components._base_components._base_llm import LLM
+
+from ._base_configs import ComponentConfig, _ComponentEndMixin
 from .llm_config import LLMConfig
-from .tokenizer_config import TokenizerConfig
 from .tool_caller_config import ToolCallerConfig
 
-class ChatConfig(ComponentConfig, Generic[InputP]):
-    # name: ClassVar[str] = "chat"
+ChatExtraKwargsKeys = Literal["chat", "system_prompt", "run", "run_stream"]
+
+class _ChatConfig(ComponentConfig, Generic[InputP]):
     component_type: ClassVar = "chat"
     provider: ClassVar[str] = "default" 
 
-    llm: ProviderName | LLMConfig | tuple[ProviderName, ComponentName] = "default"
+    llm: LLM | LLMConfig | ProviderName | tuple[ProviderName, ComponentName] = "default"
     llm_model: Optional[ModelName] = None
 
     system_prompt: Optional[str | Callable[..., str] | PromptModel | Type[PromptModel]] = None
-    examples: Optional[list[Union[Message, dict[Literal["input", "response"], Any]]]] = None
+    system_prompt_kwargs: Optional[dict[str, Any]] = None
+    examples: Optional[list[Message | dict[Literal["input", "response"], Any]]] = None
+    # initial_messages: Optional[Sequence[MessageInput]] = None
     
     tools: Optional[list[ToolInput]] = None
     tool_choice: Optional[ToolName | Tool | Literal["auto", "required", "none"] | list[ToolName | Tool | Literal["auto", "required", "none"]]] = None
     enforce_tool_choice: bool = True
-    tool_choice_error_retries: int = 3
     tool_callables: Optional[dict[ToolName, Callable[..., Any]]] = None
-    tool_caller: Optional[ProviderName | ToolCallerConfig | tuple[ProviderName, ComponentName]] = "default"
+    tool_caller: Optional[ToolCaller | ToolCallerConfig | ProviderName | tuple[ProviderName, ComponentName]] = "default"
 
-    response_format: Optional[Literal["text", "json"] | dict[Literal["json_schema"], dict[str, str] | Type[BaseModel] | Tool]] = None
-    return_on: Union[Literal["content", "tool_call", "message"], ToolName, Tool, list[ToolName | Tool]] = "content"
+    response_format: Optional[Literal["text", "json"] | dict[str, Any] | Type[BaseModel] | Tool] = None
+    return_on: Literal["content", "tool_call", "message"] | ToolName | Tool | list[ToolName | Tool] = "content"
 
     frequency_penalty: Optional[float] = None
     presence_penalty: Optional[float] = None
@@ -45,35 +50,20 @@ class ChatConfig(ComponentConfig, Generic[InputP]):
     max_tokens_per_run: Optional[int] = None
     max_input_tokens_per_run: Optional[int] = None
     max_output_tokens_per_run: Optional[int] = None
-    count_tokens_proactively: bool = False    
-    tokenizer: Optional[TokenizerConfig | ProviderName | tuple[ProviderName, ComponentName]] = None
-    tokenizer_model: Optional[ModelName] = None
+    count_tokens_proactively: bool = False
 
-    error_retries: dict[Literal[
-        "api_error",
-        "content_filter_error",
-        "tool_choice_error", 
-        "tool_call_argument_validation_error",
-        "tool_call_execution_error",
-        "tool_call_timeout_error",
-    ], int] = {
-        "api_error": 0,
-        "content_filter_error": 0,
-        "tool_choice_error": 3, 
-        "tool_call_argument_validation_error": 3,
-        "tool_call_execution_error": 0,
-        "tool_call_timeout_error": 0,
-    }
-    error_handlers: dict[Literal[
-        "api_error",
-        "content_filter_error",
-        "tool_choice_error", 
-        "tool_call_argument_validation_error",
-        "tool_call_execution_error",
-        "tool_call_timeout_error",
-    ], Callable[..., Any]] = {}
+    # error_retries: dict[Type[UnifAIError | Exception], int] = {
+    #     ToolChoiceError: 3,
+    # }
+    # error_handlers: dict[Type[UnifAIError | Exception], Callable] = {}
 
-    extra_kwargs: Optional[dict[Literal["chat", "system_prompt", "run", "run_stream"], dict[str, Any]]] = None
+    # extra_kwargs: Optional[dict[Literal["chat", "system_prompt", "run", "run_stream"], dict[str, Any]]] = None
 
+class ChatConfig(
+    _ComponentEndMixin[Literal["chat", "system_prompt", "run", "run_stream"]], 
+    _ChatConfig[InputP], 
+    Generic[InputP]
+    ):
+    """"""
 
-DEFAULT_CHAT_CONFIG = ChatConfig()
+ChatConfig()

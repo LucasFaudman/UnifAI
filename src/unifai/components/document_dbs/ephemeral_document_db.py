@@ -1,7 +1,6 @@
 from typing import Type, Optional, Sequence, Any, Union, Literal, TypeVar, Iterable,  Callable, Iterator, Collection, Generator, Self, TypeAlias
 from itertools import zip_longest
 
-
 from ...exceptions.db_errors import CollectionAlreadyExistsError, CollectionNotFoundError, DocumentAlreadyExistsError, DocumentNotFoundError
 from ...types import Document, Documents, GetResult
 from ...types.annotations import CollectionName
@@ -177,6 +176,28 @@ class EphemeralDocumentDB(DocumentDB[EphemeralDocumentDBCollection, DataDict]):
     def _setup(self) -> None:
         super()._setup()
         self._data = self.init_kwargs.get("data", {})
+
+    def _create_wrapped_collection(
+            self,
+            config: DocumentDBCollectionConfig,
+            **collection_kwargs
+    ) -> DataDict:
+        collection_name = config.name
+        if collection_name in self.collections:
+            raise CollectionAlreadyExistsError(f"Collection with name {collection_name} already exists in database {self.name}")
+        wrapped = {}
+        self._data[collection_name] = wrapped
+        return wrapped
+
+    def _get_wrapped_collection(
+            self,
+            config: DocumentDBCollectionConfig,
+            **collection_kwargs
+    ) -> DataDict:
+        collection_name = config.name
+        if (wrapped := self._data.get(collection_name)) is None:
+            raise CollectionNotFoundError(f"Collection with name {collection_name} not found in database {self.name}")
+        return wrapped        
     
     def _list_collections(
             self,
@@ -195,28 +216,3 @@ class EphemeralDocumentDB(DocumentDB[EphemeralDocumentDBCollection, DataDict]):
             del self._data[name]
         except KeyError:
             raise CollectionNotFoundError(f"Collection with name {name} not found in database {self.name}")
-
-    def _create_collection_from_config(
-            self,
-            config: DocumentDBCollectionConfig,
-            **collection_kwargs
-    ) -> EphemeralDocumentDBCollection:
-        collection_name = config.name
-        if collection_name in self.collections:
-            raise CollectionAlreadyExistsError(f"Collection with name {collection_name} already exists in database {self.name}")
-        wrapped = {}
-        self._data[collection_name] = wrapped
-        return self.init_collection_from_wrapped(config, wrapped, **collection_kwargs)
-
-    def _get_collection_from_config(
-            self,
-            config: DocumentDBCollectionConfig,
-            **collection_kwargs
-    ) -> EphemeralDocumentDBCollection:
-        collection_name = config.name
-        if (wrapped := self._data.get(collection_name)) is None:
-            raise CollectionNotFoundError(f"Collection with name {collection_name} not found in database {self.name}")
-        return self.init_collection_from_wrapped(config, wrapped, **collection_kwargs)
-
-        
-        

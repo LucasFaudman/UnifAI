@@ -146,7 +146,7 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             limit: Optional[int] = None,
             offset: Optional[int] = None,            
             **kwargs
-    ) -> list[Document]:
+    ) -> Documents:
         return self.get(ids, where, where_document, include, limit, offset, **kwargs).to_documents()
 
 
@@ -256,7 +256,7 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
             limit: Optional[int] = None,
             offset: Optional[int] = None,            
             **kwargs
-    ) -> list[Document]:
+    ) -> Documents:
         return self._run_func(self._get_documents, ids, where, where_document, include, limit, offset, **kwargs)
 
     def get_document(
@@ -269,7 +269,7 @@ class BaseDBCollection(UnifAIComponent[CollectionConfigT], Generic[CollectionCon
     def get_all_documents(
             self,
             **kwargs
-    ) -> list[Document]:
+    ) -> Documents:
         return self.get_all(**kwargs).to_documents()
 
 
@@ -289,20 +289,20 @@ class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, Col
         self.collections = {}
 
     @abstractmethod
-    def _create_collection_from_config(
+    def _create_wrapped_collection(
             self,
             config: CollectionConfigT,
-            **kwargs
-    ) -> CollectionT:  
-        pass
+            **init_kwargs
+    ) -> WrappedT:  
+        ...
     
     @abstractmethod
-    def _get_collection_from_config(
+    def _get_wrapped_collection(
             self,
             config: CollectionConfigT,
-            **kwargs
-    ) -> CollectionT:
-        pass    
+            **init_kwargs
+    ) -> WrappedT:
+        ...        
 
     @abstractmethod
     def _list_collections(
@@ -311,85 +311,96 @@ class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, Col
             offset: Optional[int] = None, # woop woop,
             **kwargs
     ) -> list[str]:
-        pass
+        ...
     
     @abstractmethod
     def _count_collections(self, **kwargs) -> int:
-        pass
+        ...
 
     @abstractmethod
     def _delete_collection(self, name: CollectionName, **kwargs) -> None:
-        pass        
+        ...        
 
     
-    # Concrete Methods            
-    def init_collection_from_wrapped(
+    # Concrete Methods
+    def _init_collection_from_wrapped(
             self, 
             config: CollectionConfigT, 
             wrapped: WrappedT,
-            **kwargs
+            **init_kwargs
     ) -> CollectionT:
-        collection = self.collection_class(config, wrapped=wrapped, **kwargs)
+        collection = self.collection_class(config, wrapped=wrapped, **init_kwargs)
         self.collections[config.name] = collection
         return collection
+
+    def _init_collection_config_components(
+            self,
+            config: CollectionConfigT,
+            **init_kwargs
+    ) -> CollectionConfigT:
+        return config
 
     def create_collection_from_config(
             self,
             config: CollectionConfigT,
-            **kwargs
-    ) -> CollectionT:  
-        return self._run_func(self._create_collection_from_config, config, **kwargs)
+            **init_kwargs
+    ) -> CollectionT:
+        config = self._run_func(self._init_collection_config_components, config, **init_kwargs)
+        wrapped = self._run_func(self._create_wrapped_collection, config, **init_kwargs)
+        return self._run_func(self._init_collection_from_wrapped, config, wrapped, **init_kwargs)
     
     def get_collection_from_config(
             self,
             config: CollectionConfigT,
-            **kwargs
+            **init_kwargs
     ) -> CollectionT:
-        return self._run_func(self._get_collection_from_config, config, **kwargs)
+        config = self._run_func(self._init_collection_config_components, config, **init_kwargs)
+        wrapped = self._run_func(self._get_wrapped_collection, config, **init_kwargs)
+        return self._run_func(self._init_collection_from_wrapped, config, wrapped, **init_kwargs)
     
     def get_or_create_collection_from_config(
             self,
             config: CollectionConfigT,
-            **kwargs
+            **init_kwargs
     ) -> CollectionT:        
         try:
-            return self.get_collection_from_config(config)
+            return self.get_collection_from_config(config, **init_kwargs)
         except (CollectionNotFoundError, NotFoundError, BadRequestError):
-            return self.create_collection_from_config(config)
+            return self.create_collection_from_config(config, **init_kwargs)
 
-    def _kwargs_to_collection_config(self, **collection_kwargs)-> CollectionConfigT:
+    def _kwargs_to_collection_config(self, **init_kwargs)-> CollectionConfigT:
         config = self.config.default_collection.model_copy(deep=True)
         config.provider = self.provider
         
         config_fields = config.model_fields
-        for key in list(collection_kwargs.keys()):
+        for key in list(init_kwargs.keys()):
             if key in config_fields:
-                value = collection_kwargs.pop(key)
+                value = init_kwargs.pop(key)
                 if value is not None or (value is None and key in config.model_fields_set):
                     setattr(config, key, value)
-        config.init_kwargs.update(collection_kwargs)
+        config.init_kwargs.update(init_kwargs)
         return config
 
     def create_collection(
             self,
             name: CollectionName = "default_collection",
-            **collection_kwargs
+            **init_kwargs
     ) -> CollectionT:
-        return self.create_collection_from_config(self._kwargs_to_collection_config(name=name, **collection_kwargs))
+        return self.create_collection_from_config(self._kwargs_to_collection_config(name=name, **init_kwargs))
     
     def get_collection(
             self,
             name: CollectionName = "default_collection",
-            **collection_kwargs
+            **init_kwargs
     ) -> CollectionT:
-        return self.get_collection_from_config(self._kwargs_to_collection_config(name=name, **collection_kwargs))
+        return self.get_collection_from_config(self._kwargs_to_collection_config(name=name, **init_kwargs))
     
     def get_or_create_collection(
             self,
             name: CollectionName = "default_collection",
-            **collection_kwargs
+            **init_kwargs
     ) -> CollectionT:
-        return self.get_or_create_collection_from_config(self._kwargs_to_collection_config(name=name, **collection_kwargs))
+        return self.get_or_create_collection_from_config(self._kwargs_to_collection_config(name=name, **init_kwargs))
             
     def list_collections(
             self,
@@ -520,7 +531,7 @@ class BaseDB(UnifAIAdapter[DBConfigT], Generic[DBConfigT, CollectionConfigT, Col
             where_document: Optional[dict] = None,
             include: list[Literal["metadatas", "texts"]] = ["metadatas", "texts"],
             **kwargs
-    ) -> list[Document]:
+    ) -> Documents:
         return self._resolve_collection(collection).get_documents(ids, where, where_document, include, limit, offset, **kwargs)
     
     def get_document(

@@ -5,25 +5,46 @@ if TYPE_CHECKING:
     from ..types.annotations import ComponentName, ProviderName
     from ..types.documents import Document, Documents
     from ..components._base_components._base_embedder import Embedder, Embeddings
-    from ..configs.embedder_config import EmbedderConfig
 
+from ..utils import copy_init_from
+from ..configs.embedder_config import EmbedderConfig
 from ._base_client import BaseClient
 
     
 class UnifAIEmbedClient(BaseClient):
 
-    def embedder(
+    def _get_embedder(
             self, 
-            provider_config_or_name: "ProviderName | EmbedderConfig | tuple[ProviderName, ComponentName]" = "default",      
+            config_or_name: "EmbedderConfig | ProviderName | tuple[ProviderName, ComponentName]" = "default",      
             **init_kwargs
             ) -> "Embedder":
-        return self._get_component("embedder", provider_config_or_name, init_kwargs)
+        return self._get_component("embedder", config_or_name, init_kwargs)
+
+    def embedder_from_config(
+            self, 
+            config: "EmbedderConfig",
+            **init_kwargs
+            ) -> "Embedder":
+        return self._get_component("embedder", config, init_kwargs)
+    
+    def embedder_from_name(
+            self,
+            provider: "ProviderName" = "default",
+            name: "ComponentName" = "default",
+            **init_kwargs
+            ) -> "Embedder":
+        return self._get_component("embedder", (provider, name), init_kwargs)
+
+    @copy_init_from(EmbedderConfig.__init__)
+    def embedder(self, *args, **kwargs) -> "Embedder":
+        config = EmbedderConfig(*args, **kwargs)
+        return self._get_embedder(config)
 
     # Embeddings
     def embed(
         self,            
         input: str | list[str],
-        provider_config_or_name: "ProviderName | EmbedderConfig | tuple[ProviderName, ComponentName]" = "default",
+        config_or_name: "EmbedderConfig | ProviderName | tuple[ProviderName, ComponentName]" = "default",
         model: Optional[str] = None,        
         dimensions: Optional[int] = None,
         task_type: Optional[Literal[
@@ -42,7 +63,7 @@ class UnifAIEmbedClient(BaseClient):
         **kwargs
         ) -> "Embeddings":
         
-        return self.embedder(provider_config_or_name).embed(
+        return self._get_embedder(config_or_name).embed(
             input,
             model=model,
             dimensions=dimensions,
@@ -56,7 +77,7 @@ class UnifAIEmbedClient(BaseClient):
     def embed_documents(
             self,            
             documents: Iterable["Document"],
-            provider_config_or_name: "ProviderName | EmbedderConfig | tuple[ProviderName, ComponentName]" = "default",
+            config_or_name: "EmbedderConfig | ProviderName | tuple[ProviderName, ComponentName]" = "default",
             model: Optional[str] = None,
             dimensions: Optional[int] = None,
             task_type: Optional[Literal[
@@ -75,7 +96,7 @@ class UnifAIEmbedClient(BaseClient):
             batch_size: Optional[int] = None,           
             **kwargs
             ) -> "Documents":
-        return self.embedder(provider_config_or_name).embed_documents(
+        return self._get_embedder(config_or_name).embed_documents(
             documents,
             model=model,
             dimensions=dimensions,

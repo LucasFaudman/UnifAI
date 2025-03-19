@@ -28,22 +28,35 @@ class BaseDocumentLoader(UnifAIComponent[DocumentLoaderConfigT], Generic[Documen
     
     def _setup(self) -> None:
         super()._setup()
-        if callable(self.config.load_documents) and self.config.load_documents != iload_documents_mock:
-            self._iload_documents = self.config.load_documents
-           
+        load_func = self.config.load_func
+        if callable(load_func) and load_func != iload_documents_mock:
+            self._iload_documents = load_func
+        elif load_func == "default" and self._iload_documents == BaseDocumentLoader._iload_documents:
+            raise NotImplementedError("_iload_documents must be implemented in a subclass a callable must be provided in the config")
+
+        process_func = self.config.process_func
+        if callable(process_func):
+            self._process_document = process_func
+
+    @staticmethod
+    def _process_document(document: Document, /) -> Document:
+        return document
     
-    # @abstractmethod
+    def process_document(self, document: Document) -> Document:
+        return self._run_func(self._process_document, document)
+                
     def _iload_documents(self, *args: InputP.args, **kwargs: InputP.kwargs) -> Iterable[Document] | Generator[Document, None, ResponseInfo | None]:
-        raise NotImplementedError
+        raise NotImplementedError("_iload_documents must be implemented in a subclass or a callable must be provided in the config")
     
-    # @copy_signature_from(_iload_documents)
     def iload_documents(self, *args: InputP.args, **kwargs: InputP.kwargs) -> Generator[Document, None, ResponseInfo | None]:
-        return self._run_generator(self._iload_documents, *args, **kwargs)
+        load_gen = self._run_generator(self._iload_documents, *args, **kwargs)
+        yield from map(self.process_document, load_gen)
         
     def load_documents(self, *args: InputP.args, **kwargs: InputP.kwargs) -> Documents:
         return Documents.from_generator(self.iload_documents(*args, **kwargs))
     
-    __call__ = iload_documents
+    def __call__(self, *args: InputP.args, **kwargs: InputP.kwargs) -> Documents:
+        return self.load_documents(*args, **kwargs)
 
     def load_document(self, *args: InputP.args, **kwargs: InputP.kwargs) -> Document:
         return _next(self.iload_documents(*args, **kwargs))
@@ -217,4 +230,11 @@ class FileIODocumentLoader(BaseDocumentLoader[FileIODocumentLoaderConfig[InputP,
             ) -> Documents:
         return Documents.from_generator(self.iload_documents(sources, metadatas, *args, **kwargs))
     
-    __call__ = iload_documents
+    def __call__(
+            self, 
+            sources: Iterable[SourceT], 
+            metadatas: Optional[Iterable[SourceT|dict|None]] = None,  
+            *args,
+            **kwargs
+            ) -> Documents:
+        return self.load_documents(sources, metadatas, *args, **kwargs) 
